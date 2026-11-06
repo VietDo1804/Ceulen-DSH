@@ -736,7 +736,7 @@ export async function runRuntimeAudit(options: { url: string; cwd: string; viewp
       severity: 'high',
       check: 'off-palette',
       message: `This page uses colours that are not in DESIGN.md: ${off.join(', ')}`,
-      detail: 'Use the tokens in DESIGN.md. A concept inside a product keeps them too. Only a user request for a new identity overrides this, and then say so in your reply.',
+      detail: 'Use the tokens in DESIGN.md, and its status colours for a colorful page. A concept keeps them too. Do not finish with this finding unless the request contains the words "new identity", "rebrand", or "ignore DESIGN.md". "Premium", "colors", and "attractive" do not count.',
       seenAt: [FRAME_VIEWPORT.width],
     })
   }
