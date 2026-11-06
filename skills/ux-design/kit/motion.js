@@ -482,7 +482,8 @@
 
   const kinds = [
     ['li[data-arrive]', 'row'],
-    ['[data-arrive]:not(li)', 'card'],
+    /* a table row keeps still under the pointer: it would slide over the rows beside it */
+    ['[data-arrive]:not(li, tr)', 'card'],
     ['[data-filter]', 'chip'],
     ['[data-count]', 'number'],
     ['.m-word', 'word'],

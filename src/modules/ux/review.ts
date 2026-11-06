@@ -495,6 +495,24 @@ export function chartChecks(): { findings: RuntimeFinding[] } {
 }
 
 /** Freezes every running animation at its start and reports the timeline. */
+/**
+ * An app paints after load, so a check that runs at load reads an empty page and
+ * reports what is missing from it. Waits for visible text, then for the page to
+ * stop changing for `quietMs`, capped so a live page cannot hold the audit. A
+ * page with no scripts has nothing to wait for.
+ */
+export const settleStep = (quietMs: number): string => `new Promise((done) => {
+  if (document.scripts.length === 0) { done(true); return }
+  let timer = 0
+  const hasText = () => document.body !== null && document.body.innerText.trim() !== ''
+  const finish = () => { watcher.disconnect(); clearTimeout(cap); clearTimeout(timer); done(true) }
+  const arm = () => { clearTimeout(timer); if (hasText()) timer = setTimeout(finish, ${quietMs}) }
+  const watcher = new MutationObserver(arm)
+  const cap = setTimeout(finish, 4000)
+  watcher.observe(document.documentElement, { childList: true, subtree: true })
+  arm()
+})`
+
 const FREEZE_STEP = `(() => {
   const list = document.getAnimations().filter((animation) => animation.timeline === document.timeline);
   list.forEach((animation) => animation.pause());
@@ -542,17 +560,18 @@ async function motionPass(url: string, wantFrames: boolean, signal?: AbortSignal
       url,
       viewport: FRAME_VIEWPORT,
       steps: [
+        // Text only, not quiet: a page's load animation must still be running for the frames.
+        { evaluate: settleStep(0), label: 'first-text' },
         { evaluate: `(${motionChecks.toString()})()`, label: 'motion' },
         ...(wantFrames ? frameSteps : []),
-        // An app renders after load, and these two read what it rendered.
-        { evaluate: 'new Promise((done) => setTimeout(done, 800))', label: 'settle' },
+        { evaluate: settleStep(500), label: 'settle' },
         { evaluate: `(${chartChecks.toString()})()`, label: 'charts' },
         { evaluate: `(${arrivalChecks.toString()})()`, label: 'arrivals' },
       ],
       stepTimeoutMs: 30_000,
       signal,
     })
-    const checked = result.outcomes[0]?.value as ReturnType<typeof motionChecks> | undefined
+    const checked = result.outcomes[1]?.value as ReturnType<typeof motionChecks> | undefined
     const arrivals = result.outcomes.at(-1)?.value as Awaited<ReturnType<typeof arrivalChecks>> | undefined
     const charts = result.outcomes.at(-2)?.value as ReturnType<typeof chartChecks> | undefined
     const base = {
@@ -560,11 +579,11 @@ async function motionPass(url: string, wantFrames: boolean, signal?: AbortSignal
       ...(checked === undefined ? {} : { summary: { animations: checked.animations, transitions: checked.transitions, scrollLinked: checked.scrollLinked } }),
     }
     if (checked === undefined) {
-      const reason = result.outcomes[0]?.error ?? 'the page did not answer'
+      const reason = result.outcomes[1]?.error ?? 'the page did not answer'
       return { ...base, ...(wantFrames ? { frames: [] } : {}), framesNote: `motion checks did not run: ${reason.slice(0, 160)}` }
     }
     if (!wantFrames) return base
-    const timeline = result.outcomes[1]?.value as { count?: number; end?: number } | undefined
+    const timeline = result.outcomes[2]?.value as { count?: number; end?: number } | undefined
     if (timeline?.count === undefined || timeline.count === 0) {
       return { ...base, frames: [], framesNote: 'no CSS or Web Animations motion was running at page load, so there is nothing to film' }
     }
@@ -614,6 +633,7 @@ export async function runRuntimeAudit(options: { url: string; cwd: string; viewp
         viewport: { width, height: HEIGHTS[width] ?? 900 },
         reducedMotion: true,
         steps: [
+          { evaluate: settleStep(500), label: `settle@${width}` },
           { evaluate: SCROLL_STEP, label: `scroll@${width}` },
           { evaluate: `(${pageChecks.toString()})()`, label: `checks@${width}` },
         ],
@@ -629,7 +649,7 @@ export async function runRuntimeAudit(options: { url: string; cwd: string; viewp
       }
       throw error
     }
-    const step = result.outcomes[1]
+    const step = result.outcomes[2]
     if (step === undefined || !step.ok) {
       throw new Error(`Runtime check failed at ${width}px: ${step?.error ?? 'no result returned'}`)
     }
