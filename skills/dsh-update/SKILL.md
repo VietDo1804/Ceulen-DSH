@@ -76,25 +76,30 @@ If a bundle is now denied, the startup error names it — fix `engines.dsh`
 dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@^<minor>
 node -p "require(process.env.HOME+'/.dsh/profiles/tui/node_modules/@deepseek-harness-tui/dsh-tui/package.json').version"
 
-node scripts/tui-advisor-patch.mjs apply
-node scripts/tui-advisor-patch.mjs check
-node scripts/tui-toolname-patch.mjs apply
-node scripts/tui-toolname-patch.mjs check
+# ALL FOUR patches: each edits a file inside the installed dsh-tui package, so
+# an add/remove/reinstall wipes every one of them.
+for p in advisor context toolname plan; do node scripts/tui-$p-patch.mjs apply; done
+for p in advisor context toolname plan; do node scripts/tui-$p-patch.mjs check; done
 ```
 
 - `dsh plugin update` respects the profile's existing `^range` and will not
   cross a minor. `add` with the new spec is what moves it.
-- The advisor transcript patch is still required; its anchors have matched from
-  0.16.1 through 0.18.0, and `apply` fails loudly when they move.
-- The tool-name alias patch (grep tool renders as `fff`) is required
-  on every version; re-apply it after each `add`.
-- `/ceulen doctor` reports `tool-names applied|stock` alongside the other patch
-  states, so a lost patch is visible instead of silent.
+- Four patches ride the installed dsh-tui tree, and a missed one breaks silently:
+  `advisor` (reviewer notes in the transcript), `context` (`/context` opens the
+  dashboard instead of the loaded-context text dump), `toolname` (grep tool
+  renders as `fff`, not `Fff_grep`), `plan` (bare `/plan` toggles and the footer
+  names plan mode). `apply` fails loudly when an anchor moves; `check` exits 1
+  when not applied.
+- dsh-tui 0.19.0 dropped the context patch with no warning (2026-11-06):
+  `/context` still answered, it just dumped the stock report again. That is why
+  the loop covers four, not the two this section used to list.
+- `/ceulen doctor` prints all four states (`advisor-block`, `context-redirect`,
+  `tool-names`, `plan-mode`); a `stock (…)` segment names the script to run.
 - The usage footer needs no patch on **dsh-tui >= 0.17.0** (native
-  `tuiStatus.setField`). The 0.16.1 footer patch was deleted (plan 5.5): the
-  shipped TUI is 0.18.0, and the usage module already prefers `setField`.
-- Re-apply patches after every `dsh plugin add/remove` — pnpm rewrites the
-  package tree.
+  `tuiStatus.setField`). The 0.16.1 footer patch was deleted (plan 5.5), and the
+  usage module prefers `setField`.
+- Re-apply all four after every `dsh plugin add/remove`/`update` — pnpm rewrites
+  the package tree and the patch files live inside it.
 
 ## 5. Sync ceulen-dsh
 
@@ -135,7 +140,10 @@ ACP/headless workers. Kill other TUI processes only with the user's approval.
 Verify after restart:
 
 - `/ceulen doctor` → `tui footer: tui:<version> footer-native` (or
-  `footer-applied` on 0.16.x) and `advisor-block applied`.
+  `footer-applied` on 0.16.x) and all four patches `applied`; a `stock (…)`
+  segment means that patch is missing — run its script and restart again.
+- `/context` renders the colour dashboard (that is `context-redirect applied`
+  proving itself).
 - One turn on a subscription route → the usage segment appears in the footer.
 - `dsh --profile web --help` exits 0; `dsh --profile acp --dump-config` still
   composes if that profile is used.
@@ -149,7 +157,7 @@ npm i -g --allow-scripts=@deepseek-ai/dsh-subprocess-local,koffi,node-pty,@googl
   @deepseek-ai/dsh@<old-core>
 # restore engines.dsh + README pins, then:
 dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@^<old-tui>
-node scripts/tui-advisor-patch.mjs apply
+for p in advisor context toolname plan; do node scripts/tui-$p-patch.mjs apply; done
 ```
 
 ## Gotchas
