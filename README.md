@@ -2,7 +2,7 @@
 
 Ceulen's toolkit for **DeepSeek Harness** (DSH): reviewer, memory, rules with behaviour guards, cron, GitHub, web extraction, A2A, UX audit, themes, structural search, an evidence-gated self-evolution loop, and a built-in upstream release watcher — installed as one DSH bundle.
 
-Ceulen itself is a Pi extension bundle. DSH has a different plugin API, so this project is an independent port: UI-independent logic is vendored from Ceulen (MIT), and each feature gets a thin DSH adapter. See [docs/parity.md](docs/parity.md) for the module-by-module status.
+Ceulen itself is a Pi extension bundle. DSH has a different plugin API, so this project is an independent port: UI-independent logic is vendored from Ceulen (MIT), and each feature gets a thin DSH adapter. The module-by-module status lives in `docs/parity.md` (kept with the source checkout, not published).
 
 ## Requirements
 
@@ -41,7 +41,7 @@ You should see the release line (`ceulen-dsh 0.2.2 (stable)`), the pinned
 Ceulen version, and the mounted/native/planned modules.
 
 This checkout is already linked into `~/.dsh/profiles/tui`. The bundle composes
-31 rows. See [docs/live-verification.md](docs/live-verification.md).
+31 rows. See `docs/live-verification.md` for the evidence.
 
 ### Release line
 
@@ -66,7 +66,7 @@ inventing one. `/ceulen doctor` prints the line and dist-tag it follows.
 | GitHub | read-only `github` tool over the `gh` CLI |
 | Ponytail | `/ponytail off|lite|full|ultra`, prompt discipline, skills |
 | Skills | all 19 bundled skill packs registered (15 ported from Ceulen) |
-| Evolve | `/evo` session postmortem → session ledger → Munin; `npm run evo` digests finished sessions for the daily `evo-daily` cron; `/evo-cycle` scans every session, rebuilds the report and spawns a worker on the model chosen in `/ceulen-config → Model → Evo` to fix, test, store Munin memory and notify; `evo_notice` shows a 💾 Self-improvement block; `/evo-status` groups proposals by destination; `/evo-probe` runs a proposal against recorded fixtures in base/candidate worktrees and writes a contrast record; `/evo-apply` refuses an unprobed proposal; `evo_pass` runs the improvement pass; see [docs/evo.md](docs/evo.md) |
+| Evolve | `/evo` session postmortem → session ledger → Munin; `npm run evo` digests finished sessions for the daily `evo-daily` cron; `/evo-cycle` scans every session, rebuilds the report and spawns a worker on the model chosen in `/ceulen-config → Model → Evo` to fix, test, store Munin memory and notify; `evo_notice` shows a 💾 Self-improvement block; `/evo-status` groups proposals by destination; `/evo-probe` runs a proposal against recorded fixtures in base/candidate worktrees and writes a contrast record; `/evo-apply` refuses an unprobed proposal; `evo_pass` runs the improvement pass; see `docs/evo.md` |
 | Cron | `cron` tool, `/cron`, persisted jobs fired into the live session |
 | Classifier | `classify` typed decisions, bash audit, `/classifier` (audit + enforce) |
 | Repair | `apply_patch`, `read_slice` |
@@ -219,7 +219,7 @@ Not ported: the `models` namespace (scripts can call the `classify` tool
 instead), `text()`/`image()` (redundant with `return` here), and
 `searchTools`/`ALL_TOOLS` (every visible tool is bound by exact name). The
 runtime is a Node subprocess, not QuickJS: treat scripts as bash-level trust,
-not a security sandbox. See [docs/codemode-plan.md](docs/codemode-plan.md) for
+not a security sandbox. See `docs/codemode-plan.md` for
 the research and the parity matrix.
 
 ### Advisor
@@ -430,7 +430,7 @@ npm run check
 node scripts/ceulen-sync.mjs bump --version <new>
 ```
 
-`apply-vendor` only upgrades files whose local hash still matches the lock. Files marked `patched` (DSH path/import changes) are never overwritten; they become a manual-merge report. Nothing from upstream is executed. Full runbook: [docs/upstream-sync.md](docs/upstream-sync.md).
+`apply-vendor` only upgrades files whose local hash still matches the lock. Files marked `patched` (DSH path/import changes) are never overwritten; they become a manual-merge report. Nothing from upstream is executed. Full runbook: `docs/upstream-sync.md`.
 
 ## Development
 

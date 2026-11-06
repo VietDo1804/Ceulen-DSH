@@ -630,9 +630,11 @@ async function cmdParity() {
     try {
       current = await readFile(docsPath, 'utf8')
     } catch {
-      fail('docs/parity.md is missing; run node scripts/ceulen-sync.mjs parity')
+      // docs/ is internal-only; a public checkout without it skips the
+      // freshness check instead of failing CI.
+      current = null
     }
-    if (current !== expected) fail('docs/parity.md is stale; run node scripts/ceulen-sync.mjs parity')
+    if (current !== null && current !== expected) fail('docs/parity.md is stale; run node scripts/ceulen-sync.mjs parity')
     const drifted = await vendoredDrift()
     if (drifted.length > 0) {
       fail(
@@ -642,7 +644,7 @@ async function cmdParity() {
       )
     }
     if (options.json === true) console.log(JSON.stringify({ ok: true, modules: parity.modules.length }, null, 2))
-    else log(`parity: ${parity.modules.length} modules, docs up to date, vendored hashes match`)
+    else log(`parity: ${parity.modules.length} modules, ${current === null ? 'docs not published' : 'docs up to date'}, vendored hashes match`)
     return 0
   }
   await mkdir(dirname(docsPath), { recursive: true })

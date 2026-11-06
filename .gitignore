@@ -16,3 +16,6 @@ coverage/
 
 # tsc build metadata
 *.tsbuildinfo
+
+# internal-only notes: kept on disk, never published to the public repo
+docs/
