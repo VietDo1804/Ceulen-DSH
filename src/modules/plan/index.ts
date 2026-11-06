@@ -12,9 +12,9 @@
  *     here, clear context and implement (a fresh session when the client
  *     honours the question's intent, native `compactNow` + execute otherwise),
  *     or keep planning — over the native userQuestions service.
- *   - Per-phase routes: `plan.model` answers requests while plan mode is
- *     active, `plan.implement` answers them once a plan was submitted (the
- *     approved plan, or a fresh session seeded with the execution handoff).
+ *   - Per-phase routes: `plan.model` selects the route while plan mode is
+ *     active, `plan.implement` once a plan was submitted (the approved plan,
+ *     or a fresh session seeded with the execution handoff).
  *
  * The transcript is scanned on the `tool/call` session event (earliest
  * moment the draft exists) and again at turn boundaries: DSH exposes no
@@ -113,12 +113,6 @@ interface PhaseRoute {
   readonly reasoningEffort?: ReasoningEffort
 }
 
-interface AgentHooks {
-  on(event: string, listener: (...args: never[]) => unknown, options?: { prepend?: boolean }): unknown
-}
-
-type AgentWithCtx = AgentLike & { ctx?: AgentHooks }
-
 /** A configured phase route: `provider/model[:effort]`, or undefined for inherit. */
 export function phaseRoute(selector: string): PhaseRoute | undefined {
   const parsed = parseRoute(selector)
@@ -155,49 +149,68 @@ function planActive(ctx: PluginContext, agent: AgentLike): boolean {
 }
 
 /**
- * Override the request route by phase, as the outermost `agent/request`
- * listener (prepend: cordis runs the first-registered listener outermost, so
- * this wins over the host's own selection wrapper).
+ * Apply the configured route for the phase the session is in, through the
+ * Agent's own durable selection seam (`agent.model.select`). DSH 0.2.2 freezes
+ * a step's selection before preparation and throws when the `agent/request`
+ * waterfall proposes a different provider/model ("use agent.model.select()
+ * before step preparation"), so the route is chosen on a phase flip rather
+ * than per request.
+ *
  * A client model switch during a phase stands the override down until the
  * phase flips, so `/model` is never silently undone by a stale config.
  */
-function installPhaseRoutes(ctx: PluginContext, agent: AgentWithCtx, hooks: AgentHooks): void {
-  let baseline: string | undefined
+export function installPhaseRoutes(ctx: PluginContext, agent: AgentLike): void {
+  const seam = agent.model
   let suppressed: 'plan' | 'implement' | undefined
+  let recorded: string | undefined
+  let lastPhase: 'plan' | 'implement' | undefined
 
-  hooks.on('agent/request', async (_payload: unknown, next: () => Promise<Record<string, unknown>>) => {
-    const resolved = await next()
-    // Read per request (a ~2 KB sync read) so a /ceulen-config edit applies to
+  const sync = (): void => {
+    if (typeof seam?.select !== 'function') return
+    // Read per sync (a ~2 KB sync read) so a /ceulen-config edit applies to
     // the running session instead of the next one.
     const settings: CeulenSettings = loadSettingsSync()
-    // None of the feature's config: keep the host result byte-identical and
-    // skip the transcript scan entirely.
-    if (settings.plan.model === '' && settings.plan.implement === '') return resolved
-    const active = planActive(ctx, agent)
-    const phase = active ? 'plan' : hasApprovedPlan(agent.session) ? 'implement' : undefined
-    const target = phase === 'plan'
-      ? phaseRoute(settings.plan.model)
-      : phase === 'implement'
-        ? phaseRoute(settings.plan.implement)
-        : undefined
-    const key = routeKey(resolved)
-    if (phase === undefined || target === undefined) {
-      baseline = key
-      return resolved
+    // None of the feature's config: leave the host selection untouched.
+    if (settings.plan.model === '' && settings.plan.implement === '') return
+    const phase: 'plan' | 'implement' | undefined = planActive(ctx, agent)
+      ? 'plan'
+      : hasApprovedPlan(agent.session) ? 'implement' : undefined
+    if (phase === undefined) {
+      suppressed = undefined
+      recorded = undefined
+      lastPhase = undefined
+      return
     }
-    // The client resolved a different route than last request: a human model
-    // switch, not a stale config — stand down until the phase changes.
-    if (suppressed !== phase && baseline !== undefined && key !== baseline && key !== routeKey(target)) suppressed = phase
-    baseline = key
-    if (suppressed === phase) return resolved
-    const { reasoningEffort: _inherited, ...rest } = resolved
-    return {
-      ...rest,
+    const target = phase === 'plan' ? phaseRoute(settings.plan.model) : phaseRoute(settings.plan.implement)
+    if (target === undefined) return
+    // A phase flip re-applies the config: a switch made in the previous phase
+    // does not carry over into the new one.
+    if (phase !== lastPhase) {
+      suppressed = undefined
+      recorded = undefined
+    }
+    lastPhase = phase
+    const key = routeKey(seam.current?.())
+    // The live selection is not the one we recorded: a human model switch.
+    if (suppressed !== phase && recorded !== undefined && key !== '' && key !== recorded) suppressed = phase
+    if (suppressed === phase) return
+    seam.select({
       provider: target.provider,
       model: target.model,
       ...(target.reasoningEffort === undefined ? {} : { reasoningEffort: target.reasoningEffort }),
-    }
-  }, { prepend: true })
+    })
+    recorded = routeKey(target)
+  }
+
+  // Plan mode is logged (`plan/mode`, whole-value), so every flip — upstream
+  // `/plan`, `exit_plan_mode`, our own `/plan-approve` — reaches us before the
+  // next step is prepared.
+  ctx.on('session/event', (session: SessionLike | undefined, event: { type?: string } | undefined) => {
+    if (event?.type !== 'plan/mode') return
+    if (session !== undefined && agent.session !== undefined && session !== agent.session) return
+    sync()
+  })
+  sync()
 }
 
 function deliver(agent: AgentLike, text: string): void {
@@ -265,12 +278,10 @@ export function apply(ctx: PluginContext): void {
 
   // Phase routes apply to top-level sessions only: a subagent inherits the
   // decision its parent is already running under.
-  ctx.on('agent/created', (payload: { agent?: AgentWithCtx }) => {
+  ctx.on('agent/created', (payload: { agent?: AgentLike }) => {
     const agent = payload?.agent
     if (agent === undefined || agent.session?.header?.parentSession !== undefined) return
-    const hooks = agent.ctx
-    if (hooks === undefined || typeof hooks.on !== 'function') return
-    installPhaseRoutes(ctx, agent, hooks)
+    installPhaseRoutes(ctx, agent)
   })
 
   registerCommandSafe(ctx, {

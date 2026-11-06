@@ -53,11 +53,26 @@ export interface AgentOptions {
   readonly maxTokens?: number
 }
 
+/** `agent.model` (DSH 0.2.2): the Agent-owned, durable model choice for the
+ * next step to be prepared. A route belongs here, never in `agent/request` —
+ * 0.2.2 throws when the waterfall's answer disagrees with the frozen selection. */
+export interface ModelSelectionLike {
+  readonly provider: string
+  readonly model: string
+  readonly reasoningEffort?: string
+}
+
+export interface ModelSeamLike {
+  current?(): Readonly<ModelSelectionLike> | undefined
+  select?(selection: Readonly<ModelSelectionLike>): void
+}
+
 /** Minimal `Agent` view used by advisor/cron/classifier. */
 export interface AgentLike {
   readonly options: AgentOptions
   readonly session: SessionLike
   readonly status: AgentStatus
+  readonly model?: ModelSeamLike
   followup(message: UserMessageLike): void
   steer(message: UserMessageLike): void
   inject(message: UserMessageLike): void
