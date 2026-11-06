@@ -37,7 +37,7 @@ the direction brief anchors the taste.
 A `DESIGN.md` at the project root (the working directory) combines machine-readable tokens with rationale; it is
 never invented per screen. **Resolution order (stop at the first that holds):**
 
-1. **`DESIGN.md` exists** → read it; use its tokens verbatim.
+1. **`DESIGN.md` exists** → read it; use its tokens verbatim. That holds for a concept, an exploration, or a redesign inside the product, however premium or colourful the request: a new look comes from layout, hierarchy, and motion, not new colours. Only a user who asks for a new identity overrides it. `ux_audit` reports colours outside the file as `off-palette`.
 2. **A system is already wired in** (shadcn/MUI/Radix theme, Tailwind config) → reuse it. With no `DESIGN.md`, record that system's real tokens in one before any markup; never invent new ones.
 3. **A reference site exists** → `web_extract` it, distill its DNA (4–6 hex, type roles, rhythm) into a DESIGN.md starter, then work inside it.
 4. **Nothing exists** → do NOT block. Load `ux-presets` and pick a starter (B1 Web, B2 Mobile, an S-starter matching the subject's material, or S4 for dashboards). **A preset is a floor, not an identity:** Step 1.5 must bend it until the page could not be mistaken for the stock preset. Then write the bent system to `DESIGN.md` in the working directory, next to the page, before any markup.

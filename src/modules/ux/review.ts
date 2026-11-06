@@ -286,7 +286,62 @@ export function pageChecks(): RuntimeFinding[] {
   }
   if (lowContrast > 0) add('medium', 'contrast', `${lowContrast}/${textEls.length} sampled text nodes below AA`, sample)
 
+  // A value the page failed to format reads as data, so nothing else flags it.
+  // "undefined" is an ordinary word in a sentence, so only short text counts.
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
+  const broken = new Set<string>()
+  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+    const text = (node.nodeValue ?? '').trim()
+    const parent = node.parentElement
+    if (text === '' || parent === null || parent.closest('script, style, code, pre, kbd, samp, noscript') !== null) continue
+    if (text.includes('[object Object]') || (text.length <= 40 && /(^|[^\w])(NaN|undefined)($|[^\w])/.test(text))) broken.add(text.slice(0, 60))
+  }
+  if (broken.size > 0) add('high', 'broken-text', `${broken.size} text value(s) failed to format`, [...broken].slice(0, 3).join(' | '))
+
   return findings
+}
+
+/** The colours a page really shows, by how much of it they cover. */
+export function paletteChecks(): Array<{ hex: string; share: number; kind: 'surface' | 'text' }> {
+  const hexOf = (value: string): string | null => {
+    const parts = /^rgba?\(([^)]+)\)$/.exec(value)?.[1]?.split(/[,\s/]+/).filter((part) => part !== '').map(Number)
+    if (parts === undefined || parts.length < 3 || (parts[3] ?? 1) < 1) return null
+    return `#${parts.slice(0, 3).map((part) => Math.round(part).toString(16).padStart(2, '0')).join('')}`
+  }
+  const page = Math.max(document.documentElement.scrollWidth * document.documentElement.scrollHeight, 1)
+  const surfaces = new Map<string, number>()
+  const inks = new Map<string, number>()
+  let letters = 0
+  for (const el of [document.documentElement, ...document.body.querySelectorAll('*'), document.body]) {
+    if (el.closest('svg, script, style') !== null) continue
+    const style = getComputedStyle(el)
+    const box = el.getBoundingClientRect()
+    const surface = hexOf(style.backgroundColor)
+    if (surface !== null) surfaces.set(surface, (surfaces.get(surface) ?? 0) + box.width * box.height)
+    const own = [...el.childNodes].reduce((sum, node) => sum + (node.nodeType === Node.TEXT_NODE ? (node.nodeValue ?? '').trim().length : 0), 0)
+    const ink = hexOf(style.color)
+    if (own > 0 && ink !== null && box.width > 0) {
+      inks.set(ink, (inks.get(ink) ?? 0) + own)
+      letters += own
+    }
+  }
+  return [
+    ...[...surfaces].map(([hex, area]) => ({ hex, share: Math.min(area / page, 1), kind: 'surface' as const })),
+    ...[...inks].map(([hex, count]) => ({ hex, share: count / Math.max(letters, 1), kind: 'text' as const })),
+  ]
+}
+
+/** Colours covering a real part of the page that are nowhere near DESIGN.md. */
+export function offPalette(shown: ReturnType<typeof paletteChecks>, design: string): string[] {
+  const rgb = (hex: string): number[] => [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16))
+  const allowed = [...new Set([...design.matchAll(/#[0-9a-f]{6}\b/gi)].map((match) => match[0].toLowerCase()))].map(rgb)
+  if (allowed.length < 3) return []
+  const near = (hex: string): boolean => allowed.some((colour) => Math.hypot(...rgb(hex).map((part, i) => part - colour[i]!)) <= 14)
+  return shown
+    .filter((item) => item.share >= (item.kind === 'surface' ? 0.05 : 0.03) && !near(item.hex))
+    .sort((a, b) => b.share - a.share)
+    .slice(0, 5)
+    .map((item) => `${item.hex} (${item.kind}, ${Math.round(item.share * 100)}%)`)
 }
 
 /**
@@ -534,6 +589,7 @@ const seekStep = (fraction: number): string => `(() => {
 const FRAME_VIEWPORT = { width: 1280, height: 800 }
 
 interface MotionPass extends Pick<RuntimeAudit, 'frames' | 'framesNote'> {
+  palette?: ReturnType<typeof paletteChecks>
   summary?: MotionSummary
   findings: RuntimeFinding[]
 }
@@ -565,6 +621,7 @@ async function motionPass(url: string, wantFrames: boolean, signal?: AbortSignal
         { evaluate: `(${motionChecks.toString()})()`, label: 'motion' },
         ...(wantFrames ? frameSteps : []),
         { evaluate: settleStep(500), label: 'settle' },
+        { evaluate: `(${paletteChecks.toString()})()`, label: 'palette' },
         { evaluate: `(${chartChecks.toString()})()`, label: 'charts' },
         { evaluate: `(${arrivalChecks.toString()})()`, label: 'arrivals' },
       ],
@@ -574,8 +631,10 @@ async function motionPass(url: string, wantFrames: boolean, signal?: AbortSignal
     const checked = result.outcomes[1]?.value as ReturnType<typeof motionChecks> | undefined
     const arrivals = result.outcomes.at(-1)?.value as Awaited<ReturnType<typeof arrivalChecks>> | undefined
     const charts = result.outcomes.at(-2)?.value as ReturnType<typeof chartChecks> | undefined
+    const palette = result.outcomes.at(-3)?.value as ReturnType<typeof paletteChecks> | undefined
     const base = {
       findings: [...(checked?.findings ?? []), ...(charts?.findings ?? []), ...(arrivals?.findings ?? [])],
+      palette: palette ?? [],
       ...(checked === undefined ? {} : { summary: { animations: checked.animations, transitions: checked.transitions, scrollLinked: checked.scrollLinked } }),
     }
     if (checked === undefined) {
@@ -618,7 +677,7 @@ export const SCROLL_STEP = `(async () => {
 })()`
 
 /** Opens the page at every tier and merges identical findings across widths. */
-export async function runRuntimeAudit(options: { url: string; cwd: string; viewports?: number[]; motion?: boolean; signal?: AbortSignal }): Promise<RuntimeAudit> {
+export async function runRuntimeAudit(options: { url: string; cwd: string; viewports?: number[]; motion?: boolean; design?: string; signal?: AbortSignal }): Promise<RuntimeAudit> {
   assertCaptureScope(options.url, options.cwd)
   const viewports = resolveViewports(options.viewports)
   const merged = new Map<string, RuntimeFinding & { seenAt: number[] }>()
@@ -671,6 +730,16 @@ export async function runRuntimeAudit(options: { url: string; cwd: string; viewp
 
   const pass = await motionPass(options.url, options.motion === true, options.signal)
   for (const finding of pass.findings) merged.set(`${finding.check}|${finding.message}`, { ...finding, seenAt: [FRAME_VIEWPORT.width] })
+  const off = options.design === undefined ? [] : offPalette(pass.palette ?? [], options.design)
+  if (off.length > 0) {
+    merged.set('off-palette', {
+      severity: 'high',
+      check: 'off-palette',
+      message: `This page uses colours that are not in DESIGN.md: ${off.join(', ')}`,
+      detail: 'Use the tokens in DESIGN.md. A concept inside a product keeps them too. Only a user request for a new identity overrides this, and then say so in your reply.',
+      seenAt: [FRAME_VIEWPORT.width],
+    })
+  }
 
   const order: Record<Severity, number> = { high: 0, medium: 1, low: 2 }
   const findings = [...merged.values()].sort((a, b) => order[a.severity] - order[b.severity] || a.check.localeCompare(b.check))
@@ -721,7 +790,7 @@ export function formatRuntimeReport(audit: RuntimeAudit): string {
   // Honesty: these two limits are real, not boilerplate — say them every run.
   lines.push('')
   const motionChecked = audit.motion === undefined ? '' : 'jank-prone motion, overflow during motion, arrivals on scroll, chart time labels, '
-  lines.push(`checks: overflow, images, names, headings, meta, tap targets (≤480px), focus, contrast (approximate, inherited background), field labels, clipped text, empty space, uneven columns, ${motionChecked}reduced-motion fallback, console errors.`)
+  lines.push(`checks: overflow, images, names, headings, meta, tap targets (≤480px), focus, contrast (approximate, inherited background), field labels, clipped text, empty space, uneven columns, ${motionChecked}reduced-motion fallback, broken text values, colours against DESIGN.md, console errors.`)
   lines.push('not checked: keyboard order — drive the page with web_interact to verify it.')
   return lines.join('\n')
 }
