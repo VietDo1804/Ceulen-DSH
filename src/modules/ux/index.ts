@@ -212,7 +212,8 @@ export function staleDesignColours(design: string, css: string): string[] {
 }
 
 async function readDesign(stylesheet: string | undefined, cwd: string): Promise<string | undefined> {
-  const folders = stylesheet === undefined ? [cwd] : [dirname(resolvePath(cwd, stylesheet)), cwd]
+  // The project's file comes first, so a DESIGN.md added beside a concept cannot replace it.
+  const folders = stylesheet === undefined ? [cwd] : [cwd, dirname(resolvePath(cwd, stylesheet))]
   for (const folder of folders) {
     const design = await readFile(join(folder, 'DESIGN.md'), 'utf8').catch(() => null)
     if (design !== null) return design
@@ -237,10 +238,10 @@ const INSTRUCTIONS: Record<Exclude<UxMode, 'off'>, string> = {
   lite: `UX MODE ACTIVE — level: lite. Use design tokens, not raw values. Load the \`ux-design\` skill for new or user-facing UI and state one direction line before markup. Give the page rich motion by copying the ux-design motion kit (kit/motion.js and kit/motion.css, attributes in references/motion.md): a load moment, items that arrive as they scroll in, soft state changes, and UI that reacts to the pointer. Implement the full interaction state set (hover, focus-visible, active, disabled, loading, empty, error). Use semantic HTML and accessible names. Run ux_audit on the stylesheet and on the rendered page; look at the screenshots it returns, because a PASS does not end the visual review. No decorative gradients, glassmorphism, giant hero type, or emoji-as-icon unless the existing design uses them.`,
   strict: `UX MODE ACTIVE — level: strict. Tokens only: every color, radius, spacing, shadow, and font size comes from an existing token; no raw hex outside the token file.
 Method, in order:
-1. Read DESIGN.md and stay inside it: a concept or redesign in a product keeps its tokens, however premium or colourful the request, unless the user asks for a new identity. If there is none, load the \`ux-design\` skill; for a starter system load \`ux-presets\` and pick one.
+1. Read all of DESIGN.md. A concept or redesign keeps its tokens, and its colour comes from the ones listed. "Premium", "colors", or "attractive" change nothing; only the words new identity, rebrand, or ignore DESIGN.md do. Never add a second DESIGN.md. If there is none, load the \`ux-design\` skill; for a starter system load \`ux-presets\` and pick one.
 2. Before markup, state one line: \`Direction: <concept> · type <display>+<body> · palette <hex> · signature <element> · motion <load> + <scroll>\`. If DESIGN.md is absent, write it now in the working directory: that line and the tokens, before any markup, even when the request names only other files. A product with its own tokens gets those, never new ones. When a token changes, change DESIGN.md too.
-3. Build inside those tokens. Every interactive component defines hover, focus-visible, active, disabled, loading, empty, and error states. A static page is unfinished: copy the ux-design motion kit next to the page, or to public/ in React or Next (cp kit/motion.js kit/motion.css, never retype them) and mark up the page with its attributes (references/motion.md). That gives a load moment, items that arrive as they scroll in, soft state changes, UI that reacts to the pointer, and a reduced-motion fallback.
-4. Run ux_audit on the stylesheet (path) and on the rendered page (url). It returns two screenshots when the route accepts images — look at them: hierarchy, dead zones, clipped text, overflow at the target width. A PASS does not end the visual review. Once the motion is built, add \`motion: true\` to see its load frames.
+3. Build inside those tokens. Every interactive component defines hover, focus-visible, active, disabled, loading, empty, and error states. A static page is unfinished: copy the ux-design motion kit next to the page, or to public/ in React or Next (cp kit/motion.js kit/motion.css, never retype them) and mark up the page with its attributes (references/motion.md). That gives load and scroll motion, soft state changes, pointer response, and a reduced-motion fallback.
+4. Run ux_audit on the stylesheet (path) and on the rendered page (url). It returns two screenshots when the route accepts images — look at them: hierarchy, dead zones, clipped text, overflow at target width. A PASS does not end the visual review. Once motion is built, add \`motion: true\` for its load frames.
 5. Fix every finding, then repeat before claiming UI work done.
 No AI-slop tells: no purple-blue gradient on everything, no glass cards, no emoji icons, no centered hero for app UI, no oversized rounded cards. Preserve the product's existing visual language.`,
 }
