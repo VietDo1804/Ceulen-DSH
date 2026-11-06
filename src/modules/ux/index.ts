@@ -1,5 +1,5 @@
-import { stat } from 'node:fs/promises'
-import { resolve as resolvePath } from 'node:path'
+import { readFile, stat } from 'node:fs/promises'
+import { dirname, join, resolve as resolvePath } from 'node:path'
 import type { PluginContext, ToolContent, ToolRunContext } from '../../core/types.js'
 import { readText } from '../../core/fsx.js'
 import { isModuleEnabled, loadSettingsSync, updateSettings, type UxMode } from '../../core/settings.js'
@@ -200,17 +200,39 @@ export function formatStylesheetReport(
   return clampText(lines.join('\n'), 2_500)
 }
 
+/**
+ * Colours DESIGN.md lists that the stylesheet no longer has. A stylesheet that
+ * lacks half or more of them is only part of the system, so nothing is claimed.
+ */
+export function staleDesignColours(design: string, css: string): string[] {
+  const listed = [...new Set([...design.matchAll(/#[0-9a-f]{6}\b/gi)].map((match) => match[0].toLowerCase()))]
+  const sheet = css.toLowerCase()
+  const stale = listed.filter((colour) => !sheet.includes(colour))
+  return stale.length * 2 >= listed.length ? [] : stale
+}
+
+async function designDriftLine(css: string, stylesheet: string | undefined, cwd: string): Promise<string> {
+  const folders = stylesheet === undefined ? [cwd] : [dirname(resolvePath(cwd, stylesheet)), cwd]
+  for (const folder of folders) {
+    const design = await readFile(join(folder, 'DESIGN.md'), 'utf8').catch(() => null)
+    if (design === null) continue
+    const stale = staleDesignColours(design, css)
+    return stale.length === 0 ? '' : `\ndesign: DESIGN.md still lists ${stale.join(', ')}, which the stylesheet no longer has. Update DESIGN.md to match.`
+  }
+  return ''
+}
+
 // The always-on half of the method: a short recipe, not the skill. The
 // reported gap was 32/56 UI sessions auditing but only 8/56 loading ux-design,
 // so the prompt names the skill and gives the order. Growth is capped in
 // test/ux.test.ts (the old strict text was 783 chars).
 const INSTRUCTIONS: Record<Exclude<UxMode, 'off'>, string> = {
-  lite: `UX MODE ACTIVE — level: lite. Use design tokens, not raw values. Load the \`ux-design\` skill for new or user-facing UI and state one direction line before markup. Give the page a smooth load moment, items that arrive as they scroll in, and soft state changes, using transform and opacity, with a reduced-motion fallback. Implement the full interaction state set (hover, focus-visible, active, disabled, loading, empty, error). Use semantic HTML and accessible names. Run ux_audit on the stylesheet and on the rendered page; look at the screenshots it returns, because a PASS does not end the visual review. No decorative gradients, glassmorphism, giant hero type, or emoji-as-icon unless the existing design uses them.`,
+  lite: `UX MODE ACTIVE — level: lite. Use design tokens, not raw values. Load the \`ux-design\` skill for new or user-facing UI and state one direction line before markup. Give the page rich motion by copying the ux-design motion kit (kit/motion.js and kit/motion.css, attributes in references/motion.md): a load moment, items that arrive as they scroll in, soft state changes, and UI that reacts to the pointer. Implement the full interaction state set (hover, focus-visible, active, disabled, loading, empty, error). Use semantic HTML and accessible names. Run ux_audit on the stylesheet and on the rendered page; look at the screenshots it returns, because a PASS does not end the visual review. No decorative gradients, glassmorphism, giant hero type, or emoji-as-icon unless the existing design uses them.`,
   strict: `UX MODE ACTIVE — level: strict. Tokens only: every color, radius, spacing, shadow, and font size comes from an existing token; no raw hex outside the token file.
 Method, in order:
 1. Read DESIGN.md. If there is none, load the \`ux-design\` skill; for a starter system load \`ux-presets\` and pick one.
-2. Before markup, state one line: \`Direction: <concept> · type <display>+<body> · palette <hex> · signature <element> · motion <load> + <scroll>\`.
-3. Build inside those tokens. Every interactive component defines hover, focus-visible, active, disabled, loading, empty, and error states. A static page is unfinished: ship a load moment, items that arrive as they scroll in, and soft state changes, using transform and opacity, with a reduced-motion fallback (copy the kit in ux-design references/motion.md).
+2. Before markup, state one line: \`Direction: <concept> · type <display>+<body> · palette <hex> · signature <element> · motion <load> + <scroll>\`. If DESIGN.md is absent, write it now in the working directory: that line and the tokens, before any markup, even when the request names only other files. A product with its own tokens gets those, never new ones. When a token changes, change DESIGN.md too.
+3. Build inside those tokens. Every interactive component defines hover, focus-visible, active, disabled, loading, empty, and error states. A static page is unfinished: copy the ux-design motion kit next to the page, or to public/ in React or Next (cp kit/motion.js kit/motion.css, never retype them) and mark up the page with its attributes (references/motion.md). That gives a load moment, items that arrive as they scroll in, soft state changes, UI that reacts to the pointer, and a reduced-motion fallback.
 4. Run ux_audit on the stylesheet (path) and on the rendered page (url). It returns two screenshots when the route accepts images — look at them: hierarchy, dead zones, clipped text, overflow at the target width. A PASS does not end the visual review. Once the motion is built, add \`motion: true\` to see its load frames.
 5. Fix every finding, then repeat before claiming UI work done.
 No AI-slop tells: no purple-blue gradient on everything, no glass cards, no emoji icons, no centered hero for app UI, no oversized rounded cards. Preserve the product's existing visual language.`,
@@ -289,6 +311,7 @@ export function apply(ctx: PluginContext): void {
         const css = await resolveAuditCss(args, cwdOf(exec))
         const result = audit({ css, pairs: args.pairs ?? [] })
         text = formatStylesheetReport(result, { tokens: extractTokens(css), contrastOnly: css.trim() === '' })
+        if (css.trim() !== '') text += await designDriftLine(css, args.path, cwdOf(exec))
       }
 
       if (url !== undefined) {

@@ -356,6 +356,144 @@ export function motionChecks(): { findings: RuntimeFinding[]; animations: number
   return { findings, animations: names.size, transitions: moving.size, scrollLinked: all.length - running.length }
 }
 
+/**
+ * What only shows with motion on and a reader scrolling: list items that arrive
+ * as they come in. Runs last, after the frames, because it scrolls.
+ */
+export async function arrivalChecks(): Promise<{ findings: RuntimeFinding[]; items: number; arrived: number }> {
+  const findings: RuntimeFinding[] = []
+  const root = document.documentElement
+  const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
+  let items: Element[] = []
+  if (root.scrollHeight >= window.innerHeight * 2) {
+    for (const parent of Array.from(document.querySelectorAll('body *')).slice(0, 4000)) {
+      if (parent.children.length < 6 || parent.closest('nav, select, svg') !== null) continue
+      const kids = Array.from(parent.children).filter((kid) => {
+        const box = kid.getBoundingClientRect()
+        return kid.tagName === parent.children[0]?.tagName && box.height >= 24 && box.top + window.scrollY >= window.innerHeight
+      })
+      if (kids.length >= 6 && kids.length > items.length) items = kids
+    }
+  }
+  const arrived = new Set<Element>()
+  if (items.length > 0) {
+    const limit = root.scrollHeight - window.innerHeight
+    for (let top = 0, steps = 0; top <= limit + 200 && steps < 120; top += 200, steps++) {
+      window.scrollTo({ top, behavior: 'instant' })
+      await wait(60)
+      for (const item of items) {
+        const box = item.getBoundingClientRect()
+        if (box.bottom <= 0 || box.top >= window.innerHeight) continue
+        const moving = item.getAnimations({ subtree: true }).some((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+        if (moving || Number(getComputedStyle(item).opacity) < 0.98) arrived.add(item)
+      }
+    }
+    if (arrived.size < items.length / 2) {
+      findings.push({ severity: 'low', check: 'motion-arrival', message: `only ${arrived.size} of ${items.length} list items move as they scroll in, so the page goes still below the first screen`, detail: 'put data-arrive on each item (motion kit, references/motion.md in ux-design)' })
+    }
+  }
+  return { findings, items: items.length, arrived: arrived.size }
+}
+
+/**
+ * Time labels on a drawn chart must agree with each other, and a peak named in
+ * the text must sit on the line. No label is trusted alone: the fit that most
+ * labels agree on decides. Edges use offsetWidth, because a mark frozen at the
+ * start of its arrival is scaled down around its centre.
+ */
+export function chartChecks(): { findings: RuntimeFinding[] } {
+  const findings: RuntimeFinding[] = []
+  const clockOf = (hours: string, minutes: string): string => `${hours.padStart(2, '0')}:${minutes}`
+  for (const svg of document.querySelectorAll<SVGSVGElement>('svg[data-draw]')) {
+    const box = svg.getBoundingClientRect()
+    const holder = svg.parentElement
+    if (box.width === 0 || holder === null) continue
+    const unplaced = [...holder.querySelectorAll<HTMLElement>('[data-time]:not(.m-timed)')].map((el) => el.dataset.time)
+    if (unplaced.length > 0) {
+      findings.push({
+        severity: 'high',
+        check: 'chart-time',
+        message: `Chart labels were not placed, so they are missing or in the wrong spot: ${unplaced.join(', ')}`,
+        detail: 'Each data-time must fall between data-start and data-end on the svg, in the same format, and the page must load motion.js.',
+      })
+    }
+    const labels: Array<{ text: string; at: number; spots: number[] }> = []
+    for (const el of holder.querySelectorAll('*')) {
+      if (el.children.length > 0 || el.matches('desc, title')) continue
+      const match = /^(\d{1,2}):(\d{2})\b/.exec((el.textContent ?? '').trim())
+      const rect = el.getBoundingClientRect()
+      if (match === null || rect.width === 0 || rect.bottom < box.top - 48 || rect.top > box.bottom + 48) continue
+      const centre = (rect.left + rect.right) / 2 - box.left
+      const half = (el instanceof HTMLElement ? el.offsetWidth : rect.width) / 2
+      labels.push({ text: clockOf(match[1]!, match[2]!), at: Number(match[1]) * 60 + Number(match[2]), spots: [centre, centre - half, centre + half] })
+    }
+    if (labels.length < 3) continue
+    labels.sort((a, b) => a.spots[0]! - b.spots[0]!)
+    for (let i = 1; i < labels.length; i++) if (labels[i]!.at < labels[i - 1]!.at - 720) labels[i]!.at += 1440
+
+    const tolerance = box.width * 0.025
+    let best = { fits: 0, miss: Infinity, slope: 0, x: 0, at: 0 }
+    for (const first of labels) {
+      for (const second of labels) {
+        if (second.at <= first.at) continue
+        for (const x of first.spots) {
+          for (const y of second.spots) {
+            const slope = (y - x) / (second.at - first.at)
+            if (slope <= 0) continue
+            let fits = 0
+            let miss = 0
+            for (const label of labels) {
+              const gap = Math.min(...label.spots.map((spot) => Math.abs(spot - (x + slope * (label.at - first.at)))))
+              if (gap <= tolerance) fits++
+              miss += Math.min(gap, tolerance)
+            }
+            if (fits > best.fits || (fits === best.fits && miss < best.miss)) best = { fits, miss, slope, x, at: first.at }
+          }
+        }
+      }
+    }
+    if (best.fits < 2) continue
+    const xOf = (at: number): number => best.x + best.slope * (at - best.at)
+    const off = labels.filter((label) => Math.min(...label.spots.map((spot) => Math.abs(spot - xOf(label.at)))) > tolerance)
+    if (off.length > 0) {
+      const worst = off.map((label) => `${label.text} is ${Math.round(Math.abs(label.spots[0]! - xOf(label.at)) / box.width * 100)}% of the width off`)
+      findings.push({
+        severity: 'high',
+        check: 'chart-time',
+        message: `Chart time labels do not match the line: ${worst.join(', ')}`,
+        detail: 'Do not place them by hand: put data-start and data-end on the svg and data-time on each label, and the motion kit places them.',
+      })
+    }
+
+    const scope = svg.closest<HTMLElement>('section, article, figure') ?? holder
+    const said = /\bpeak\w*\b[\s\S]{0,40}?\b(\d{1,2}):(\d{2})\b/i.exec(scope.innerText)
+    const line = svg.querySelector<SVGGeometryElement>('[data-line]') ?? svg.querySelector<SVGGeometryElement>('path, polyline')
+    const matrix = svg.getScreenCTM()
+    if (said === null || line === null || matrix === null) continue
+    const points = Array.from({ length: 400 }, (_, i) => line.getPointAtLength(line.getTotalLength() * i / 399))
+    const top = points.reduce((low, point) => (point.y < low.y ? point : low))
+    const bottom = Math.max(...points.map((point) => point.y))
+    let claimed = Number(said[1]) * 60 + Number(said[2])
+    if (claimed < labels[0]!.at - 720) claimed += 1440
+    const claimedX = (xOf(claimed) + box.left - matrix.e) / matrix.a
+    const reach = tolerance / matrix.a
+    const there = Math.min(...points.filter((point) => Math.abs(point.x - claimedX) <= reach).map((point) => point.y), bottom)
+    if (there - top.y > (bottom - top.y) * 0.05) {
+      const at = Math.round(best.at + ((matrix.a * top.x + matrix.e - box.left) - best.x) / best.slope) % 1440
+      // Labels that disagree give no clock worth repeating, so name a time only when they agree.
+      const peak = off.length > 0 ? 'the line is not at its top there' : `the line peaks near ${clockOf(String(Math.floor(at / 60)), String(at % 60).padStart(2, '0'))}`
+      findings.push({
+        severity: 'high',
+        check: 'chart-peak',
+        message: `The text puts the peak at ${clockOf(said[1]!, said[2]!)}, but ${peak}`,
+        detail: 'Read the time off the series and put that in the text.',
+      })
+    }
+  }
+  return { findings }
+}
+
 /** Freezes every running animation at its start and reports the timeline. */
 const FREEZE_STEP = `(() => {
   const list = document.getAnimations().filter((animation) => animation.timeline === document.timeline);
@@ -403,13 +541,22 @@ async function motionPass(url: string, wantFrames: boolean, signal?: AbortSignal
     const result = await runInteraction({
       url,
       viewport: FRAME_VIEWPORT,
-      steps: [{ evaluate: `(${motionChecks.toString()})()`, label: 'motion' }, ...(wantFrames ? frameSteps : [])],
+      steps: [
+        { evaluate: `(${motionChecks.toString()})()`, label: 'motion' },
+        ...(wantFrames ? frameSteps : []),
+        // An app renders after load, and these two read what it rendered.
+        { evaluate: 'new Promise((done) => setTimeout(done, 800))', label: 'settle' },
+        { evaluate: `(${chartChecks.toString()})()`, label: 'charts' },
+        { evaluate: `(${arrivalChecks.toString()})()`, label: 'arrivals' },
+      ],
       stepTimeoutMs: 30_000,
       signal,
     })
     const checked = result.outcomes[0]?.value as ReturnType<typeof motionChecks> | undefined
+    const arrivals = result.outcomes.at(-1)?.value as Awaited<ReturnType<typeof arrivalChecks>> | undefined
+    const charts = result.outcomes.at(-2)?.value as ReturnType<typeof chartChecks> | undefined
     const base = {
-      findings: checked?.findings ?? [],
+      findings: [...(checked?.findings ?? []), ...(charts?.findings ?? []), ...(arrivals?.findings ?? [])],
       ...(checked === undefined ? {} : { summary: { animations: checked.animations, transitions: checked.transitions, scrollLinked: checked.scrollLinked } }),
     }
     if (checked === undefined) {
@@ -553,7 +700,7 @@ export function formatRuntimeReport(audit: RuntimeAudit): string {
   if (audit.framesNote !== undefined) lines.push(`motion frames: ${audit.framesNote}`)
   // Honesty: these two limits are real, not boilerplate — say them every run.
   lines.push('')
-  const motionChecked = audit.motion === undefined ? '' : 'jank-prone motion, overflow during motion, '
+  const motionChecked = audit.motion === undefined ? '' : 'jank-prone motion, overflow during motion, arrivals on scroll, chart time labels, '
   lines.push(`checks: overflow, images, names, headings, meta, tap targets (≤480px), focus, contrast (approximate, inherited background), field labels, clipped text, empty space, uneven columns, ${motionChecked}reduced-motion fallback, console errors.`)
   lines.push('not checked: keyboard order — drive the page with web_interact to verify it.')
   return lines.join('\n')

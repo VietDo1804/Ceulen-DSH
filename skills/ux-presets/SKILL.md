@@ -18,8 +18,8 @@ license: MIT
 
 The Constraint-First method starts at "Own the system." If the project has no
 tokens / elevation scale / state contract, you do NOT have to block generation —
-**reuse an existing system** or **drop in a medium-tuned DESIGN.md starter** as
-the implicit system. This skill is the shortcut drawer for both.
+**reuse an existing system** or **write a medium-tuned starter to DESIGN.md**.
+This skill is the shortcut drawer for both.
 
 ## Option A — reuse an existing system (preferred, YAGNI)
 
@@ -56,11 +56,11 @@ same `DESIGN.md` standard this skill uses) and run it through the gate:
 
 ## Option B — medium-tuned DESIGN.md starters (lintable, drop-in)
 
-When there's nothing to reuse AND no repo-root DESIGN.md, pick the starter
-matching the medium and use it **in-context as the implicit system** — then
-keep generating. This is how the agent stays unblocked and non-slop when
-DESIGN.md is absent. Lint it (and optionally persist it to repo root) when the
-user wants to keep it:
+When there's nothing to reuse AND no DESIGN.md in the working directory, pick
+the starter matching the medium, bend it, and **write it to `DESIGN.md` next to
+the page before any markup** — then keep generating. This is how the agent
+stays unblocked and non-slop when DESIGN.md is absent. Lint it only when the
+user asks:
 
 ```bash
 npx @google/design.md lint DESIGN.md
@@ -448,17 +448,18 @@ mechanics (44pt targets, `:active` states, safe areas, thumb zone).
 
 ## Motion — every preset
 
-Add the five motion tokens from Option C to whichever preset you pick, and ship
-the load moment, scroll arrivals, and state changes in `ux-design`
-`references/motion.md`. The
+Add the five motion tokens from Option C to whichever preset you pick, and copy
+the motion kit described in `ux-design` `references/motion.md`, which ships the
+load moment, scroll arrivals, state changes, and pointer response. The
 worked examples in `examples/` show the patterns in use.
 
 ## Option C — minimal `:root` token set (CSS-only, no DESIGN.md)
 
-For CSS-only projects that do not adopt DESIGN.md, drop this compact baseline
-into the project's `:root`. It satisfies the token + elevation + state gates of
-`ux_audit` with ~20 lines. Prefer Option B when the project can adopt DESIGN.md
-— it is lintable, diffable, and medium-tuned; this is the plain fallback.
+When an existing project already has a stylesheet and only needs tokens added,
+drop this compact baseline into its `:root`. It satisfies the token + elevation
++ state gates of `ux_audit` with ~20 lines. It does not replace `DESIGN.md`: a
+new page still gets one from Option B, which is lintable, diffable, and
+medium-tuned.
 
 ```css
 :root {
@@ -534,8 +535,8 @@ direction line exists to prevent.
 
 1. Run **Step 0** of ux-design. If the project already has a DESIGN.md / tokens / elevation / states → use them.
 2. If not, pick **Option A** — reuse an installed system (shadcn/Material/Radix) when the stack matches, OR pull a named style (Claymorphism, Brutalism, …) from the design.md library. Both reuse-before-invent; both still must pass `ux_audit`.
-3. Otherwise pick **Option B** — infer the medium (Web B1 vs Mobile B2) from the task, use the starter in-context as the implicit system, and keep generating. Only ASK if web-vs-mobile is unclear. When the subject's material clearly matches a style-direction starter (**S1 Editorial print / S2 Ledger / S3 Warm consumer**), prefer it over the neutral B-starter — it hands Step 1.5 a direction for free.
-4. Only for CSS-only projects that won't adopt DESIGN.md, use **Option C** (`:root` block).
+3. Otherwise pick **Option B** — infer the medium (Web B1 vs Mobile B2) from the task, write the bent starter to `DESIGN.md` next to the page before any markup, and keep generating. Only ASK if web-vs-mobile is unclear. When the subject's material clearly matches a style-direction starter (**S1 Editorial print / S2 Ledger / S3 Warm consumer**), prefer it over the neutral B-starter — it hands Step 1.5 a direction for free.
+4. Only to add tokens to an existing stylesheet, use **Option C** (`:root` block).
 5. Generate screens with the active model INSIDE these constraints; if the route accepts images, render and inspect before handing off.
 6. Run `ux_audit` with the CSS + the most common text colour pairs before handoff.
 

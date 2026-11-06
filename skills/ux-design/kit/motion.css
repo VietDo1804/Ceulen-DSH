@@ -1,0 +1,157 @@
+/* Motion kit. Copy this file and motion.js next to the page, do not retype them.
+   Set --m-accent and --m-surface to your own tokens in :root. */
+
+:root {
+  --m-rise: 32px;
+  --m-side: 28px;
+  --m-arrive: 720ms;
+  --m-gap: 85ms;
+  --m-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --m-across: cubic-bezier(0.65, 0, 0.35, 1);
+  --m-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --m-tint: var(--m-accent, currentColor);
+}
+
+/* anything that slides sideways must not widen the page */
+body { overflow-x: clip; }
+
+/* numbers and pills move with the pointer, which an inline box cannot do */
+[data-count] { display: inline-block; font-variant-numeric: tabular-nums; }
+
+/* chart labels: the kit places each one from its time, the lane only holds the rows */
+[data-axis] { position: relative; display: block; }
+[data-time] { white-space: nowrap; }
+
+/* arrivals */
+@keyframes m-rise { from { opacity: 0; transform: translate(var(--m-from-x, 0), var(--m-from-y, var(--m-rise))) scale(0.985); } }
+[data-arrive="left"] { --m-from-x: calc(var(--m-side) * -1); --m-from-y: 0; }
+[data-arrive="right"] { --m-from-x: var(--m-side); --m-from-y: 0; }
+.m-wait:not(.m-in) { opacity: 0; }
+.m-wait.m-in, .m-load { animation: m-rise var(--m-arrive) var(--m-out) backwards; animation-delay: calc(var(--m-n, 0) * var(--m-gap)); }
+
+/* headline, word by word */
+.m-word { display: inline-block; overflow: hidden; padding-bottom: 0.14em; margin-bottom: -0.14em; vertical-align: top; }
+.m-word > span { display: inline-block; animation: m-word 820ms var(--m-out) backwards; animation-delay: calc(120ms + var(--m-w, 0) * 80ms); }
+@keyframes m-word { from { transform: translateY(112%); filter: blur(6px); } }
+
+/* section headings, and a rule that sweeps under them */
+[data-sweep].m-wait.m-in { animation: none; }
+.m-wipe.m-in { animation: m-wipe 900ms var(--m-out) backwards; }
+@keyframes m-wipe { from { clip-path: inset(0 100% 0 0); filter: blur(6px); transform: translateX(-14px); } to { clip-path: inset(0 -4% 0 0); } }
+[data-sweep] { position: relative; }
+[data-sweep]::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 -1px;
+  height: 1px;
+  background: var(--m-tint);
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: left;
+}
+[data-sweep].m-in::after { animation: m-sweep 1200ms var(--m-across) calc(var(--m-n, 0) * var(--m-gap)); }
+@keyframes m-sweep { 0% { transform: scaleX(0); opacity: 1; } 65% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
+
+/* small things that land after their parent */
+.m-in [data-pop], [data-words] [data-pop] { display: inline-block; animation: m-pop 560ms var(--m-spring) calc(var(--m-n, 0) * var(--m-gap) + 240ms) backwards; }
+[data-words] [data-pop] { animation-delay: 760ms; }
+@keyframes m-pop { from { opacity: 0; transform: scale(0.6); } }
+
+/* bars. data-fill is the length, data-from where it starts, both 0 to 1 */
+/* [data-fill], not only the class: a framework re-render can wipe classes the kit added */
+.m-track, [data-fill] { display: block; position: relative; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--m-tint) 14%, transparent); }
+.m-track > i, [data-fill] > i { position: absolute; inset: 0 auto 0 calc(var(--m-from, 0) * 100%); width: calc(var(--m-fill) * 100%); border-radius: 2px; background: var(--m-tint); transform-origin: left; }
+.m-in [data-fill] > i, [data-fill].m-in > i { animation: m-fill 1100ms var(--m-out) calc(var(--m-n, 0) * var(--m-gap) + 200ms) backwards; }
+@keyframes m-fill { from { transform: scaleX(0); } }
+
+/* a chart line and the dot that runs along it */
+.m-head { position: absolute; top: 0; left: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--m-tint); box-shadow: 0 0 0 5px color-mix(in srgb, var(--m-tint) 22%, transparent); pointer-events: none; }
+
+/* a list whose rail draws as you read */
+[data-rail] { position: relative; }
+.m-railed::after {
+  content: "";
+  position: absolute;
+  top: var(--m-rail-top, 0);
+  left: var(--m-rail-x, 0);
+  width: 2px;
+  height: var(--m-rail-h, 0);
+  margin-left: -1px;
+  background: var(--m-tint);
+  transform: scaleY(var(--m-p, 0));
+  transform-origin: top;
+  pointer-events: none;
+}
+.m-railed [data-dot] { opacity: 0.4; transition: opacity 240ms var(--m-out); }
+.m-railed .m-lit [data-dot] { opacity: 1; animation: m-dot 620ms var(--m-spring); }
+@keyframes m-dot { from { transform: scale(0.5); } 45% { transform: scale(2); } }
+
+/* alive after load */
+[data-pulse] { position: relative; }
+[data-pulse]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  animation: m-ring 2.8s var(--m-out) infinite;
+  pointer-events: none;
+}
+@keyframes m-ring { from { opacity: 0.8; transform: scale(0.6); } 70%, to { opacity: 0; transform: scale(2.1); } }
+[data-breathe] { animation: m-breathe 2.2s ease-in-out infinite; }
+@keyframes m-breathe { 50% { opacity: 0.35; transform: scale(0.75); } }
+[data-glow] { position: relative; isolation: isolate; }
+[data-glow]::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -30%;
+  left: 18%;
+  width: min(70vw, 760px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--m-tint) 10%, transparent), transparent);
+  animation: m-drift 13s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes m-drift { from { transform: translate(-12%, -4%) scale(0.92); } to { transform: translate(16%, 10%) scale(1.14); } }
+@media (max-width: 760px) { [data-glow]::before { left: -20%; width: 100%; } }
+
+/* reading progress */
+.m-progress { position: fixed; z-index: 40; inset: 0 0 auto; height: 2px; background: var(--m-tint); transform: scaleX(0); transform-origin: left; pointer-events: none; }
+
+/* rows: a bar slides in at the edge; motion.js leans the content toward the pointer */
+li[data-arrive] {
+  position: relative;
+  background-image: linear-gradient(var(--m-tint), var(--m-tint));
+  background-position: 0 50%;
+  background-repeat: no-repeat;
+  background-size: 2px 0%;
+  transition: background-size 320ms var(--m-out), background-color 150ms var(--m-out);
+}
+li[data-arrive]:hover { background-size: 2px 72%; }
+li[data-arrive] > :not([data-dot], time) { translate: var(--m-lean, 0px) 0; }
+
+/* filters: the pill slides between buttons, rows that leave fade where they stood */
+.m-pill { position: absolute; top: 0; left: 0; width: 100px; border-bottom: 2px solid var(--m-tint); border-radius: 4px; background: var(--m-surface, transparent); transform-origin: left top; pointer-events: none; }
+.m-pill.m-ready { transition: transform 460ms var(--m-out); }
+.m-pilled { position: relative; }
+.m-pilled [data-filter] { position: relative; z-index: 1; }
+.m-pilled [data-filter][aria-pressed="true"] { background-color: transparent; border-bottom-color: transparent; }
+[data-filter-list] > .m-leaving { position: absolute; left: 0; right: 0; margin: 0; pointer-events: none; }
+.m-leaving [data-dot] { animation: none !important; }
+
+@media print {
+  .m-wait:not(.m-in) { opacity: 1; }
+  .m-progress { display: none; }
+}
+
+/* !important is required: `*` loses to any class selector without it. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .m-progress, .m-head, [data-pulse]::after { display: none; }
+}
