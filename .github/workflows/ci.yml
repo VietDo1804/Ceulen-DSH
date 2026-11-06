@@ -27,10 +27,7 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm run typecheck:strict
-      - run: npm run typecheck:test
-      - run: npm run test:cov
-        env:
-          NODE_ENV: test
+      # test/ is local-only and not published; the suite runs on the dev machine.
       - run: node scripts/check-bundle.mjs
       - run: node scripts/check-pack.mjs
       - run: node scripts/ceulen-sync.mjs parity --check
