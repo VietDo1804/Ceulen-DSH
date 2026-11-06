@@ -34,7 +34,7 @@ Inside the session: `/ceulen` (bundle version + module status) and
 `dsh` ships templates for `web`, `headless`, `acp`, and `sdk-minimal` — **not**
 `tui`. A profile named `tui` created by `dsh plugin add` therefore gets the base
 harness plus this bundle, but no TUI app. If the target has no TUI yet, use the
-wrapper, which adds `@deepseek-harness-tui/dsh-tui@0.18.0` in the same command:
+wrapper, which adds `@deepseek-harness-tui/dsh-tui@0.19.0` in the same command:
 
 ```sh
 ./install.sh --profile tui --with-tui
@@ -48,7 +48,7 @@ exact `dsh plugin` invocation without touching anything.
 | Requirement | Version | Why |
 |---|---|---|
 | Node.js | `>=22.19` (tested on 24) | `engines`, and dsh-tui's own `^22.19 \|\| >=24` |
-| DSH CLI | `0.2.1-rc.5` | `engines.dsh` (single source in `package.json`); pin it: `npm install -g @deepseek-ai/dsh@0.2.1-rc.5` |
+| DSH CLI | `0.2.2-rc.1` | `engines.dsh` (single source in `package.json`); pin it: `npm install -g @deepseek-ai/dsh@0.2.2-rc.1` |
 | Profile | any; `tui` is the supported one | bundle rows mount into the base composition |
 
 Optional backends stay fail-open — install them only for the features you use:
@@ -93,7 +93,7 @@ node ~/.dsh/profiles/tui/node_modules/ceulen-dsh/scripts/tui-advisor-patch.mjs a
 `/ceulen doctor` reports `tui footer: … · advisor-block applied|stock …`, and each
 script's `check` exits non-zero when its patch is missing. The footer patch was
 deleted — dsh-tui 0.17.0+ renders plugin footer fields natively. Patches target
-dsh-tui 0.18.0; re-apply after every upgrade.
+dsh-tui 0.19.0; re-apply after every upgrade.
 
 ## Uninstall
 

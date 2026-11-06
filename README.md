@@ -6,7 +6,7 @@ Ceulen itself is a Pi extension bundle. DSH has a different plugin API, so this 
 
 ## Requirements
 
-- DSH `0.2.1-rc.5` (the `dsh` CLI and `dsh-tui` 0.18.0 profile)
+- DSH `0.2.2-rc.1` (the `dsh` CLI and `dsh-tui` 0.19.0 profile)
 - Node.js `>=22.19` (tested on Node 24)
 - Optional backends: `gh`, `sg`/`ast-grep`, `rtk`, Serena, Chrome/Chromium, a Munin server, a Brave Search key, an OpenAI-compatible router, A2A peers
 
@@ -262,7 +262,7 @@ Refresh defaults to every 5 minutes; `usage.intervalMinutes` and
 clears or shows `unavailable`) and never block a turn.
 
 dsh-tui 0.17.0+ has a native footer slot (`ctx.tuiStatus.setField`, shipped in
-the installed 0.18.0), so the `ceulen:usage` segment joins the head of the
+the installed 0.19.0), so the `ceulen:usage` segment joins the head of the
 footer's right group beside the model/effort/mode/cwd fields
 (`Go · 5h 86% · W 88% · M 94%`) with no patch. The 0.16.1 footer patch was
 deleted for this reason (plan 5.5); `/ceulen doctor` still prints
