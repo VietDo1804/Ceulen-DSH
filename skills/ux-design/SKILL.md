@@ -34,14 +34,16 @@ the direction brief anchors the taste.
 
 ### Step 0 — Own the system via DESIGN.md
 
-A repo-root `DESIGN.md` combines machine-readable tokens with rationale; it is
+A `DESIGN.md` at the project root (the working directory) combines machine-readable tokens with rationale; it is
 never invented per screen. **Resolution order (stop at the first that holds):**
 
 1. **`DESIGN.md` exists** → read it; use its tokens verbatim.
-2. **A system is already wired in** (shadcn/MUI/Radix theme, Tailwind config) → reuse it.
+2. **A system is already wired in** (shadcn/MUI/Radix theme, Tailwind config) → reuse it. With no `DESIGN.md`, record that system's real tokens in one before any markup; never invent new ones.
 3. **A reference site exists** → `web_extract` it, distill its DNA (4–6 hex, type roles, rhythm) into a DESIGN.md starter, then work inside it.
-4. **Nothing exists** → do NOT block. Load `ux-presets` and pick a starter (B1 Web, B2 Mobile, an S-starter matching the subject's material, or S4 for dashboards). Use it in-context as the implicit system, then offer to persist it to repo root (don't auto-write). **A preset is a floor, not an identity:** Step 1.5 must bend it until the page could not be mistaken for the stock preset.
-5. **No preset fits** → derive a minimal DESIGN.md from the brief + direction (one accent, tinted neutrals, 1.25 scale, 8px grid, 4 named elevations, the state contract). Enough to generate inside; don't stall for a bigger model.
+4. **Nothing exists** → do NOT block. Load `ux-presets` and pick a starter (B1 Web, B2 Mobile, an S-starter matching the subject's material, or S4 for dashboards). **A preset is a floor, not an identity:** Step 1.5 must bend it until the page could not be mistaken for the stock preset. Then write the bent system to `DESIGN.md` in the working directory, next to the page, before any markup.
+5. **No preset fits** → derive a minimal DESIGN.md from the brief + direction (one accent, tinted neutrals, 1.25 scale, 8px grid, 4 named elevations, the state contract). Enough to generate inside; don't stall for a bigger model. Write it to `DESIGN.md` before any markup too.
+
+`DESIGN.md` is the contract, so it is written even when the request names only other files, and it is never a thing to offer or to skip. Keep it short: the direction line first, then the tokens this page uses, in the starter's format. When a token changes, change it here in the same edit: `ux_audit` reports colours this file lists that the stylesheet no longer has.
 
 The system defines colour tokens, a type scale, spacing, radius, 3–5 named
 elevations, and the state contract before any screen is written.
@@ -75,8 +77,9 @@ punctuation kit, and the taste rules are in
 or palette; the direction line is the required output.
 
 **Motion is part of the design.** Every page ships a load moment, items that
-arrive as they scroll in, soft state changes, and a reduced-motion fallback. The
-copyable kit, tokens, and rules are in [references/motion.md](references/motion.md).
+arrive as they scroll in, soft state changes, a response to the pointer, and a
+reduced-motion fallback. Copy `kit/motion.js` and `kit/motion.css` next to the page
+and mark it up with attributes: see [references/motion.md](references/motion.md).
 Read all of it before writing CSS.
 
 ### Step 2 — Generate fast, converge early
