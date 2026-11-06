@@ -37,7 +37,7 @@ After restart:
 /ceulen-config   # full-screen settings panel
 ```
 
-You should see the release line (`ceulen-dsh 0.2.1 (stable)`), the pinned
+You should see the release line (`ceulen-dsh 0.2.2 (stable)`), the pinned
 Ceulen version, and the mounted/native/planned modules.
 
 This checkout is already linked into `~/.dsh/profiles/tui`. The bundle composes
@@ -45,7 +45,7 @@ This checkout is already linked into `~/.dsh/profiles/tui`. The bundle composes
 
 ### Release line
 
-`package.json` carries this bundle's own version (`0.2.1`) plus
+`package.json` carries this bundle's own version (`0.2.2`) plus
 `release: { line: "stable", distTag: "stable" }`; the upstream Ceulen version it
 tracks lives in `upstream.lock.json` (`0.23.0`). The bundle update check follows
 the `stable` npm dist-tag, so `latest` staying on the old `0.23.0-dsh.x` line
