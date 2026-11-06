@@ -1,0 +1,6 @@
+Rules for this task:
+- Work in the current directory. Write index.html and styles.css there. You may add app.js.
+- Plain HTML, CSS, and JavaScript. No build step, no JavaScript frameworks, and no data from the network.
+- Use realistic sample content, not placeholders.
+- It must work on a phone and on a desktop.
+- Do not ask questions. Make your own decisions and finish the work in this one session.

@@ -1,0 +1,287 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "package": "ceulen",
+    "repo": "ceulen-dev/ceulen",
+    "version": "0.23.0",
+    "commit": "ee0187ea923ee815615e984044788f2adb493e6e",
+    "tarball": "https://registry.npmjs.org/ceulen/-/ceulen-0.23.0.tgz",
+    "syncedAt": "2026-10-23T00:00:00.000Z"
+  },
+  "vendored": {
+    "src/vendor/ceulen/rules/rules.ts": {
+      "source": "extensions/modules/rules/lib/rules.ts",
+      "upstreamSha256": "51723dfa092b0b45b9856eb330552a5f2fbbe6cbcbb85dd638c80240b1447a57",
+      "localSha256": "b82f06be0058d5fca6e0134fb999f7dc646e3950a0728acc7d8a991f348d855f",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/gh/gh-cli.ts": {
+      "source": "extensions/modules/gh/lib/gh-cli.ts",
+      "upstreamSha256": "c36f8b98a58a105d574e3812c9f828e82a2a8f183a98c0e1323707bdec5f7e40",
+      "localSha256": "c36f8b98a58a105d574e3812c9f828e82a2a8f183a98c0e1323707bdec5f7e40",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/gh/ops.ts": {
+      "source": "extensions/modules/gh/lib/ops.ts",
+      "upstreamSha256": "915535184c996ccfebdb833bbb8f62819ac35a2b82f21125d405931954c2e891",
+      "localSha256": "3231ea98fd5b08d7abd4c4a57b513c9996f5f1e8d7eb8b18dd8ae9f187651efa",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/munin/sdk.ts": {
+      "source": "extensions/modules/munin/lib/sdk.ts",
+      "upstreamSha256": "ae115d50182ab243f07f148c48a1b23ad4b35738bf5a2feab89f1755b4ac029d",
+      "localSha256": "08f23c5bc1d05f34e86e3dff68cdbb16bce047e5e58e528d9722cb22506336ee",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/munin/helpers.ts": {
+      "source": "extensions/modules/munin/lib/helpers.ts",
+      "upstreamSha256": "250a7e4c6fab6567e4fcbe839381eedfc74dadc2f68eb92f571f57462b60e3e8",
+      "localSha256": "82de9d5ed6d59974d702a23f05eaa04db14ffbb87b75de787b2dabe66b9998a8",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/munin/retry.ts": {
+      "source": "extensions/modules/munin/lib/retry.ts",
+      "upstreamSha256": "f513dbe845376ba0d243e6acb4b1e47b4a585f0c3d1a038ff9395bdaea3404fc",
+      "localSha256": "f513dbe845376ba0d243e6acb4b1e47b4a585f0c3d1a038ff9395bdaea3404fc",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/advisor/emission-guard.ts": {
+      "source": "extensions/modules/advisor/lib/emission-guard.ts",
+      "upstreamSha256": "f23794ab274ebfb7b4b137b73c6590fd8406212d2eff5f7ee25dfb8f3d41bd43",
+      "localSha256": "f23794ab274ebfb7b4b137b73c6590fd8406212d2eff5f7ee25dfb8f3d41bd43",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/advisor/system-prompt.ts": {
+      "source": "extensions/modules/advisor/lib/watcher.ts",
+      "upstreamSha256": "3954936d97d0816ee19faee12e6eea11c755fa30b180a88f38f49cb5cc5bef05",
+      "localSha256": "25fdb3b9419cfe6b6ea2b03ac51e1076d7d4e5b8694c3c7e63f64cd93b182f1f",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/ponytail/config.ts": {
+      "source": "extensions/modules/ponytail/lib/config.ts",
+      "upstreamSha256": "fbde9db03b6395f5878cfe30467b485c4b9fd579180ad0dd87545bff199abaec",
+      "localSha256": "fbde9db03b6395f5878cfe30467b485c4b9fd579180ad0dd87545bff199abaec",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/ponytail/instructions.ts": {
+      "source": "extensions/modules/ponytail/lib/instructions.ts",
+      "upstreamSha256": "cc87d58ba8f3ffe18b6f4e0c4e67f11ef7ada00e4ff8da56748d27631f28441e",
+      "localSha256": "cc87d58ba8f3ffe18b6f4e0c4e67f11ef7ada00e4ff8da56748d27631f28441e",
+      "mode": "copy"
+    },
+    "skills/a2a/SKILL.md": {
+      "source": "skills/a2a/SKILL.md",
+      "upstreamSha256": "c13e7d2eee3b6ea93454afb9c63d1e1188198faccfdf9c74da4f652f020b1a34",
+      "localSha256": "c13e7d2eee3b6ea93454afb9c63d1e1188198faccfdf9c74da4f652f020b1a34",
+      "mode": "copy"
+    },
+    "skills/cron/SKILL.md": {
+      "source": "skills/cron/SKILL.md",
+      "upstreamSha256": "0366f86602d26e108796f040cdd4d923c4c647864c35bdbb98f534feb4dcdfe2",
+      "localSha256": "0366f86602d26e108796f040cdd4d923c4c647864c35bdbb98f534feb4dcdfe2",
+      "mode": "copy"
+    },
+    "skills/munin/SKILL.md": {
+      "source": "skills/munin/SKILL.md",
+      "upstreamSha256": "b8cf5be7a7f7d86944c4afb1700c07932b0c067b4cdc39519ed3094837220939",
+      "localSha256": "b8cf5be7a7f7d86944c4afb1700c07932b0c067b4cdc39519ed3094837220939",
+      "mode": "copy"
+    },
+    "skills/ponytail/SKILL.md": {
+      "source": "skills/ponytail/SKILL.md",
+      "upstreamSha256": "3f2a6377a6011177cafbc578465ff38d1f9df80fb749ce1c7cafb29e7c22b82d",
+      "localSha256": "3f2a6377a6011177cafbc578465ff38d1f9df80fb749ce1c7cafb29e7c22b82d",
+      "mode": "copy"
+    },
+    "skills/ponytail-audit/SKILL.md": {
+      "source": "skills/ponytail-audit/SKILL.md",
+      "upstreamSha256": "ebfed6e7ac83621902f43e42e367bc8ae79ff41ab3b501ed12eed2f45d6e802f",
+      "localSha256": "ebfed6e7ac83621902f43e42e367bc8ae79ff41ab3b501ed12eed2f45d6e802f",
+      "mode": "copy"
+    },
+    "skills/ponytail-debt/SKILL.md": {
+      "source": "skills/ponytail-debt/SKILL.md",
+      "upstreamSha256": "2dde3ebcc58fcb394728670d843286be90693b84c4876f9e45a391789e45a3ed",
+      "localSha256": "2dde3ebcc58fcb394728670d843286be90693b84c4876f9e45a391789e45a3ed",
+      "mode": "copy"
+    },
+    "skills/ponytail-gain/SKILL.md": {
+      "source": "skills/ponytail-gain/SKILL.md",
+      "upstreamSha256": "7c5e4cbf0bb5d23d3b7fb7fb40bf8f1e3d1e63f0a9222f161333cf0ed4a53afc",
+      "localSha256": "7c5e4cbf0bb5d23d3b7fb7fb40bf8f1e3d1e63f0a9222f161333cf0ed4a53afc",
+      "mode": "copy"
+    },
+    "skills/ponytail-help/SKILL.md": {
+      "source": "skills/ponytail-help/SKILL.md",
+      "upstreamSha256": "4717daf58b8d571d44e19115ace96dc26c583092fc3e773949dbd78a1eabb0df",
+      "localSha256": "4717daf58b8d571d44e19115ace96dc26c583092fc3e773949dbd78a1eabb0df",
+      "mode": "copy"
+    },
+    "skills/ponytail-review/SKILL.md": {
+      "source": "skills/ponytail-review/SKILL.md",
+      "upstreamSha256": "25bf832378f0b9b1b6d9c28a878043ba2b8fc552fcd2d39ed5df7b687449f799",
+      "localSha256": "25bf832378f0b9b1b6d9c28a878043ba2b8fc552fcd2d39ed5df7b687449f799",
+      "mode": "copy"
+    },
+    "skills/review/SKILL.md": {
+      "source": "skills/review/SKILL.md",
+      "upstreamSha256": "cd88d4c46e95e451e387dd2c716cf8f9a4b34440a09a4cda6dc77ab837614d5a",
+      "localSha256": "cd88d4c46e95e451e387dd2c716cf8f9a4b34440a09a4cda6dc77ab837614d5a",
+      "mode": "copy"
+    },
+    "skills/ux-capture/SKILL.md": {
+      "source": "skills/ux-capture/SKILL.md",
+      "upstreamSha256": "53e33cf3a7de03323ca2074ebc5c900cf63fc30595d93439f5417a91d4d51d16",
+      "localSha256": "53e33cf3a7de03323ca2074ebc5c900cf63fc30595d93439f5417a91d4d51d16",
+      "mode": "patched"
+    },
+    "skills/ux-design/SKILL.md": {
+      "source": "skills/ux-design/SKILL.md",
+      "upstreamSha256": "6960c51229f4c25baab1412870e110d65da4209d5f9de09c5d5b9ce94202c3f8",
+      "localSha256": "6960c51229f4c25baab1412870e110d65da4209d5f9de09c5d5b9ce94202c3f8",
+      "mode": "patched"
+    },
+    "skills/ux-presets/SKILL.md": {
+      "source": "skills/ux-presets/SKILL.md",
+      "upstreamSha256": "3cfd4b482429e84821b05f364e844093deabbd47a4119cd5803d970ce25f0bbf",
+      "localSha256": "866f1836db759ea15e182283b362e3eb0227caa5a8a11b0c2fe6d509bcaaf96f",
+      "mode": "patched"
+    },
+    "skills/ux-routing/SKILL.md": {
+      "source": "skills/ux-routing/SKILL.md",
+      "upstreamSha256": "4f37a28b186dec8990f9049f05f33dae5dafc2269e45ea266c5826576bae0631",
+      "localSha256": "c9cc0f7fb8099a2b42f3786df3841695f3c3985b4cc52e90b01f6841dbcebb47",
+      "mode": "patched"
+    },
+    "skills/web/SKILL.md": {
+      "source": "skills/web/SKILL.md",
+      "upstreamSha256": "12daf4ec5c56d51928bb698bed4f96ca64560e5be63952368df41e371278c0c2",
+      "localSha256": "12daf4ec5c56d51928bb698bed4f96ca64560e5be63952368df41e371278c0c2",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/cron/schedule.ts": {
+      "source": "extensions/modules/cron/lib/schedule.ts",
+      "upstreamSha256": "e9424bf0c34dd06f95e3125e90e15c7a2e41c9c9240ce70995aac266173edd28",
+      "localSha256": "e9424bf0c34dd06f95e3125e90e15c7a2e41c9c9240ce70995aac266173edd28",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/cron/jobs.ts": {
+      "source": "extensions/modules/cron/lib/jobs.ts",
+      "upstreamSha256": "8d658fb778573dd1fff81e8a8e2d015bdee98fab54386694fce82cf89a4b4aa6",
+      "localSha256": "5e4300d36499bfadf0486687cdfcbfdc117b3235e27b64f52de8d498078e4d52",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/sg/sg-cli.ts": {
+      "source": "extensions/modules/sg/lib/sg-cli.ts",
+      "upstreamSha256": "1125b378a5adf1e090ec276cdb0984e72fb29af0958c37e6e9b6b6a7d88dc5f5",
+      "localSha256": "1125b378a5adf1e090ec276cdb0984e72fb29af0958c37e6e9b6b6a7d88dc5f5",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/sg/ops.ts": {
+      "source": "extensions/modules/sg/lib/ops.ts",
+      "upstreamSha256": "b29b5b68421253fd0f01e2300d11ca143b90ec90f9bc24f02949b0c00a9a72f3",
+      "localSha256": "b29b5b68421253fd0f01e2300d11ca143b90ec90f9bc24f02949b0c00a9a72f3",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/ux/audit.ts": {
+      "source": "extensions/modules/ux/lib/audit.ts",
+      "upstreamSha256": "1d762d65fa63ccd7bad8f61ebed04710b2e080c3c9f4c5f50376f68ef599bc45",
+      "localSha256": "1d762d65fa63ccd7bad8f61ebed04710b2e080c3c9f4c5f50376f68ef599bc45",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/jfind/tree.ts": {
+      "source": "extensions/modules/jfind/lib/tree.ts",
+      "upstreamSha256": "eaf1ebb2fcdadbabb382ac0c3b895b2100a4e6e17bba0ddeb9c6d56d4d97c993",
+      "localSha256": "ba02a09adc0be1075d165be87578f3657f8d31b2048ce8114d18793774d97a68",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/jfind/lexical.ts": {
+      "source": "extensions/modules/jfind/lib/lexical.ts",
+      "upstreamSha256": "4f8fad084f0e24abc1a645e9346cb16ef4f8205bb7ab43181e5500fb27ef7ddd",
+      "localSha256": "4f8fad084f0e24abc1a645e9346cb16ef4f8205bb7ab43181e5500fb27ef7ddd",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/jfind/cascade.ts": {
+      "source": "extensions/modules/jfind/lib/cascade.ts",
+      "upstreamSha256": "c5c0c67ee01c06e17eb2c225fad963c2097a5feae872278fa5bd84fda866bf27",
+      "localSha256": "c5c0c67ee01c06e17eb2c225fad963c2097a5feae872278fa5bd84fda866bf27",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/jfind/format.ts": {
+      "source": "extensions/modules/jfind/lib/format.ts",
+      "upstreamSha256": "19d1857f61e40e44f5aed71567d1b7512bdab09a1cdaa9aabfd270c24dcb2dbc",
+      "localSha256": "19d1857f61e40e44f5aed71567d1b7512bdab09a1cdaa9aabfd270c24dcb2dbc",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/jfind/questions.ts": {
+      "source": "extensions/modules/jfind/lib/questions.ts",
+      "upstreamSha256": "1ccc67743a84b7f2b47c8626099099e672596ac3486b0cb661efd9b865d7c92d",
+      "localSha256": "1ccc67743a84b7f2b47c8626099099e672596ac3486b0cb661efd9b865d7c92d",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/web/chrome.ts": {
+      "source": "extensions/modules/web/lib/chrome.ts",
+      "upstreamSha256": "baac2852b71dcd937b3583cdb7e4f46cbede3528661091da8dfaa9ced29d9b36",
+      "localSha256": "f30be262097d46c50a1d5abe23ae1e119524d695a51916e3eb6e68f0a3efacd4",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/web/cdp.ts": {
+      "source": "extensions/modules/web/lib/cdp.ts",
+      "upstreamSha256": "3f53ba84dc52009a1c2bb81fcd0181f5386651ea7e02d2eb2ebc9dc58a954521",
+      "localSha256": "f65f1e92f3d1b2840730aac540b279806d1f1523738067bc21f4750934a74050",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/web/config.ts": {
+      "source": "extensions/modules/web/lib/config.ts",
+      "upstreamSha256": "ef4c5ba8f8ea5aeaa45f5634b38b6772e5d623312a500c6c62360850d599c621",
+      "localSha256": "d0318510cf129fed05253a3e8b4a0f0b252504fdb67e42be80fc80c574389e45",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/web/retry.ts": {
+      "source": "extensions/modules/web/lib/retry.ts",
+      "upstreamSha256": "e424c5217703e9c17c808d362f5ad99b077242cd98b119f0fdd4089055b08ad4",
+      "localSha256": "e424c5217703e9c17c808d362f5ad99b077242cd98b119f0fdd4089055b08ad4",
+      "mode": "copy"
+    },
+    "src/vendor/ceulen/web/gemini-auth.ts": {
+      "source": "extensions/modules/web/lib/gemini-auth.ts",
+      "upstreamSha256": "68e6f429926f35531aefa5806b872668d42f8cbeb2f86dcb06a978db1dc6e7f0",
+      "localSha256": "e9aa2c9f315ceffdfcbd4e9b5461082dc3ff0b15ca899940028abb043478797a",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/web/gemini.ts": {
+      "source": "extensions/modules/web/lib/gemini.ts",
+      "upstreamSha256": "63f2a31b346db3d39fb3f1a5672ada6a663f8a6f9e3d3f460122498c6d47594a",
+      "localSha256": "fedaed22be9a0d64c79b3f917fc42198577a6725bf107b3e4bba1ef816c003a7",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/web/gemini-dr.ts": {
+      "source": "extensions/modules/web/lib/gemini-dr.ts",
+      "upstreamSha256": "05947f81d12d2ed26e370f0baa3b891c39590029284a272fe6d6eae7379d05fa",
+      "localSha256": "303131ef8936a3b751f939aac3f86257dcf550ea4300123d2a38e2e58f211743",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/web/chatgpt.ts": {
+      "source": "extensions/modules/web/lib/chatgpt.ts",
+      "upstreamSha256": "e1f33ff9d7b91ce01ba3340032183a1105939af6c5872e9721eafe420c5b24ff",
+      "localSha256": "e68e1409b79524fb9acdccf120e5dadcdb01ef25f23350f853ae754cce8717f6",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/web/chatapi.ts": {
+      "source": "extensions/modules/web/lib/chatapi.ts",
+      "upstreamSha256": "af5f6483c1152a56fad8eca040a88f7ba19effe0088bbdeb5c7ba45d8acb400b",
+      "localSha256": "094e41f0233e9480bfebe3ce674473caa0923bb204288fda9170df7d1ed63ff1",
+      "mode": "patched"
+    },
+    "src/vendor/ceulen/web/imageapi.ts": {
+      "source": "extensions/modules/web/lib/imageapi.ts",
+      "upstreamSha256": "6db898783d8973d4d6b231c088611e88d82f115060ad0217e234c1de0a08dac0",
+      "localSha256": "a2d172a0447b3bca9ebbee7d083ddd3c7e06f5e211534b5ef54cc0b547e8b3c4",
+      "mode": "patched"
+    }
+  },
+  "data": {
+    "skills": {},
+    "themes": {}
+  }
+}

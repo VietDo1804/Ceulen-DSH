@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      # 22.19.0 is the engines floor; 24 is what this repo is developed on.
+      fail-fast: false
+      matrix:
+        node-version: ['22.19.0', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+      - run: npm ci --include=dev
+      - run: npm run lint
+      - run: npm run build
+      - run: npm run typecheck:strict
+      - run: npm run typecheck:test
+      - run: npm run test:cov
+        env:
+          NODE_ENV: test
+      - run: node scripts/check-bundle.mjs
+      - run: node scripts/check-pack.mjs
+      - run: node scripts/ceulen-sync.mjs parity --check

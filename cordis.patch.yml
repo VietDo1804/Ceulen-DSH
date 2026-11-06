@@ -1,0 +1,77 @@
+# ceulen-dsh bundle patch.
+#
+# One insert list applied over the profile root. Every row is its own Cordis
+# plugin entry point (`ceulen-dsh/modules/<name>`), so a broken or unwanted
+# module can be disabled by row id without touching the others:
+#
+#   /plugin disable ceulen-advisor
+#
+# Rows are added as the port lands; parity.json is the authoritative list of
+# implemented versus native/deferred modules.
+- insert:
+    - id: ceulen-status
+      name: 'ceulen-dsh/modules/status'
+    - id: ceulen-tools
+      name: 'ceulen-dsh/modules/tools'
+    - id: ceulen-skills
+      name: 'ceulen-dsh/modules/skills'
+    - id: ceulen-rules
+      name: 'ceulen-dsh/modules/rules'
+    - id: ceulen-gh
+      name: 'ceulen-dsh/modules/gh'
+    - id: ceulen-munin
+      name: 'ceulen-dsh/modules/munin'
+    - id: ceulen-agentmem
+      name: 'ceulen-dsh/modules/agentmem'
+    - id: ceulen-ponytail
+      name: 'ceulen-dsh/modules/ponytail'
+    - id: ceulen-advisor
+      name: 'ceulen-dsh/modules/advisor'
+    - id: ceulen-todoview
+      name: 'ceulen-dsh/modules/todoview'
+    - id: ceulen-subagent
+      name: 'ceulen-dsh/modules/subagent'
+    - id: ceulen-cron
+      name: 'ceulen-dsh/modules/cron'
+    - id: ceulen-classifier
+      name: 'ceulen-dsh/modules/classifier'
+    - id: ceulen-repair
+      name: 'ceulen-dsh/modules/repair'
+    - id: ceulen-themes
+      name: 'ceulen-dsh/modules/themes'
+    - id: ceulen-router
+      name: 'ceulen-dsh/modules/providers'
+      config:
+        target: router
+    - id: ceulen-zai
+      name: 'ceulen-dsh/modules/providers'
+      config:
+        target: zai
+    - id: ceulen-web
+      name: 'ceulen-dsh/modules/web'
+    - id: ceulen-a2a
+      name: 'ceulen-dsh/modules/a2a'
+    - id: ceulen-ux
+      name: 'ceulen-dsh/modules/ux'
+    - id: ceulen-sg
+      name: 'ceulen-dsh/modules/sg'
+    - id: ceulen-steering
+      name: 'ceulen-dsh/modules/steering'
+    - id: ceulen-usage
+      name: 'ceulen-dsh/modules/usage'
+    - id: ceulen-jfind
+      name: 'ceulen-dsh/modules/jfind'
+    - id: ceulen-rtk
+      name: 'ceulen-dsh/modules/rtk'
+    - id: ceulen-codemode
+      name: 'ceulen-dsh/modules/codemode'
+    - id: ceulen-serena
+      name: 'ceulen-dsh/modules/serena'
+    - id: ceulen-context
+      name: 'ceulen-dsh/modules/context'
+    - id: ceulen-evo
+      name: 'ceulen-dsh/modules/evo'
+    - id: ceulen-plan
+      name: 'ceulen-dsh/modules/plan'
+    - id: ceulen-notebooklm
+      name: 'ceulen-dsh/modules/notebooklm'

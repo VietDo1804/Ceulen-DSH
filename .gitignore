@@ -1,0 +1,18 @@
+node_modules/
+lib/
+coverage/
+.devhome/
+.upstream/
+*.log
+.DS_Store
+*.tmp
+.ceulen-cache/
+.npm-cache/
+.upstream-cache/
+.dsh/
+.serena/
+.probe/
+.ux-bench/
+
+# tsc build metadata
+*.tsbuildinfo

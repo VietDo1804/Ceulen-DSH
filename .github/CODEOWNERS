@@ -1,0 +1,7 @@
+# No remote exists yet, so there is no real GitHub handle to name. Add owner
+# lines when the remote is created (see docs/improvement-plan.md 0.1), e.g.:
+#   *           @<handle>
+#   /src/vendor/ @<handle>
+#
+# Vendored upstream code under /src/vendor/ needs the vendored-code policy:
+# upstream first, or mode: patched plus a docs/upstream-sync.md line.

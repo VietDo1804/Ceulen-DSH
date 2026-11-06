@@ -1,0 +1,70 @@
+name: ceulen-upstream
+
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check npm for a newer Ceulen
+        id: check
+        run: |
+          set +e
+          node scripts/ceulen-sync.mjs check --json > check.json
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          cat check.json
+      - name: Build the upgrade report
+        if: steps.check.outputs.exit_code == '10'
+        run: node scripts/ceulen-sync.mjs report --cache "$RUNNER_TEMP/ceulen-cache"
+      - name: Upload report
+        if: steps.check.outputs.exit_code == '10'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceulen-upstream-report
+          path: |
+            check.json
+            docs/upstream/*.md
+      - name: Open or update the upgrade issue
+        if: steps.check.outputs.exit_code == '10'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('node:fs')
+            const check = JSON.parse(fs.readFileSync('check.json', 'utf8'))
+            const title = `ceulen upstream ${check.latest} is available (pinned ${check.pinned})`
+            const body = [
+              `A newer Ceulen release is available: **${check.latest}** (this bundle pins **${check.pinned}**).`,
+              '',
+              'Run the upgrade checklist from `docs/upstream-sync.md`:',
+              '',
+              '```sh',
+              `node scripts/ceulen-sync.mjs report --version ${check.latest}`,
+              'node scripts/ceulen-sync.mjs apply-vendor',
+              'node scripts/ceulen-sync.mjs parity',
+              'npm run check',
+              `node scripts/ceulen-sync.mjs bump --version ${check.latest}`,
+              '```',
+              '',
+              'The workflow artifact contains the generated upgrade report.',
+            ].join('\n')
+            const { owner, repo } = context.repo
+            const existing = await github.rest.issues.listForRepo({ owner, repo, state: 'open', labels: 'upstream' })
+            const match = existing.data.find(issue => issue.title.includes('ceulen upstream'))
+            if (match) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: match.number, body })
+            } else {
+              await github.rest.issues.create({ owner, repo, title, body, labels: ['upstream'] })
+            }

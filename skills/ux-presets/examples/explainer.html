@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How a CDN invalidation travels</title>
+<style>
+  :root {
+    --paper: #F4F2EC;
+    --card: #FCFBF7;
+    --ink: #1C211E;
+    --ink-muted: #5B625D;
+    --signal: #1E6B50;
+    --signal-hover: #155640;
+    --signal-soft: #E2EEE7;
+    --rule: #1C211E;
+    --hairline: #DCD9CE;
+    --danger: #B0362A;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 32px;
+    --radius-sm: 3px;
+    --radius-md: 6px;
+    --sans: "Spline Sans", system-ui, sans-serif;
+    --mono: "Spline Sans Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 1rem/1.6 var(--sans); }
+  a { color: var(--signal); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+  a[aria-disabled="true"] { color: var(--ink-muted); cursor: not-allowed; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: var(--space-4); }
+  header { border-bottom: 1.5px solid var(--rule); padding-bottom: var(--space-3); }
+  .kicker { margin: 0; font: 500 0.6875rem/1.4 var(--mono); color: var(--ink-muted); }
+  h1 { margin: var(--space-2) 0 0; font: 700 1.5rem/1.2 var(--sans); letter-spacing: -0.015em; }
+  .intro { margin: var(--space-3) 0 0; max-width: 60ch; color: var(--ink-muted); }
+  .steps { display: flex; gap: var(--space-2); flex-wrap: wrap; margin: var(--space-4) 0; border: 0; padding: 0; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
+  .tab {
+    min-height: 44px;
+    font: 600 0.875rem/1 var(--sans); color: var(--ink); background: var(--card);
+    border: 1.5px solid var(--hairline); border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3); cursor: pointer;
+  }
+  .tab[aria-pressed="true"] { color: var(--card); background: var(--signal); border-color: var(--signal); }
+  .track {
+    overflow-x: clip;
+    position: relative; display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-2); margin: var(--space-4) 0 var(--space-5);
+  }
+  .track::before {
+    content: ""; position: absolute; left: 4%; right: 4%; top: 34px; height: 2px;
+    background: var(--hairline);
+  }
+  .stop { position: relative; text-align: center; }
+  .stop .dot {
+    width: 14px; height: 14px; margin: 27px auto var(--space-2);
+    border: 2px solid var(--rule); border-radius: 50%; background: var(--card);
+  }
+  .stop.on .dot { background: var(--signal); border-color: var(--signal); }
+  .stop .name { font: 500 0.6875rem/1.4 var(--mono); color: var(--ink-muted); }
+  /* The box spans the route, so translateX(100%) is exactly one route length. */
+  .pulse {
+    position: absolute; top: 32px; left: 4%; width: calc(92% - 14px); height: 14px;
+    opacity: 0; pointer-events: none;
+    animation: travel 3.6s ease-in-out infinite;
+  }
+  .pulse::before {
+    content: ""; display: block; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--signal);
+  }
+  @keyframes travel {
+    0% { transform: translateX(0); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateX(100%); opacity: 0; }
+  }
+  .panel {
+    background: var(--card); border: 1.5px solid var(--rule);
+    border-radius: var(--radius-md); padding: var(--space-4);
+    display: grid; gap: var(--space-2);
+  }
+  .panel h2 { margin: 0; font: 600 1.125rem/1.3 var(--sans); }
+  .panel p { margin: 0; color: var(--ink-muted); max-width: 62ch; }
+  code {
+    font: 500 0.875rem/1.5 var(--mono); color: var(--ink);
+    background: var(--signal-soft); padding: 0.1rem 0.3rem; border-radius: var(--radius-sm);
+  }
+  .count {
+    position: absolute; right: 0; top: -0.6rem; font: 700 4.5rem/1 var(--mono);
+    color: var(--hairline); user-select: none; z-index: 0;
+  }
+  .footer { display: flex; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-4); color: var(--ink-muted); font-size: 0.875rem; }
+  @media (max-width: 560px) {
+    .track { grid-template-columns: repeat(2, 1fr); }
+    .track::before, .pulse { display: none; }
+    .count { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+    .pulse { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="kicker">EXPLAINER · 4 STOPS · 3 MIN</p>
+    <h1>How a CDN invalidation travels</h1>
+    <p class="intro">One purge request, four hops. Pick a stop to see what holds the stale copy and how long it survives.</p>
+  </header>
+
+  <fieldset class="steps">
+    <legend class="sr-only">Choose a stop</legend>
+    <button class="tab" type="button" aria-pressed="true" data-step="0">1 · Origin</button>
+    <button class="tab" type="button" aria-pressed="false" data-step="1">2 · Edge</button>
+    <button class="tab" type="button" aria-pressed="false" data-step="2">3 · Browser</button>
+    <button class="tab" type="button" aria-pressed="false" data-step="3" disabled>4 · Verify</button>
+
+  </fieldset>
+
+  <div class="track" aria-hidden="true">
+    <span class="pulse"></span>
+    <div class="stop on"><span class="dot"></span><span class="name">origin</span></div>
+    <div class="stop"><span class="dot"></span><span class="name">edge</span></div>
+    <div class="stop"><span class="dot"></span><span class="name">browser</span></div>
+    <div class="stop"><span class="dot"></span><span class="name">verify</span></div>
+  </div>
+
+  <section class="panel" aria-live="polite">
+    <p class="count" aria-hidden="true">01</p>
+    <h2 id="stop-title">The origin drops its copy first</h2>
+    <p id="stop-body">The purge call deletes the object from the origin cache and bumps the entity tag. Every layer above it now holds a copy that no longer matches <code>ETag</code>, so it will revalidate on the next request.</p>
+  </section>
+
+  <div class="footer">
+    <p>Read the spec: <a href="https://www.rfc-editor.org/rfc/rfc9111">RFC 9111 §4.4</a> · <a href="#stops" aria-disabled="true">Skip to verification</a></p>
+    <p>No tracking · static page</p>
+  </div>
+</div>
+
+<script>
+  const stops = [
+    ["The origin drops its copy first", "The purge call deletes the object from the origin cache and bumps the entity tag. Every layer above it now holds a copy that no longer matches ETag, so it will revalidate on the next request."],
+    ["The edge keeps a soft copy", "Each edge marks the object stale but keeps it for a grace window: a request during that window gets the old copy instantly and triggers a background revalidation. Stale-while-revalidate is the trade, and it is deliberate."],
+    ["The browser only trusts its headers", "The browser follows its own freshness lifetime, not the purge. A max-age of five minutes means the tab can hold the stale copy for five minutes; a hard reload bypasses it."],
+    ["Verification reads the ETag", "A conditional request with If-None-Match returns 304 only when the origin and the edge agree. A 200 with an older ETag means a hop still holds the previous object."]
+  ]
+  const tabs = Array.from(document.querySelectorAll(".tab"))
+  const dots = Array.from(document.querySelectorAll(".stop"))
+  const title = document.getElementById("stop-title")
+  const body = document.getElementById("stop-body")
+  const count = document.querySelector(".count")
+  tabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const index = Number(tab.dataset.step)
+      for (const other of tabs) other.setAttribute("aria-pressed", String(other === tab))
+      dots.forEach((dot, i) => {
+        dot.classList.toggle("on", i === index)
+      })
+      title.textContent = stops[index][0]
+      body.textContent = stops[index][1]
+      count.textContent = String(index + 1).padStart(2, "0")
+    })
+  })
+</script>
+</body>
+</html>

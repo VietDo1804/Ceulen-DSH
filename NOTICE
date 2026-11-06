@@ -1,0 +1,14 @@
+ceulen-dsh
+==========
+
+This project ports parts of Ceulen (https://github.com/ceulen-dev/ceulen,
+npm package `ceulen`, MIT licensed, Copyright (c) ceulen-dev/ceulen
+contributors) to the DeepSeek Harness plugin API.
+
+Ported files are kept under `src/vendor/ceulen/` and retain their upstream
+headers. Upstream version and per-file hashes are recorded in
+`upstream.lock.json`; `scripts/ceulen-sync.mjs` uses those hashes to upgrade
+unmodified vendored files and to report locally modified ones.
+
+Ceulen is a Pi coding-agent bundle. DeepSeek Harness is a different runtime;
+this project is an independent adaptation, not an official Ceulen release.

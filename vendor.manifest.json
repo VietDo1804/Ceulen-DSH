@@ -1,0 +1,276 @@
+{
+  "schemaVersion": 1,
+  "note": "Files copied from upstream Ceulen into src/. Only entries listed here are eligible for automatic apply-vendor upgrades. Adapter files under src/modules are never listed. mode=patched means the local file intentionally differs and an upstream change is always a manual merge.",
+  "files": [
+    {
+      "module": "rules",
+      "source": "extensions/modules/rules/lib/rules.ts",
+      "target": "src/vendor/ceulen/rules/rules.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "gh",
+      "source": "extensions/modules/gh/lib/gh-cli.ts",
+      "target": "src/vendor/ceulen/gh/gh-cli.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "gh",
+      "source": "extensions/modules/gh/lib/ops.ts",
+      "target": "src/vendor/ceulen/gh/ops.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "munin",
+      "source": "extensions/modules/munin/lib/sdk.ts",
+      "target": "src/vendor/ceulen/munin/sdk.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "munin",
+      "source": "extensions/modules/munin/lib/helpers.ts",
+      "target": "src/vendor/ceulen/munin/helpers.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "munin",
+      "source": "extensions/modules/munin/lib/retry.ts",
+      "target": "src/vendor/ceulen/munin/retry.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "advisor",
+      "source": "extensions/modules/advisor/lib/emission-guard.ts",
+      "target": "src/vendor/ceulen/advisor/emission-guard.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "advisor",
+      "source": "extensions/modules/advisor/lib/watcher.ts",
+      "target": "src/vendor/ceulen/advisor/system-prompt.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "ponytail",
+      "source": "extensions/modules/ponytail/lib/config.ts",
+      "target": "src/vendor/ceulen/ponytail/config.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "ponytail",
+      "source": "extensions/modules/ponytail/lib/instructions.ts",
+      "target": "src/vendor/ceulen/ponytail/instructions.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "skills",
+      "source": "skills/a2a/SKILL.md",
+      "target": "skills/a2a/SKILL.md",
+      "mode": "copy"
+    },
+    {
+      "module": "skills",
+      "source": "skills/cron/SKILL.md",
+      "target": "skills/cron/SKILL.md",
+      "mode": "copy"
+    },
+    {
+      "module": "skills",
+      "source": "skills/munin/SKILL.md",
+      "target": "skills/munin/SKILL.md",
+      "mode": "copy"
+    },
+    {
+      "module": "skills",
+      "source": "skills/ponytail/SKILL.md",
+      "target": "skills/ponytail/SKILL.md",
+      "mode": "copy"
+    },
+    {
+      "module": "skills",
+      "source": "skills/ponytail-audit/SKILL.md",
+      "target": "skills/ponytail-audit/SKILL.md",
+      "mode": "copy"
+    },
+    {
+      "module": "skills",
+      "source": "skills/ponytail-debt/SKILL.md",
+      "target": "skills/ponytail-debt/SKILL.md",
+      "mode": "copy"
+    },
+    {
+      "module": "skills",
+      "source": "skills/ponytail-gain/SKILL.md",
+      "target": "skills/ponytail-gain/SKILL.md",
+      "mode": "copy"
+    },
+    {
+      "module": "skills",
+      "source": "skills/ponytail-help/SKILL.md",
+      "target": "skills/ponytail-help/SKILL.md",
+      "mode": "copy"
+    },
+    {
+      "module": "skills",
+      "source": "skills/ponytail-review/SKILL.md",
+      "target": "skills/ponytail-review/SKILL.md",
+      "mode": "copy"
+    },
+    {
+      "module": "skills",
+      "source": "skills/review/SKILL.md",
+      "target": "skills/review/SKILL.md",
+      "mode": "copy"
+    },
+    {
+      "module": "skills",
+      "source": "skills/ux-capture/SKILL.md",
+      "target": "skills/ux-capture/SKILL.md",
+      "mode": "patched"
+    },
+    {
+      "module": "skills",
+      "source": "skills/ux-design/SKILL.md",
+      "target": "skills/ux-design/SKILL.md",
+      "mode": "patched"
+    },
+    {
+      "module": "skills",
+      "source": "skills/ux-presets/SKILL.md",
+      "target": "skills/ux-presets/SKILL.md",
+      "mode": "patched"
+    },
+    {
+      "module": "skills",
+      "source": "skills/ux-routing/SKILL.md",
+      "target": "skills/ux-routing/SKILL.md",
+      "mode": "patched"
+    },
+    {
+      "module": "skills",
+      "source": "skills/web/SKILL.md",
+      "target": "skills/web/SKILL.md",
+      "mode": "copy"
+    },
+    {
+      "module": "cron",
+      "source": "extensions/modules/cron/lib/schedule.ts",
+      "target": "src/vendor/ceulen/cron/schedule.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "cron",
+      "source": "extensions/modules/cron/lib/jobs.ts",
+      "target": "src/vendor/ceulen/cron/jobs.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "sg",
+      "source": "extensions/modules/sg/lib/sg-cli.ts",
+      "target": "src/vendor/ceulen/sg/sg-cli.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "sg",
+      "source": "extensions/modules/sg/lib/ops.ts",
+      "target": "src/vendor/ceulen/sg/ops.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "ux",
+      "source": "extensions/modules/ux/lib/audit.ts",
+      "target": "src/vendor/ceulen/ux/audit.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "jfind",
+      "source": "extensions/modules/jfind/lib/tree.ts",
+      "target": "src/vendor/ceulen/jfind/tree.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "jfind",
+      "source": "extensions/modules/jfind/lib/lexical.ts",
+      "target": "src/vendor/ceulen/jfind/lexical.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "jfind",
+      "source": "extensions/modules/jfind/lib/cascade.ts",
+      "target": "src/vendor/ceulen/jfind/cascade.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "jfind",
+      "source": "extensions/modules/jfind/lib/format.ts",
+      "target": "src/vendor/ceulen/jfind/format.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "jfind",
+      "source": "extensions/modules/jfind/lib/questions.ts",
+      "target": "src/vendor/ceulen/jfind/questions.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "web",
+      "source": "extensions/modules/web/lib/chrome.ts",
+      "target": "src/vendor/ceulen/web/chrome.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "web",
+      "source": "extensions/modules/web/lib/cdp.ts",
+      "target": "src/vendor/ceulen/web/cdp.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "web",
+      "source": "extensions/modules/web/lib/config.ts",
+      "target": "src/vendor/ceulen/web/config.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "web",
+      "source": "extensions/modules/web/lib/retry.ts",
+      "target": "src/vendor/ceulen/web/retry.ts",
+      "mode": "copy"
+    },
+    {
+      "module": "web",
+      "source": "extensions/modules/web/lib/gemini-auth.ts",
+      "target": "src/vendor/ceulen/web/gemini-auth.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "web",
+      "source": "extensions/modules/web/lib/gemini.ts",
+      "target": "src/vendor/ceulen/web/gemini.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "web",
+      "source": "extensions/modules/web/lib/gemini-dr.ts",
+      "target": "src/vendor/ceulen/web/gemini-dr.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "web",
+      "source": "extensions/modules/web/lib/chatgpt.ts",
+      "target": "src/vendor/ceulen/web/chatgpt.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "web",
+      "source": "extensions/modules/web/lib/chatapi.ts",
+      "target": "src/vendor/ceulen/web/chatapi.ts",
+      "mode": "patched"
+    },
+    {
+      "module": "web",
+      "source": "extensions/modules/web/lib/imageapi.ts",
+      "target": "src/vendor/ceulen/web/imageapi.ts",
+      "mode": "patched"
+    }
+  ]
+}

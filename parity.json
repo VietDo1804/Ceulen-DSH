@@ -1,0 +1,346 @@
+{
+  "schemaVersion": 1,
+  "upstream": {
+    "package": "ceulen",
+    "repo": "ceulen-dev/ceulen",
+    "version": "0.23.0",
+    "commit": "ee0187ea923ee815615e984044788f2adb493e6e"
+  },
+  "modules": [
+    {
+      "name": "agentmem",
+      "category": "Memory",
+      "status": "native",
+      "dsh": "agentmem_search/get/store/list/recent/delete/versions/diff/rollback/share/capabilities; /agentmem-status; the Memory Protocol section; optional first-turn brief (agentmem.brief, off by default) with an automatic Munin fallback",
+      "phase": 0,
+      "notes": "New in ceulen-dsh, no upstream counterpart: the default memory family on the Munin wire protocol, pinned to one opimem server (Munin keeps the cloud backup). Resolves AGENTMEM_* env > DSH credential store > the agentmem settings section, with no default endpoint, no project config and no write failover: a write never lands in the backup store by accident. Reads (search/get/list/recent) and the first-turn brief do fall back to the configured Munin cloud after one bounded attempt and label the answer; the protocol says to mirror each stored memory with munin_store at session end. share copies memories by key into other projects on the same pi server and is capability-gated: an older opimem without share answers with a clean FEATURE_DISABLED.",
+      "rowId": "ceulen-agentmem"
+    },
+    {
+      "name": "router",
+      "category": "Providers",
+      "status": "config",
+      "dsh": "llm-pi-ai OpenAI-compatible provider route; /router-status and /router-model; /provider-compat; the DeepSeek recipe pins supportsToolChoice=false, requiresReasoningContentForToolCalls and requiresAssistantContentForToolCalls, and /ceulen doctor names any missing flag per active route",
+      "phase": 3,
+      "notes": "No provider adapter is reimplemented; the route is declared through the native multi-provider adapter.",
+      "rowId": "ceulen-router"
+    },
+    {
+      "name": "zai",
+      "category": "Providers",
+      "status": "config",
+      "dsh": "llm-pi-ai anthropic-messages route; /zai status; usage handled by the usage module",
+      "phase": 3,
+      "notes": "ZCode signing and explicit cache controls have no DSH seam; the route carries the compatible subset.",
+      "rowId": "ceulen-zai"
+    },
+    {
+      "name": "classifier",
+      "category": "Model",
+      "status": "partial",
+      "dsh": "classify tool with typed questions; bash audit log",
+      "phase": 3,
+      "notes": "No System One/Jev endpoint; answers come from a configured chat model and are validated JSON.",
+      "rowId": "ceulen-classifier"
+    },
+    {
+      "name": "advisor",
+      "category": "Model",
+      "status": "port",
+      "dsh": "reviewer model after settled work; one severity note; /advisor; advisor tool",
+      "phase": 2,
+      "notes": "Notes are delivered as logged user context, not a Pi custom message card.",
+      "rowId": "ceulen-advisor"
+    },
+    {
+      "name": "usage",
+      "category": "Appearance",
+      "status": "port",
+      "dsh": "/usage subscription windows + credits (OpenCode Go, Z.AI, Z.AI CN, Command Code, Codex, generic router); model-gated footer segment via the native dsh-tui 0.17.0 field (legacy patch for 0.16.1)",
+      "phase": 4,
+      "notes": "OAuth record discovery is not ported; env/DSH-credential refs are supported.",
+      "rowId": "ceulen-usage"
+    },
+    {
+      "name": "composer",
+      "category": "Appearance",
+      "status": "na",
+      "dsh": "DSH TUI owns the composer; themes and status line only",
+      "phase": 0,
+      "notes": "No plugin seam for Pi composer shapes; reimplementing the editor is out of scope."
+    },
+    {
+      "name": "munin",
+      "category": "Memory",
+      "status": "port",
+      "dsh": "munin_search/get/store/list/recent/share/delete/capabilities/versions/diff/rollback; /munin-status; optional first-turn brief (munin.brief, off by default). The cloud backup: no prompt section of its own — munin_store mirrors at session end and search/get serve the read fallback",
+      "phase": 2,
+      "notes": "Now the cloud backup for the AgentMem default store: the Memory Protocol moved to ceulen-agentmem so disabling this module cannot delete the rules. Project config is opt-in because DSH exposes no project-trust predicate to plugins. The brief is pinned+recent memories (recency-filtered, undated dropped) rendered at order 56; /context prints its exact char count.",
+      "rowId": "ceulen-munin"
+    },
+    {
+      "name": "ponytail",
+      "category": "Tasks",
+      "status": "port",
+      "dsh": "/ponytail off|lite|full|ultra; prompt section; ponytail skills",
+      "phase": 2,
+      "notes": "State is stored in the Ceulen settings document.",
+      "rowId": "ceulen-ponytail"
+    },
+    {
+      "name": "subagent",
+      "category": "Tasks",
+      "status": "partial",
+      "dsh": "native subagent, subagent_fork, send_message, workflow, list_agents; `delegate` role presets (planner, reviewer, scout, tester, worker) with function-based provider/model routing; optional `schema` reply contract and the `validate_schema` tool; /subagent",
+      "phase": 6,
+      "notes": "Role personas and model routing port from Ceulen. The child runs with the parent's DSH preset, so per-role tool allowlists, sandbox, and timeouts stay advisory; fan-out uses native workflow, and the worktree sandbox remains unported. Typed delegation ships the reply contract in the child prompt plus `validate_schema` for the parent: the subagent service exposes no final-text hook, so the adapter does not validate in place.",
+      "rowId": "ceulen-subagent"
+    },
+    {
+      "name": "plan",
+      "category": "Tasks",
+      "status": "port",
+      "dsh": "native plan mode plus .dsh/plans/ persistence, per-phase plan/implement model routes, and the /plan-approve 3-option handoff (current|new|stay)",
+      "phase": 6,
+      "notes": "DSH owns /plan, the guidance section, and the exit_plan_mode review; this module saves the submitted plan markdown to <cwd>/.dsh/plans/ the moment exit_plan_mode is called (same-title refinement overwrites), routes requests to plan.model while plan mode is active and plan.implement once a plan exists (a /model switch during a phase stands the configured route down), and adds ceulen's /plan-approve over the native userQuestions service. The question intent (kind plan-approve, fresh/stay labels + execution prompt) lets a TUI start a real fresh session; other surfaces keep the compaction fallback through ctx.compaction.compactNow, then a plan-file handoff.",
+      "rowId": "ceulen-plan"
+    },
+    {
+      "name": "a2a",
+      "category": "Tasks",
+      "status": "partial",
+      "dsh": "a2a_call/status/discover/list/history/orchestrate/peers over HTTP JSON-RPC",
+      "phase": 4,
+      "notes": "Outbound only in v1; mDNS discovery and the inbound server are not ported.",
+      "rowId": "ceulen-a2a"
+    },
+    {
+      "name": "todo",
+      "category": "Tasks",
+      "status": "native",
+      "dsh": "native todo_write + ceulen:todo status line and /todo strikethrough view",
+      "phase": 0,
+      "notes": "todoview approximates the phase HUD: status segment plus /todo with completed items struck through.",
+      "rowId": "ceulen-todoview"
+    },
+    {
+      "name": "ux",
+      "category": "Appearance",
+      "status": "port",
+      "dsh": "ux_audit (static gates + 6-viewport runtime + screenshots + colour fixes), /ux modes, design skills",
+      "phase": 4,
+      "notes": "Model-free. Static: APCA+WCAG contrast with a same-hue replacement suggestion, token scopes (@theme/.dark/[data-theme]/:host), per-component focus/disabled, focus-ring kills, per-selector reduced-motion, slop tells; verdicts are PASS/FAIL/INCOMPLETE with contrast coverage. Runtime (url): Chrome via the vendored CDP client checks focus, names, headings, tap targets, overflow, field labels, clipped text, empty blocks, console errors and inherited-background contrast across 360/390/768/1024/1440/1920, and returns the phone + desktop screenshots on image routes. Keyboard order stays manual.",
+      "rowId": "ceulen-ux"
+    },
+    {
+      "name": "cron",
+      "category": "Tasks",
+      "status": "port",
+      "dsh": "cron tool plus /cron; persisted jobs fire follow-up turns",
+      "phase": 3,
+      "notes": "DSH's schedule service is Web-oriented; this module keeps the TUI/headless behavior.",
+      "rowId": "ceulen-cron"
+    },
+    {
+      "name": "repair",
+      "category": "Tools",
+      "status": "partial",
+      "dsh": "apply_patch, read_slice, conflict footer, destructive bash audit",
+      "phase": 3,
+      "notes": "The built-in edit tool is not wrapped; DSH already has read-before-write and atomic edits.",
+      "rowId": "ceulen-repair"
+    },
+    {
+      "name": "serena",
+      "category": "Tools",
+      "status": "config",
+      "dsh": "/serena MCP recipe + status (native dsh-mcp-client)",
+      "phase": 5,
+      "notes": "No bundled Python worker; Serena runs as a native MCP server after adding the printed row.",
+      "rowId": "ceulen-serena"
+    },
+    {
+      "name": "fff",
+      "category": "Tools",
+      "status": "native",
+      "dsh": "native grep/glob tools and @-mention completion",
+      "phase": 0,
+      "notes": "No separate fuzzy-search daemon is needed."
+    },
+    {
+      "name": "jfind",
+      "category": "Tools",
+      "status": "port",
+      "dsh": "jfind semantic cascade with the agent model as judge; lexical prior + filename/sketch/passage waves",
+      "phase": 5,
+      "notes": "No System One endpoint; the configured agent route judges. Slower than grep and pays model tokens.",
+      "rowId": "ceulen-jfind"
+    },
+    {
+      "name": "web",
+      "category": "Tools",
+      "status": "partial",
+      "dsh": "web_extract/map, web_screenshot, web_pdf, web_interact (headless Chrome/CDP), web_chat (ChatGPT web via codex login / CHATGPT_WEB_AUTH_KEY, or an OpenAI-compatible gateway via WEB_CHAT_API_BASE_URL), Brave search provider, DeepSeek Fetch provider with local HTTP fallback",
+      "phase": 4,
+      "notes": "Browser capture is ported; Brave registers as a native search provider and deepseek-fetch-fallback serves page Markdown with a local HTTP fallback. web_chat is ported: the ChatGPT web tier is the default when ~/.codex/auth.json (codex login) or CHATGPT_WEB_AUTH_KEY resolves, the model defaults to the Codex-configured model (~/.codex/config.toml) instead of the upstream gpt-5.5 default, and the OpenAI-compatible gateway is the fallback. Gemini research and image generation remain gaps (research ask works with the optional gemini-reverse package; image legs are TLS-gated or quota-blocked here). web_interact, web_map, web_pdf, web_screenshot, web_chat and web_status are in tools.cold by default: they cost no prompt bytes and are reachable through ceulen_tools.",
+      "rowId": "ceulen-web"
+    },
+    {
+      "name": "rules",
+      "category": "Context",
+      "status": "port",
+      "dsh": "sticky .dsh/RULES.md sections plus rule_get and /rules; when-* behaviour guards (rules.guards = off|audit|enforce); read-only AGENTS.md, .cursor/rules/*.mdc and .clinerules sources",
+      "phase": 2,
+      "notes": "Project rules are read from the session cwd. Guards are checked in tools/pre-execute and cost no prompt bytes; a guard rule is never sticky, and one with a description stays a rulebook line. Foreign formats are read-only, workspace-root only, and AGENTS.md is capped at 4 KB.",
+      "rowId": "ceulen-rules"
+    },
+    {
+      "name": "attachments",
+      "category": "Files",
+      "status": "native",
+      "dsh": "native DSH attachments and TUI paste",
+      "phase": 0,
+      "notes": "Pi's [[attach:]] token grammar is a Pi composer feature, not a model-facing one."
+    },
+    {
+      "name": "gh",
+      "category": "Tools",
+      "status": "port",
+      "dsh": "read-only github tool over the gh CLI",
+      "phase": 2,
+      "notes": "Mutating flows stay on bash gh, preserving plan-mode read-only behavior.",
+      "rowId": "ceulen-gh"
+    },
+    {
+      "name": "sg",
+      "category": "Tools",
+      "status": "port",
+      "dsh": "ast_grep and ast_edit wrappers, fail-open without sg",
+      "phase": 4,
+      "notes": "Zero npm dependencies; the ast-grep binary is the backend.",
+      "rowId": "ceulen-sg"
+    },
+    {
+      "name": "notebooklm",
+      "category": "Tools",
+      "status": "port",
+      "dsh": "notebooklm CLI bridge (notebooklm-py): notebooks, sources, grounded chat, research, Studio generation, artifacts, downloads, notes, labels, collections, sharing; fail-open without the binary",
+      "phase": 4,
+      "notes": "Ported from @bacnh85/pi-notebooklm. The argument-vector gates (destructive / needs --yes / browser login / writes files) are pure functions in vendor/ceulen/notebooklm/ops.ts, and stdin is closed so a CLI confirm prompt can never hang a tool call.",
+      "rowId": "ceulen-notebooklm"
+    },
+    {
+      "name": "codemode",
+      "category": "Tools",
+      "status": "partial",
+      "dsh": "codemode tool over ctx.ptcRuntime; scripts call every visible tool through a tools binding; the TUI card lists the nested calls",
+      "phase": 6,
+      "notes": "New in ceulen-dsh; Pi built-in extension. 2026-10-28: output budget (~6k chars, head+tail, spill file) + @options line, state.store/load as codemode-store session events, and typo close-match hints shipped. 2026-11-03: codemode.exit() shipped (sentinel unwind, commits store writes) and failed-script stacks trimmed to message + the script's own <anonymous>:line:column frame. Remaining gap: models namespace, text()/image(), searchTools/ALL_TOOLS. Node PTC subprocess, not QuickJS. On by default; toggle in /ceulen-config and restart.",
+      "rowId": "ceulen-codemode"
+    },
+    {
+      "name": "notify",
+      "category": "Tools",
+      "status": "native",
+      "dsh": "native TUI task-completion notifications",
+      "phase": 0,
+      "notes": "No plugin tool is needed for desktop/bell notifications."
+    },
+    {
+      "name": "rtk",
+      "category": "Shell",
+      "status": "partial",
+      "dsh": "rtk tool and /rtk: explicit rtk rewrite -> bash two-step",
+      "phase": 5,
+      "notes": "DSH excludes tool-argument rewriting by design, so the built-in bash call is never silently rewritten.",
+      "rowId": "ceulen-rtk"
+    },
+    {
+      "name": "steering",
+      "category": "Model",
+      "status": "partial",
+      "dsh": "GLM/DeepSeek family hints and retry guidance",
+      "phase": 3,
+      "notes": "DSH owns reasoning levels and its own error taxonomy; only Ceulen-specific hints are ported.",
+      "rowId": "ceulen-steering"
+    },
+    {
+      "name": "permission",
+      "category": "Shell",
+      "status": "native",
+      "dsh": "native sandbox, approval, permission presets, fs observation policy",
+      "phase": 0,
+      "notes": "A second policy engine would conflict with DSH's enforcement boundary."
+    },
+    {
+      "name": "shells",
+      "category": "Shell",
+      "status": "native",
+      "dsh": "native bash background jobs (job_list/job_output/job_kill)",
+      "phase": 0,
+      "notes": "Persistent processes are already first-class."
+    },
+    {
+      "name": "config",
+      "category": "Plugins",
+      "status": "port",
+      "dsh": "full-screen /ceulen-config panel over settings.json; /ceulen config; text fallback and /config where DSH does not own the name",
+      "phase": 6,
+      "rowId": "ceulen-status",
+      "notes": "DSH ships a local /config command and local commands win collisions, so the TUI spelling is /ceulen-config. Edits settings.json; timers and prompt sections need /reload."
+    },
+    {
+      "name": "themes",
+      "category": "Appearance",
+      "status": "port",
+      "dsh": "104 Pi themes converted to DSH runtime themes (ceulen-<name>)",
+      "phase": 3,
+      "notes": "Only color keys with a DSH equivalent are mapped; unsupported keys are reported by the converter.",
+      "rowId": "ceulen-themes"
+    },
+    {
+      "name": "skills",
+      "category": "Context",
+      "status": "port",
+      "dsh": "15 Ceulen-origin skills registered as embedded DSH skills (19 packs shipped)",
+      "phase": 2,
+      "notes": "Skills are data, not code; collisions fall back to ceulen-<name>. The 4 local packs (contract-first, dsh-update, evo, notebooklm) are not in the upstream bundle.",
+      "rowId": "ceulen-skills"
+    },
+    {
+      "name": "upstream",
+      "category": "Plugins",
+      "status": "port",
+      "dsh": "/ceulen update, TUI status line, ceulen-sync CLI, weekly CI check",
+      "phase": 1,
+      "notes": "New in ceulen-dsh; detects Ceulen releases and upgrades cleanly vendored files."
+    },
+    {
+      "name": "context",
+      "category": "Appearance",
+      "status": "native",
+      "dsh": "/context block dashboard: tokenMeter + session projections (contextPressure/contextBreakdown) + compaction trigger as the autocompact buffer; --dna prints the per-item context fingerprint (system prompt, tool schemas, messages in reading order) and --play replays it in a tuiScenes panel",
+      "phase": 0,
+      "notes": "DSH-only; upstream ceulen has no /context. TUI intercepts /context locally, so scripts/tui-context-patch.mjs redirects the built-in to this registry command when present. DNA mode ports the dsh-context web fingerprint: bands are priced with token-meter's own chars/4 heuristic from the session log (request/header + surface events), so the replay needs no host tokens service; the scene colours through tuiScenes' semantic <Text color>, not the SGR-sanitized command path.",
+      "rowId": "ceulen-context"
+    },
+    {
+      "name": "evo",
+      "category": "Plugins",
+      "status": "native",
+      "dsh": "evo_notice tool + /evo-status: 💾 Self-improvement notice; daily distiller and weekly promoter scripts; /evo-probe (base vs candidate worktrees -> contrast-<proposal>.json) and /evo-apply (refuses an unprobed proposal; --evidence override recorded); proposals carry scope: invariant|domain",
+      "phase": 0,
+      "notes": "DSH-only; upstream ceulen has no self-evolution loop. Runtime state (ledger, queue, reports, changelog) lives under $DSH_HOME/ceulen/self-evo. The probe gate exists because refining a harness without a reference run measured worse (Harness² code 73.4 -> 63.2).",
+      "rowId": "ceulen-evo"
+    },
+    {
+      "name": "tools",
+      "category": "Tools",
+      "status": "port",
+      "dsh": "ceulen_tools: regex search + dispatch over tools held out of the prompt (tools.cold, 21 by default); /cold-tools",
+      "phase": 6,
+      "notes": "New in ceulen-dsh (M4-2, native half M4-3). ceulen-registered tools are withheld at register time. Native DSH tools cannot be withheld there, so the tools module hides them per agent with tools.restrict({ deny }) at agent/created and captures the definition for dispatch, so the schema leaves every request while the body still runs. Measured on the 53-tool/40.9 KB TUI surface: the nine names added in the native pass hold 7.9 KB out of every request. Verified live in a headless profile: glob was absent from a 25-tool header and still returned results through ceulen_tools.",
+      "rowId": "ceulen-tools"
+    }
+  ]
+}
