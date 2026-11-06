@@ -89,9 +89,20 @@ const vendor = JSON.parse(await readFile(join(root, 'vendor.manifest.json'), 'ut
 const readme = await readFile(join(root, 'README.md'), 'utf8')
 const releaseReadme = await readFile(join(root, 'release', 'README.md'), 'utf8')
 const install = await readFile(join(root, 'release', 'install.sh'), 'utf8')
-const parityDoc = await readFile(join(root, 'docs', 'parity.md'), 'utf8')
-const liveVerification = await readFile(join(root, 'docs', 'live-verification.md'), 'utf8')
+// docs/ is internal-only and absent from a public checkout; its pins are
+// checked when the folder is there and skipped when it is not.
+const parityDoc = await readIfPresent(join(root, 'docs', 'parity.md'))
+const liveVerification = await readIfPresent(join(root, 'docs', 'live-verification.md'))
 const skillsSource = await readFile(join(root, 'src', 'modules', 'skills', 'index.ts'), 'utf8')
+
+/** Read a file that may be absent (internal docs are not published). */
+async function readIfPresent(path) {
+  try {
+    return await readFile(path, 'utf8')
+  } catch {
+    return null
+  }
+}
 
 /** Compare one regex's capture groups against the expected values. */
 function expect(source, label, text, pattern, ...expected) {
@@ -130,14 +141,16 @@ expect('release/README.md', 'release README dsh pin', releaseReadme, /^\| DSH CL
 expect('release/README.md', 'release README dsh-tui pin', releaseReadme, /dsh-tui@([0-9][0-9.]*)/, pkg.dshTui)
 // The live-verification header is a claim about what was last verified, so an
 // upgrade that leaves it stale fails here instead of misleading the next reader.
-expect(
-  'docs/live-verification.md',
-  'live verification pins',
-  liveVerification,
-  /^Date: \d{4}-\d\d-\d\d, DSH `([^`]+)`, TUI `([^`]+)`\.$/m,
-  pkg.engines?.dsh,
-  pkg.dshTui,
-)
+if (liveVerification !== null) {
+  expect(
+    'docs/live-verification.md',
+    'live verification pins',
+    liveVerification,
+    /^Date: \d{4}-\d\d-\d\d, DSH `([^`]+)`, TUI `([^`]+)`\.$/m,
+    pkg.engines?.dsh,
+    pkg.dshTui,
+  )
+}
 if (/@deepseek-ai\/dsh@[0-9]|dsh-tui@[0-9]/.test(install)) {
   fail('release/install.sh hardcodes a version pin; read package.json (engines.dsh, dshTui)')
 }
@@ -152,7 +165,9 @@ expect('release/README.md', 'release README skills', releaseReadme, /`skills\/`\
 expect('release/README.md', 'release README themes', releaseReadme, /\+ (\d+) themes/, themes)
 if (skillsModule === undefined) fail('parity.json has no skills module')
 else expect('parity.json', 'parity skills', skillsModule.dsh ?? '', /(\d+) Ceulen-origin skills/, ceulenSkills)
-expect('docs/parity.md', 'parity totals', parityDoc, /Totals: (\d+) modules, (\d+) mounted/, parity.modules.length, rows.length)
+if (parityDoc !== null) {
+  expect('docs/parity.md', 'parity totals', parityDoc, /Totals: (\d+) modules, (\d+) mounted/, parity.modules.length, rows.length)
+}
 
 if (process.exitCode === undefined) {
   console.log(
