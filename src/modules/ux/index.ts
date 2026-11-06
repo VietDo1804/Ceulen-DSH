@@ -217,7 +217,7 @@ async function designDriftLine(css: string, stylesheet: string | undefined, cwd:
     const design = await readFile(join(folder, 'DESIGN.md'), 'utf8').catch(() => null)
     if (design === null) continue
     const stale = staleDesignColours(design, css)
-    return stale.length === 0 ? '' : `\ndesign: DESIGN.md still lists ${stale.join(', ')}, which the stylesheet no longer has. Update DESIGN.md to match.`
+    return stale.length === 0 ? '' : `\ndesign: DESIGN.md lists ${stale.join(', ')}, which this stylesheet does not have. If you changed a token, update DESIGN.md. If it lives in another stylesheet, leave DESIGN.md alone.`
   }
   return ''
 }

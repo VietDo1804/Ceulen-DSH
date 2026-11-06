@@ -43,7 +43,7 @@ never invented per screen. **Resolution order (stop at the first that holds):**
 4. **Nothing exists** → do NOT block. Load `ux-presets` and pick a starter (B1 Web, B2 Mobile, an S-starter matching the subject's material, or S4 for dashboards). **A preset is a floor, not an identity:** Step 1.5 must bend it until the page could not be mistaken for the stock preset. Then write the bent system to `DESIGN.md` in the working directory, next to the page, before any markup.
 5. **No preset fits** → derive a minimal DESIGN.md from the brief + direction (one accent, tinted neutrals, 1.25 scale, 8px grid, 4 named elevations, the state contract). Enough to generate inside; don't stall for a bigger model. Write it to `DESIGN.md` before any markup too.
 
-`DESIGN.md` is the contract, so it is written even when the request names only other files, and it is never a thing to offer or to skip. Keep it short: the direction line first, then the tokens this page uses, in the starter's format. When a token changes, change it here in the same edit: `ux_audit` reports colours this file lists that the stylesheet no longer has.
+`DESIGN.md` is the contract, so it is written even when the request names only other files, and it is never a thing to offer or to skip. Keep it short: the direction line first, then the tokens this page uses, in the starter's format. When a token changes, change it here in the same edit: `ux_audit` reports colours this file lists that the stylesheet does not have.
 
 The system defines colour tokens, a type scale, spacing, radius, 3–5 named
 elevations, and the state contract before any screen is written.
