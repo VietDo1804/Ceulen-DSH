@@ -442,6 +442,9 @@ node scripts/check-bundle.mjs
 node scripts/ceulen-sync.mjs parity --check
 ```
 
+The Vitest suite lives in `test/` and is kept out of the public repo; run it from
+the full development checkout (CI checks the build, bundle, pack and parity).
+
 The dev profile helper creates a workspace-local `DSH_HOME` and dumps the composed profile without touching `~/.dsh`:
 
 ```sh

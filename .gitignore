@@ -19,3 +19,6 @@ coverage/
 
 # internal-only notes: kept on disk, never published to the public repo
 docs/
+
+# local-only test suite: runs on the dev machine, never published
+test/
