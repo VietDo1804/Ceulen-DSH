@@ -20,8 +20,8 @@ import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { ceulenTool, errorMessage, objectSchema, text } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import { exitBindings, stateBindings } from './bindings.js'
-import { clipOneLine, formatCalls, renderResult, scriptTail, STATUS_LINE, toolBindings } from './render.js'
-import { DEFAULT_OUTPUT_BUDGET, EXIT_SENTINEL, parseOptionsLine, suggestBinding, trimScriptError } from './script.js'
+import { clipOneLine, formatCalls, renderResult, scriptTail, STATUS_LINE, stripModelNotes, toolBindings } from './render.js'
+import { DEFAULT_OUTPUT_BUDGET, EXIT_SENTINEL, parseOptionsLine, scriptErrorHint, suggestBinding, trimScriptError } from './script.js'
 import type {
   CodemodeCall,
   CodemodeValue,
@@ -37,7 +37,9 @@ export const inject = ['tools']
 const DESCRIPTION = [
   "Run one JavaScript program that calls this session's tools.",
   '',
-  '`code` is the body of an async function: top-level `await` and `return` work. `tools.<name>(args)` calls any tool the session can call and resolves to its structured value (for example `bash` → an object whose `stdout` holds the output text); arguments follow that tool\'s declared schema (DSH\'s `bash` also requires `description`). Tool names are exact; use `tools[\'name\']` when the name is not a JavaScript identifier. A failed, blocked or denied call rejects with the tool\'s error text — use `Promise.allSettled()` to keep the calls that succeed, and when a call fails on its arguments retry the fallback shape inside `try { … } catch { … }` so the wrong variant costs no extra model round trip.',
+  '`code` is the body of an async function: top-level `await` and `return` work. `tools.<name>(args)` calls any tool the session can call and resolves to its structured value (see the shapes below); arguments follow that tool\'s declared schema (DSH\'s `bash` also requires `description`). Tool names are exact; use `tools[\'name\']` when the name is not a JavaScript identifier. A failed, blocked or denied call rejects with the tool\'s error text — use `Promise.allSettled()` to keep the calls that succeed, and when a call fails on its arguments retry the fallback shape inside `try { … } catch { … }` so the wrong variant costs no extra model round trip.',
+  '',
+  'Result shapes: `bash` → `{ exitCode, stdout: { text, truncated }, stderr: { text, truncated } }`, so the output is `r.stdout.text`, never `r.stdout`; a non-zero exit does not reject, check `exitCode`. `read` → `{ path, lines: [{ number, text }], totalLines }`.',
   '',
   'Images do not pass through this return value: a capture tool (`web_screenshot`, `web_interact`, `ux_audit`, `read_image`) called inside the program returns no image to you. Call those tools directly when you need to see the result.',
   '',
@@ -138,7 +140,7 @@ function codemodeTool(ctx: PluginContext) {
       if (meta === null || typeof meta !== 'object') return undefined
       const calls = Array.isArray(meta.calls) ? (meta.calls as CodemodeCall[]) : []
       const ok = meta.ok !== false
-      const body = result.content.map(block => block.type === 'text' ? block.text : '').join('\n').trim()
+      const body = stripModelNotes(result.content.map(block => block.type === 'text' ? block.text : '').join('\n').trim())
       // A generic card has no exit pill, so a failed script keeps its status
       // line; a completed one drops it — the header already shows the time.
       const status = ok ? '' : (STATUS_LINE.exec(body)?.[0]?.trim() ?? '')
@@ -179,7 +181,8 @@ function codemodeTool(ctx: PluginContext) {
 
       const calls: CodemodeCall[] = []
       const session = exec.agent?.session
-      const functions = toolBindings(registry, exec, calls)
+      const usage = { rawChars: 0 }
+      const functions = toolBindings(registry, exec, calls, usage)
       const pending = new Map<string, Json>()
       let spec: unknown
       try {
@@ -212,10 +215,18 @@ function codemodeTool(ctx: PluginContext) {
         result.error = { ...result.error, message: trimScriptError(result.error.message) }
       }
       // Errors that teach recovery: name the close binding for a typo'd call.
+      let taughtRecovery = false
       if (result.error !== undefined && result.error.kind === 'exception') {
         const suggestion = suggestBinding(result.error.message, Object.keys(functions))
         if (suggestion !== undefined) {
           result.error = { ...result.error, message: `${result.error.message} — did you mean 'tools.${suggestion}'?` }
+          taughtRecovery = true
+        }
+      }
+      if (result.error !== undefined && !taughtRecovery) {
+        const hint = scriptErrorHint(result.error.kind, result.error.message)
+        if (hint !== undefined) {
+          result.error = { ...result.error, message: `${result.error.message} — ${hint}` }
         }
       }
       // Pi semantics: store writes commit only when the script succeeded.
@@ -228,7 +239,7 @@ function codemodeTool(ctx: PluginContext) {
       }
       const label = code.split('\n').map(line => line.trim()).find(line => line.length > 0) ?? 'script'
       logLine('codemode', `${clipOneLine(label, 100)} -> ${result.error === undefined ? 'ok' : result.error.kind}`)
-      const rendered = renderResult(result, seconds, options.maxOutputChars ?? DEFAULT_OUTPUT_BUDGET)
+      const rendered = renderResult(result, seconds, options.maxOutputChars ?? DEFAULT_OUTPUT_BUDGET, calls, usage.rawChars)
       const value: CodemodeValue = {
         text: rendered.text,
         ok: result.error === undefined,

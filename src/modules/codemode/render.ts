@@ -53,7 +53,12 @@ export function formatCalls(calls: readonly CodemodeCall[]): string {
  * unchanged: the model uses bracket access for names that are not identifiers,
  * which avoids the silent alias collisions Pi's `_` normalization can create.
  */
-export function toolBindings(registry: RegistryLike, exec: ToolRunContext, calls: CodemodeCall[]): Record<string, BindingFunction> {
+export function toolBindings(
+  registry: RegistryLike,
+  exec: ToolRunContext,
+  calls: CodemodeCall[],
+  usage: { rawChars: number } = { rawChars: 0 },
+): Record<string, BindingFunction> {
   const functions: Record<string, BindingFunction> = Object.create(null) as Record<string, BindingFunction>
   let sequence = 0
   for (const schema of registry.schemas(exec.agent)) {
@@ -71,6 +76,7 @@ export function toolBindings(registry: RegistryLike, exec: ToolRunContext, calls
         })
         if (result.isError) throw new Error(result.error?.message ?? `${schema.name} failed`)
         calls.push({ name: schema.name, detail, status: 'ok', ms: Date.now() - startedAt })
+        usage.rawChars += JSON.stringify(result.value ?? null)?.length ?? 0
         return result.value ?? null
       } catch (error) {
         calls.push({ name: schema.name, detail, status: 'error', ms: Date.now() - startedAt, error: errorMessage(error) })
@@ -83,8 +89,19 @@ export function toolBindings(registry: RegistryLike, exec: ToolRunContext, calls
 
 export const STATUS_LINE = /^Script (?:completed|failed) \([\d.]+s\)\n?/
 
+/** Model-only advice: a single unfiltered call should have been a direct call. */
+export const SINGLE_CALL_NOTE = 'Note: one tool call with no real filtering; call that tool directly next time.'
+
+const MAX_FAILURE_CALLS = 8
+
 /** Pi's result shape: status line, budgeted return value + console block, then the error. */
-export function renderResult(result: PtcRunResult, wallSeconds: number, budget: number): { text: string; spillPath?: string } {
+export function renderResult(
+  result: PtcRunResult,
+  wallSeconds: number,
+  budget: number,
+  calls: readonly CodemodeCall[] = [],
+  rawChars = 0,
+): { text: string; spillPath?: string } {
   const status = `${result.error === undefined ? 'Script completed' : 'Script failed'} (${wallSeconds.toFixed(1)}s)`
   const valueText = result.value !== undefined
     ? typeof result.value === 'string' ? result.value : JSON.stringify(result.value)
@@ -94,8 +111,30 @@ export function renderResult(result: PtcRunResult, wallSeconds: number, budget: 
   const lines = [status]
   if (body.length > 0) lines.push(body)
   if (result.error !== undefined) lines.push(`Script error (${result.error.kind}): ${result.error.message}`)
+  // The model must know which calls already ran so it does not repeat them.
+  if (result.error !== undefined && calls.length > 0) lines.push(`Calls before failure:\n${formatCalls(calls.slice(-MAX_FAILURE_CALLS))}`)
+  if (result.error === undefined && calls.length === 1 && rawChars > 0 && body.length * 2 >= rawChars) lines.push(SINGLE_CALL_NOTE)
   if (lines.length === 1) lines.push('(no output)')
   return { text: lines.join('\n'), spillPath }
+}
+
+/** The card renders its own receipt; drop the model-only notes from its body. */
+export function stripModelNotes(body: string): string {
+  const kept: string[] = []
+  let skippingCalls = false
+  for (const line of body.split('\n')) {
+    if (line === 'Calls before failure:') {
+      skippingCalls = true
+      continue
+    }
+    if (skippingCalls) {
+      if (/^[✓×] /.test(line)) continue
+      skippingCalls = false
+    }
+    if (line === SINGLE_CALL_NOTE) continue
+    kept.push(line)
+  }
+  return kept.join('\n')
 }
 
 /** The script rides last: the collapsed card previews the receipt, not the code. */

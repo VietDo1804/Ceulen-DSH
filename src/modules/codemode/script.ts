@@ -115,6 +115,15 @@ export function suggestBinding(message: string, names: readonly string[]): strin
   return best === target ? undefined : best
 }
 
+const STRING_METHOD_ON_OBJECT = /\.(?:slice|substring|trim|trimStart|trimEnd|split|match|matchAll|replace|replaceAll|includes|startsWith|endsWith|toLowerCase|toUpperCase) is not a function/
+
+/** A recovery line for the two failure classes the session logs show most. */
+export function scriptErrorHint(kind: string, message: string): string | undefined {
+  if (kind === 'invalid-output') return 'return only JSON values: no undefined, functions, NaN or Date; use null or a string instead'
+  if (kind === 'exception' && STRING_METHOD_ON_OBJECT.test(message)) return 'tool results are objects: bash output is r.stdout.text, read output is r.lines; inspect with Object.keys(r)'
+  return undefined
+}
+
 /** `codemode.exit()` unwinds by throwing this; the executor turns it into a success. */
 export const EXIT_SENTINEL = 'codemode: exit() called'
 
