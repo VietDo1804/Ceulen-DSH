@@ -179,7 +179,10 @@ transcript.
 
 It is on by default. Turn it off in `/ceulen-config` → Tools → Codemode, then
 restart DSH (`/reload` does not reload plugin code). The panel also reports
-whether the `ptcRuntime` service is mounted.
+whether the `ptcRuntime` service is mounted. The chain-hint experiment lives
+there too: after `codemode.chainHintAfter` (default 3, `0` = off) consecutive
+steps that each make one read-only call, the next step gets a one-line nudge to
+batch the following reads into one script or one parallel tool batch.
 
 ```js
 const results = await Promise.allSettled([
@@ -196,8 +199,8 @@ calls run through the full tool pipeline, so approvals, guards and sandbox
 policy still apply. `bash` keeps its DSH arguments and requires `description`
 plus `command`.
 
-Distilled by design: calls resolve to their structured value (for example
-`bash` → an object whose `stdout` holds the output text), and a return plus
+Distilled by design: calls resolve to their structured value (bash output is
+`r.stdout.text`, `read` returns `{ lines: [{ number, text }] }`), and a return plus
 console block past ~6k characters is middle-truncated with the full text
 spilled to a file path named in the result — an unfiltered dump can never blow
 up the context. A first line `// @options: {"timeout_ms": 60000,
@@ -236,6 +239,12 @@ The `:high` suffix persists as the advisor's reasoning effort; the Model tab in
 `/ceulen-config` exposes the same route and a Reasoning row. The shipped default
 is `zai/glm-5.3:max` (Z.AI GLM-5.3 at max thinking); clear the route row to fall
 back to the parent agent's route. Notes are delivered as logged user context; `blocker`/`concern` notes wake a follow-up turn, `nit` notes are deferred.
+
+A review pins the latest real user request above the turn transcript (harness
+notices like `time-context` are never mistaken for it) and appends the
+working-tree diff of the files this turn touched as evidence, so the reviewer
+judges the actual request and the actual edit. Pressing `Esc` cancels a running
+review.
 
 ### Usage
 
