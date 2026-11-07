@@ -32,6 +32,23 @@ export interface NestedToolResult {
   error?: { message?: string }
 }
 
+/**
+ * DSH 0.2.2 `tools.execute()` takes a batch (`calls`), not one call, and settles
+ * every call into `results`; both the native and the PTC executor share it.
+ */
+export interface NestedToolCall {
+  id: string
+  name: string
+  /** Raw JSON text, exactly like a model tool call carries it. */
+  arguments: string
+}
+
+export interface NestedToolBatch {
+  results: readonly { callId: string; result: NestedToolResult }[]
+  additionalContexts?: readonly unknown[]
+  concluded?: boolean
+}
+
 export interface CodemodeCall {
   name: string
   detail: string
@@ -54,12 +71,10 @@ export interface ToolSchemaLike {
 export interface RegistryLike {
   schemas(agent?: unknown): readonly ToolSchemaLike[]
   execute(request: {
-    callId: string
-    name: string
-    arguments: unknown
+    calls: readonly NestedToolCall[]
     agent?: unknown
     signal?: AbortSignal
-  }): Promise<NestedToolResult>
+  }): Promise<NestedToolBatch>
 }
 
 export interface SandboxPolicyLike {

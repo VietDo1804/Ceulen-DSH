@@ -297,17 +297,23 @@ export function apply(ctx: PluginContext): void {
       arguments: argumentsJson,
     }, threshold)
     if (!hint) return
-    try {
-      agent.inject({
-        id: randomUUID(),
-        role: 'user',
-        content: [{ type: 'text', text: HINT }],
-        // Never source.kind 'user': that would fake a human prompt.
-        source: { kind: 'ceulen-codemode-hint', form: 'notice', summary: 'codemode hint' },
-      })
-      logLine('codemode', 'chain hint injected')
-    } catch (error) {
-      logLine('codemode', `chain hint failed: ${errorMessage(error)}`)
-    }
+    // This observer runs inside the session's own append publication; appending
+    // from here throws "cannot reenter while another append is being published".
+    // A macrotask lands after that publication commits.
+    const timer = setTimeout(() => {
+      try {
+        agent.inject({
+          id: randomUUID(),
+          role: 'user',
+          content: [{ type: 'text', text: HINT }],
+          // Never source.kind 'user': that would fake a human prompt.
+          source: { kind: 'ceulen-codemode-hint', form: 'notice', summary: 'codemode hint' },
+        })
+        logLine('codemode', 'chain hint injected')
+      } catch (error) {
+        logLine('codemode', `chain hint failed: ${errorMessage(error)}`)
+      }
+    }, 0)
+    timer.unref?.()
   })
 }

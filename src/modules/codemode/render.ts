@@ -67,17 +67,17 @@ export function toolBindings(
       const startedAt = Date.now()
       const detail = argSummary(args)
       try {
-        const result = await registry.execute({
-          callId: `${exec.callId ?? 'codemode'}:codemode:${++sequence}`,
-          name: schema.name,
-          arguments: args ?? {},
-          agent: exec.agent,
-          signal: exec.signal,
+        const batch = await registry.execute({
+          calls: [{ id: `${exec.callId ?? 'codemode'}:codemode:${++sequence}`, name: schema.name, arguments: JSON.stringify(args ?? {}) }],
+          ...(exec.agent === undefined ? {} : { agent: exec.agent }),
+          ...(exec.signal === undefined ? {} : { signal: exec.signal }),
         })
-        if (result.isError) throw new Error(result.error?.message ?? `${schema.name} failed`)
+        const settled = batch?.results?.[0]?.result
+        if (settled === undefined) throw new Error(`${schema.name} settled without a result`)
+        if (settled.isError) throw new Error(settled.error?.message ?? `${schema.name} failed`)
         calls.push({ name: schema.name, detail, status: 'ok', ms: Date.now() - startedAt })
-        usage.rawChars += JSON.stringify(result.value ?? null)?.length ?? 0
-        return result.value ?? null
+        usage.rawChars += JSON.stringify(settled.value ?? null)?.length ?? 0
+        return settled.value ?? null
       } catch (error) {
         calls.push({ name: schema.name, detail, status: 'error', ms: Date.now() - startedAt, error: errorMessage(error) })
         throw error
