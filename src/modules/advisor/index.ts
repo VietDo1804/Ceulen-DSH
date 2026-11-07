@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { AgentLike, ContentBlock, MessageLike, PluginContext } from '../../core/types.js'
+import type { AgentLike, MessageLike, PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync, updateSettings, type ReasoningEffort } from '../../core/settings.js'
 import { parseRoute, streamText, type LlmRoute } from '../../core/llm.js'
 import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerToolSafe, tuiStatusPublisher } from '../../core/tools.js'
@@ -7,6 +7,8 @@ import { createGuard, guardCheck, nextCycle, parseReviewOutput, type GuardState,
 import { sessionMovedOn, shelveLateNote } from '../steering/index.js'
 import { SYSTEM } from '../../vendor/ceulen/advisor/system-prompt.js'
 import { logLine } from '../../core/log.js'
+import { gitEvidence, touchedPaths } from './evidence.js'
+import { CONSULT_BUDGET, renderTurn, toolCallsInTurn, WATCH_BUDGET } from './transcript.js'
 
 export const name = 'ceulen-advisor'
 export const inject = ['tools', 'commands', 'llm']
@@ -20,6 +22,9 @@ interface DeliveredNote {
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+/** How many turns a delivered note may be re-delivered in (vendored guard). */
+const REDELIVERY_WINDOW = 2
 
 function routeListFor(agent: AgentLike | undefined, settings: ReturnType<typeof loadSettingsSync>): Route[] {
   const sessionId = agent === undefined ? undefined : String(agent.session.id)
@@ -62,62 +67,35 @@ function routeListFor(agent: AgentLike | undefined, settings: ReturnType<typeof 
  * 30s abort killed slower runs. 18k = pi-ai's 16384 "max" thinking budget + answer
  * room; 300s covers a measured 295s max-effort review of a heavy transcript.
  */
-async function streamChain(ctx: PluginContext, routes: Route[], system: string, user: string, timeoutMs = 300_000, maxTokens = 18_000): Promise<{ text: string; route: Route }> {
+async function streamChain(
+  ctx: PluginContext,
+  routes: Route[],
+  system: string,
+  user: string,
+  signal?: AbortSignal,
+  timeoutMs = 300_000,
+  maxTokens = 18_000,
+): Promise<{ text: string; route: Route }> {
   const failures: string[] = []
   for (const route of routes) {
+    // A cancelled review must not fall through to the next route.
+    if (signal?.aborted) throw new Error('aborted before a route answered')
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     timer.unref?.()
+    const combined = signal === undefined ? controller.signal : AbortSignal.any([controller.signal, signal])
     try {
-      const text = await streamText(ctx, route, system, user, controller.signal, maxTokens)
+      const text = await streamText(ctx, route, system, user, combined, maxTokens)
       if (text.length > 0) return { text, route }
       failures.push(`${route.provider}/${route.model}: empty response`)
     } catch (error) {
+      if (signal?.aborted) throw error
       failures.push(`${route.provider}/${route.model}: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       clearTimeout(timer)
     }
   }
   throw new Error(`no reviewer route answered (${failures.join('; ')})`)
-}
-
-function blockText(block: ContentBlock): string {
-  const value = block as unknown as Record<string, unknown>
-  if (value.type === 'text') return typeof value.text === 'string' ? value.text : ''
-  if (value.type === 'tool-call') {
-    const args = value.arguments === undefined ? '' : JSON.stringify(value.arguments)
-    return `[tool ${String(value.name ?? '?')}${args.length > 0 ? ` ${clampText(args, 600)}` : ''}]`
-  }
-  if (value.type === 'image') return '[image]'
-  if (value.type === 'file') return `[file ${String(value.name ?? '')}]`
-  return ''
-}
-
-function renderMessages(messages: readonly MessageLike[], maxChars: number): string {
-  const lines: string[] = []
-  for (const message of messages) {
-    if (message.role === 'system') continue
-    const body = message.content.map(blockText).filter(part => part.length > 0).join('\n')
-    if (body.length === 0) continue
-    lines.push(`${message.role.toUpperCase()}: ${body}`)
-  }
-  const text = lines.join('\n\n')
-  return text.length <= maxChars ? text : `[…earlier history omitted…]\n\n${text.slice(-maxChars)}`
-}
-
-function toolCallsInTurn(messages: readonly MessageLike[]): number {
-  let start = 0
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (messages[index]?.role === 'user') {
-      start = index
-      break
-    }
-  }
-  let count = 0
-  for (const message of messages.slice(start)) {
-    for (const block of message.content) if ((block as { type?: string }).type === 'tool-call') count += 1
-  }
-  return count
 }
 
 function deliver(agent: AgentLike, severity: Severity, note: string, reviewer: string, reviewedSeq?: number): void {
@@ -195,7 +173,7 @@ export function apply(ctx: PluginContext): void {
     clearTimer.unref?.()
   }
 
-  const review = async (agent: AgentLike): Promise<void> => {
+  const review = async (agent: AgentLike, signal?: AbortSignal): Promise<void> => {
     const current = loadSettingsSync()
     if (!current.advisor.watch) return
     const session = agent.session
@@ -216,34 +194,55 @@ export function apply(ctx: PluginContext): void {
       return
     }
     reviewing.add(key)
+    const startedAt = Date.now()
+    const elapsed = () => Math.round((Date.now() - startedAt) / 1000)
+    const abort = (): boolean => {
+      if (signal?.aborted !== true) return false
+      logLine('advisor', 'review aborted')
+      publishStatus(undefined)
+      return true
+    }
     try {
       guard.reviewIndex += 1
       nextCycle(guard)
       publishStatus('advisor · reviewing…')
-      const transcript = renderMessages(messages, 14_000)
-      const { text: raw, route } = await streamChain(ctx, routes, SYSTEM, `Transcript of the latest turn:\n\n${transcript}\n\nReturn exactly one JSON line, or nothing.`)
+      const transcript = renderTurn(messages, WATCH_BUDGET)
+      const evidence = await gitEvidence(session.header?.cwd, touchedPaths(messages), signal)
+      const userPrompt = `Transcript of the latest turn:\n\n${transcript.text}${evidence.length > 0 ? `\n\n${evidence}` : ''}\n\nReturn exactly one JSON line, or nothing.`
+      logLine('advisor', `review start seq=${seq} chars=${userPrompt.length} pinned=${transcript.pinned} evidence=${evidence.length}`)
+      const { text: raw, route } = await streamChain(ctx, routes, SYSTEM, userPrompt, signal)
+      if (abort()) return
+      const routeLabel = `${route.provider}/${route.model}`
       lastReviewed.set(key, seq)
       const parsed = parseReviewOutput(raw)
       if (parsed === undefined) {
+        logLine('advisor', `review done ${elapsed()}s route=${routeLabel} result=silent`)
         publishStatus('advisor · done — no issues')
         scheduleClear(5_000)
         return
       }
-      const verdict = guardCheck(guard, parsed.severity, parsed.note, current.advisor.maxNoteChars > 0 ? 2 : 2)
+      const verdict = guardCheck(guard, parsed.severity, parsed.note, REDELIVERY_WINDOW)
       if (!verdict.accepted) {
+        logLine('advisor', `review done ${elapsed()}s route=${routeLabel} result=suppressed`)
         logLine('advisor', `note suppressed (${verdict.reason})`)
         publishStatus('advisor · done — no note')
         scheduleClear(5_000)
         return
       }
+      if (abort()) return
       delivered = { severity: verdict.severity, note: verdict.note, at: Date.now() }
       const label = `${verdict.severity}: ${clampText(verdict.note, 120)}`
       publishStatus(`advisor · ${label}`)
       scheduleClear(15_000)
       deliver(agent, verdict.severity, verdict.note, route.model, seq)
+      logLine('advisor', `review done ${elapsed()}s route=${routeLabel} result=note`)
       logLine('advisor', `delivered ${verdict.severity}: ${clampText(verdict.note, 200)}`)
     } catch (error) {
-      logLine('advisor', `review failed: ${error instanceof Error ? error.message : String(error)}`)
+      if (signal?.aborted) {
+        logLine('advisor', 'review aborted')
+      } else {
+        logLine('advisor', `review failed: ${error instanceof Error ? error.message : String(error)}`)
+      }
       publishStatus(undefined)
     } finally {
       reviewing.delete(key)
@@ -263,7 +262,7 @@ export function apply(ctx: PluginContext): void {
       const run = async () => {
         try {
           if (typeof payload.agent!.runMaintenance === 'function') {
-            await payload.agent!.runMaintenance(async () => review(payload.agent!))
+            await payload.agent!.runMaintenance(async signal => review(payload.agent!, signal))
           } else {
             await review(payload.agent!)
           }
@@ -349,14 +348,16 @@ export function apply(ctx: PluginContext): void {
       if (routes.length === 0) throw new Error('no reviewer route: set /advisor model provider/model')
       const focus = String((args as { focus?: unknown }).focus ?? '').trim()
       const messages = agent.session.deriveMessages?.() ?? []
-      const transcript = renderMessages(messages, 12_000)
+      const transcript = renderTurn(messages, CONSULT_BUDGET)
+      const evidence = await gitEvidence(agent.session.header?.cwd, touchedPaths(messages), exec.signal)
       publishStatus('advisor · reviewing…')
       try {
         const { text } = await streamChain(
           ctx,
           routes,
           'You are a second-opinion reviewer for a coding agent. You cannot use tools. Be concise: at most 5 sentences, evidence-based, no restating the question.',
-          `${focus.length > 0 ? `Focus: ${focus}\n\n` : ''}Recent transcript:\n\n${transcript}`,
+          `${focus.length > 0 ? `Focus: ${focus}\n\n` : ''}Recent transcript:\n\n${transcript.text}${evidence.length > 0 ? `\n\n${evidence}` : ''}`,
+          exec.signal,
         )
         publishStatus('advisor · done')
         scheduleClear(5_000)

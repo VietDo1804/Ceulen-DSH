@@ -82,7 +82,6 @@ export function buildCoreTabs(settings: CeulenSettings, context: ConfigContext, 
             toggle('advisor.watch', 'Watch turns', settings.advisor.watch, value => { settings.advisor.watch = value }, { description: 'Review settled turns and raise at most one note.' }),
             toggle('advisor.showStatus', 'Status line', settings.advisor.showStatus, value => { settings.advisor.showStatus = value }, { description: 'Show advisor working/done in the status bar.' }),
             number('advisor.minToolCalls', 'Min tool calls', settings.advisor.minToolCalls, value => { settings.advisor.minToolCalls = value }, 0, 100),
-            number('advisor.maxNoteChars', 'Max note chars', settings.advisor.maxNoteChars, value => { settings.advisor.maxNoteChars = value }, 200, 8_000),
           ],
         },
         {

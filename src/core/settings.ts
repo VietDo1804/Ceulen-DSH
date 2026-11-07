@@ -23,7 +23,6 @@ export interface CeulenSettings {
     fallbacks: string[]
     watch: boolean
     showStatus: boolean
-    maxNoteChars: number
     minToolCalls: number
   }
   classifier: {
@@ -149,7 +148,7 @@ export function defaultSettings(): CeulenSettings {
     upstream: { enabled: true, intervalHours: 24 },
     // ponytail: one shipped default (Z.AI GLM-5.3 at max thinking); clear the
     // panel's route row to fall back to the parent agent's route.
-    advisor: { provider: 'zai', model: 'glm-5.3', reasoningEffort: 'max', fallbacks: [], watch: false, showStatus: true, maxNoteChars: 1200, minToolCalls: 1 },
+    advisor: { provider: 'zai', model: 'glm-5.3', reasoningEffort: 'max', fallbacks: [], watch: false, showStatus: true, minToolCalls: 1 },
     classifier: { provider: null, model: null, audit: true, enforce: false, fallbacks: [] },
     // ponytail: no evo route -> the improvement pass inherits the parent route.
     evo: { provider: null, model: null, reasoningEffort: null, fallbacks: [], probeBudget: { maxRunsPerDay: 8 } },
@@ -347,7 +346,6 @@ export function normalizeSettings(raw: unknown): CeulenSettings {
       fallbacks: dedupeRoutes(strArray(advisor.fallbacks)),
       watch: bool(advisor.watch, base.advisor.watch),
       showStatus: bool((advisor as Record<string, unknown>).showStatus, base.advisor.showStatus),
-      maxNoteChars: num(advisor.maxNoteChars, base.advisor.maxNoteChars, 200, 8_000),
       minToolCalls: num(advisor.minToolCalls, base.advisor.minToolCalls, 0, 100),
     },
     classifier: {
