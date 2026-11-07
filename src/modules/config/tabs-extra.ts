@@ -93,6 +93,7 @@ export function buildExtraTabs(
               warning: 'The script can call every visible tool with the same authority as a direct call; approvals and guards still apply. The DSH PTC runtime is a Node subprocess, not QuickJS.',
             }),
             info('codemode.runtime', 'Runtime', context.codemodeRuntime === true ? 'mounted (ptcRuntime)' : 'not mounted', 'Needs the dsh-ptc-runtime-node row; the DSH base bundle mounts it.'),
+            number('codemode.chainHintAfter', 'Chain hint after', settings.codemode.chainHintAfter, value => { settings.codemode.chainHintAfter = value }, 0, 20, { description: 'Hint after this many consecutive single read-only steps; 0 disables.' }),
           ],
         },
         {

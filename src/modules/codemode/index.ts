@@ -15,11 +15,13 @@
  * receipt/card text). This file is the registration and the execute pipeline.
  */
 
-import type { PluginContext, ToolRunContext } from '../../core/types.js'
+import type { AgentLike, PluginContext, ToolRunContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { ceulenTool, errorMessage, objectSchema, text } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
+import { randomUUID } from 'node:crypto'
 import { exitBindings, stateBindings } from './bindings.js'
+import { createChainState, HINT, noteToolCall, type ChainState } from './chain-hint.js'
 import { clipOneLine, formatCalls, renderResult, scriptTail, STATUS_LINE, stripModelNotes, toolBindings } from './render.js'
 import { DEFAULT_OUTPUT_BUDGET, EXIT_SENTINEL, parseOptionsLine, scriptErrorHint, suggestBinding, trimScriptError } from './script.js'
 import type {
@@ -262,4 +264,50 @@ export function apply(ctx: PluginContext): void {
   // lookup races the ptc-runtime row (the headless boot saw it unset here even
   // though the row was composed), and the execute-time error is just as clear.
   ctx.effect(() => ctx.tools.register(codemodeTool(ctx)), 'ceulen codemode tool')
+
+  // Experimental: nudge the model when consecutive steps each make one
+  // read-only call. One ChainState per live top-level session.
+  const agents = new Map<string, AgentLike>()
+  const states = new Map<string, ChainState>()
+  ctx.on('agent/created', (payload: { agent?: AgentLike }) => {
+    if (payload?.agent !== undefined) agents.set(String(payload.agent.session.id), payload.agent)
+  })
+  ctx.on('agent/disposed', (payload: { agent?: AgentLike }) => {
+    if (payload?.agent === undefined) return
+    const key = String(payload.agent.session.id)
+    agents.delete(key)
+    states.delete(key)
+  })
+  ctx.on('session/event', (session: { id?: string; header?: { parentSession?: string } } | undefined, event: { type?: string; data?: { turn?: number; step?: number; name?: unknown; arguments?: unknown } } | undefined) => {
+    if (event?.type !== 'tool/call' || typeof event.data?.name !== 'string') return
+    if (session === undefined || session.id === undefined) return
+    if (session.header?.parentSession !== undefined) return
+    const threshold = loadSettingsSync().codemode.chainHintAfter
+    if (threshold <= 0) return
+    const key = String(session.id)
+    const agent = agents.get(key)
+    if (agent === undefined) return
+    const state = states.get(key) ?? createChainState()
+    states.set(key, state)
+    const argumentsJson = typeof event.data.arguments === 'string' ? event.data.arguments : JSON.stringify(event.data.arguments ?? {})
+    const hint = noteToolCall(state, {
+      turn: event.data.turn ?? 0,
+      step: event.data.step ?? 0,
+      name: event.data.name,
+      arguments: argumentsJson,
+    }, threshold)
+    if (!hint) return
+    try {
+      agent.inject({
+        id: randomUUID(),
+        role: 'user',
+        content: [{ type: 'text', text: HINT }],
+        // Never source.kind 'user': that would fake a human prompt.
+        source: { kind: 'ceulen-codemode-hint', form: 'notice', summary: 'codemode hint' },
+      })
+      logLine('codemode', 'chain hint injected')
+    } catch (error) {
+      logLine('codemode', `chain hint failed: ${errorMessage(error)}`)
+    }
+  })
 }

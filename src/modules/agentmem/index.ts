@@ -16,6 +16,7 @@ import {
   validateSearchQuery,
   validateTagMode,
 } from '../../vendor/ceulen/munin/helpers.js'
+import { clipSearchHits } from '../../core/memory-text.js'
 import { resolveAgentMemConfig, type AgentMemResolvedConfig } from './config.js'
 import { logLine } from '../../core/log.js'
 import { credential } from '../../core/credentials.js'
@@ -404,7 +405,7 @@ export function apply(ctx: PluginContext): void {
         if (args.before !== undefined) payload.before = args.before
         if (args.include_total === true) payload.includeTotal = true
         return payload
-      }, toTextResult)
+      }, result => clipSearchHits(toTextResult(result)))
     },
   }))
 

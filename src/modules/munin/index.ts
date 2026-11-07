@@ -2,6 +2,7 @@ import type { PluginContext, ToolRunContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { ceulenTool, objectSchema, registerCommandSafe, registerPromptSection, registerToolSafe, errorMessage } from '../../core/tools.js'
 import { MuninClient } from '../../vendor/ceulen/munin/sdk.js'
+import { clipSearchHits } from '../../core/memory-text.js'
 import {
   formatCapabilities,
   formatShareResult,
@@ -324,7 +325,7 @@ export function apply(ctx: PluginContext): void {
         if (args.before !== undefined) payload.before = args.before
         if (args.include_total === true) payload.includeTotal = true
         return payload
-      }, toTextResult)
+      }, result => clipSearchHits(toTextResult(result)))
     },
   }))
 

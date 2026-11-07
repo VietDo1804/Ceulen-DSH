@@ -113,6 +113,8 @@ export interface CeulenSettings {
   }
   codemode: {
     enabled: boolean
+    /** Hint after N consecutive single read-only steps; 0 disables. */
+    chainHintAfter: number
   }
   rtk: {
     enabled: boolean
@@ -187,7 +189,7 @@ export function defaultSettings(): CeulenSettings {
     web: {},
     a2a: { peers: [] },
     gh: { enabled: true },
-    codemode: { enabled: true },
+    codemode: { enabled: true, chainHintAfter: 3 },
     rtk: { enabled: true },
     // ponytail: `*` = inherit the parent route, so a fresh install assumes no provider.
     subagent: { roles: { fast: ['*'], coder: ['*'], smart: ['*'] }, models: {}, thinking: {} },
@@ -405,7 +407,10 @@ export function normalizeSettings(raw: unknown): CeulenSettings {
     web: isRecord(raw.web) ? raw.web : {},
     a2a: { peers: Array.isArray(a2a.peers) ? a2a.peers : [] },
     gh: { enabled: bool(gh.enabled, base.gh.enabled) },
-    codemode: { enabled: bool(codemode.enabled, base.codemode.enabled) },
+    codemode: {
+      enabled: bool(codemode.enabled, base.codemode.enabled),
+      chainHintAfter: num((codemode as Record<string, unknown>).chainHintAfter, base.codemode.chainHintAfter, 0, 20),
+    },
     rtk: { enabled: bool(rtk.enabled, base.rtk.enabled) },
     subagent: {
       roles: { ...base.subagent.roles, ...chainRecord(subagent.roles) },
