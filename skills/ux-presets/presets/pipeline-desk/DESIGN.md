@@ -28,14 +28,14 @@ components:
   button: { backgroundColor: "{colors.cobalt}", textColor: "{colors.on-cobalt}", rounded: "{rounded.sm}", minHeight: "40px, 44px on phones" }
   button-hover: { backgroundColor: "{colors.text}" }
   panel: { backgroundColor: "{colors.panel}", rounded: "{rounded.md}", border: none }
-  kpi-strip: { one panel, cells split by "inset 1px {colors.rule}" }
+  kpi-strip: { backgroundColor: "{colors.panel}", cellDivider: "inset 1px 0 0 {colors.rule}", cells: 4 }
   nav-current: { backgroundColor: "{colors.cobalt-soft}", textColor: "{colors.cobalt}" }
   segmented: { backgroundColor: "{colors.desk}", pill: "{colors.cobalt-soft}", pressedText: "{colors.cobalt}" }
   table-row: { divider: "inset 0 -1px 0 {colors.rule}", padding: 12px }
   chip: { neutral: "{colors.raise}", won: "won on won-soft", lost: "lost on lost-soft", risk: "risk on risk-soft" }
 motion:
-  m-rise: 24px
-  m-arrive: 600ms
+  m-rise: 32px
+  m-arrive: 680ms
   m-gap: 60ms
   m-surface: "{colors.cobalt-soft}"
   html: data-recount="off"
@@ -81,8 +81,8 @@ add up to the KPI strip.
 
 ## Motion character
 
-Quick and quiet, for an app opened many times a day: 24px over 600ms, 60ms
-apart. KPIs count once, funnel bars fill, rows arrive, the activity rail draws,
+Level-2 distance with a tight rhythm, for an app opened many times a day:
+32px over 680ms, only 60ms apart, so a screen settles fast. KPIs count once, funnel bars fill, rows arrive, the activity rail draws,
 the filter pill slides. Put `data-recount="off"` on `<html>` so a number under
 the pointer never shows a false value. In React, give every row a stable `key`.
 

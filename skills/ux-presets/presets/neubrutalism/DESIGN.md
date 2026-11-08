@@ -27,8 +27,8 @@ components:
   block: { border: "3px solid {colors.ink}", shadow: "{elevation.block}", rounded: "{rounded.block}" }
   tag: { fontFamily: JetBrains Mono, border: "2px solid {colors.ink}", backgroundColor: "{colors.lime}" }
 motion:
-  m-rise: 28px
-  m-arrive: 620ms
+  m-rise: 32px
+  m-arrive: 660ms
   m-gap: 70ms
   m-out: "cubic-bezier(0.2, 0.9, 0.1, 1)"
 ---
@@ -68,7 +68,7 @@ overlapping its corner (here a deploy ticket with real step timings).
 
 ## Motion character
 
-Snappy and mechanical. Arrivals rise 28px over 620ms with a fast-out curve.
+Snappy and mechanical. Arrivals rise 32px over 660ms with a fast-out curve.
 Steps arrive from the left, centre and right. Buttons press into their shadow
 on `:active`, the only place an element moves on click. Set the `motion` values
 above as `--m-rise`, `--m-arrive`, `--m-gap` and `--m-out` in `:root`.

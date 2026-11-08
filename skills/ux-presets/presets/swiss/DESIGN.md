@@ -20,9 +20,9 @@ components:
   filter: { border: "{rules.structural}", pressed: "{colors.red-text} text, {colors.red} border" }
   row: { borderBottom: "{rules.hairline}", columns: "time | title | person | place" }
 motion:
-  m-rise: 24px
+  m-rise: 32px
   m-side: 32px
-  m-arrive: 680ms
+  m-arrive: 700ms
   m-gap: 60ms
   m-out: "cubic-bezier(0.65, 0, 0.35, 1)"
   m-surface: "{colors.paper}"
@@ -66,7 +66,7 @@ Put it inside `<figure class="deco" aria-hidden="true">` with `position: absolut
 
 ## Motion character
 
-Mechanical and exact: arrivals use an ease-in-out curve, 24px over 680ms, with
+Mechanical and exact: arrivals use an ease-in-out curve, 32px over 700ms, with
 rows sliding in from the left like a departure board. The filter pill is paper
 with the kit's red underline; the pressed button turns red-text.
 Set the `motion` values above as `--m-*` in `:root`.

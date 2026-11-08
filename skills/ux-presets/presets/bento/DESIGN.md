@@ -26,8 +26,8 @@ components:
   segmented: { backgroundColor: "{colors.tile}", pressed: "{colors.ink} pill, {colors.tile} text", minHeight: 44px }
   bar: { height: 10px, track: "{colors.track}", fill: "{colors.ember}, then {colors.ink}" }
 motion:
-  m-rise: 24px
-  m-arrive: 700ms
+  m-rise: 32px
+  m-arrive: 720ms
   m-gap: 80ms
 ---
 
@@ -68,7 +68,7 @@ holding the real series as a drawn line with its peak marked.
 
 ## Motion character
 
-Tiles load in reading order, 24px over 700ms, 80ms apart. Numbers count, the
+Tiles load in reading order, 32px over 720ms, 80ms apart. Numbers count, the
 chart draws with its peak landing as the line passes, bars fill. The live dot
 pulses. Override a bar's colour with `--m-tint` on the bar, not `--m-accent`.
 

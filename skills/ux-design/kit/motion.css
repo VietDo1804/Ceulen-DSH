@@ -138,6 +138,8 @@ li[data-arrive] > :not([data-dot], time) { translate: var(--m-lean, 0px) 0; }
 .m-pilled { position: relative; }
 .m-pilled [data-filter] { position: relative; z-index: 1; }
 .m-pilled [data-filter][aria-pressed="true"] { background-color: transparent; border-bottom-color: transparent; }
+/* a filtered-out row is [hidden]; a page rule like `li { display: grid }` must not show it again */
+[data-filter-list] > [hidden], [data-filter-empty][hidden] { display: none !important; }
 [data-filter-list] > .m-leaving { position: absolute; left: 0; right: 0; margin: 0; pointer-events: none; }
 .m-leaving [data-dot] { animation: none !important; }
 
