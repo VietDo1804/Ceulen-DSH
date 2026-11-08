@@ -89,8 +89,12 @@ export function toolBindings(
 
 export const STATUS_LINE = /^Script (?:completed|failed) \([\d.]+s\)\n?/
 
-/** Model-only advice: a single unfiltered call should have been a direct call. */
-export const SINGLE_CALL_NOTE = 'Note: one tool call with no real filtering; call that tool directly next time.'
+/** Model-only advice: a single unfiltered call should have been a direct call. Lines start with this prefix. */
+export const SINGLE_CALL_NOTE = 'Note: one tool call with no real filtering'
+
+function singleCallNote(name: string): string {
+  return `${SINGLE_CALL_NOTE}: this script only wrapped \`${name}\` and returned its result whole; call \`${name}\` directly next time and filter in the shell.`
+}
 
 const MAX_FAILURE_CALLS = 8
 
@@ -107,13 +111,16 @@ export function renderResult(
     ? typeof result.value === 'string' ? result.value : JSON.stringify(result.value)
     : ''
   const consoleBlock = result.logs.length > 0 ? `<console_output>\n${result.logs.join('\n')}\n</console_output>` : ''
+  // Measured before the budget cut: a script that returns 50k raw chars is the
+  // wrapper the note is for, even though the model only sees 6k of it.
+  const returnedChars = valueText.length + consoleBlock.length
   const { text: body, spillPath } = applyOutputBudget(valueText, consoleBlock, budget)
   const lines = [status]
   if (body.length > 0) lines.push(body)
   if (result.error !== undefined) lines.push(`Script error (${result.error.kind}): ${result.error.message}`)
   // The model must know which calls already ran so it does not repeat them.
   if (result.error !== undefined && calls.length > 0) lines.push(`Calls before failure:\n${formatCalls(calls.slice(-MAX_FAILURE_CALLS))}`)
-  if (result.error === undefined && calls.length === 1 && rawChars > 0 && body.length * 2 >= rawChars) lines.push(SINGLE_CALL_NOTE)
+  if (result.error === undefined && calls.length === 1 && rawChars > 0 && returnedChars * 2 >= rawChars) lines.push(singleCallNote(calls[0]!.name))
   if (lines.length === 1) lines.push('(no output)')
   return { text: lines.join('\n'), spillPath }
 }
@@ -131,7 +138,7 @@ export function stripModelNotes(body: string): string {
       if (/^[✓×] /.test(line)) continue
       skippingCalls = false
     }
-    if (line === SINGLE_CALL_NOTE) continue
+    if (line.startsWith(SINGLE_CALL_NOTE)) continue
     kept.push(line)
   }
   return kept.join('\n')

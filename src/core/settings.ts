@@ -189,7 +189,7 @@ export function defaultSettings(): CeulenSettings {
     web: {},
     a2a: { peers: [] },
     gh: { enabled: true },
-    codemode: { enabled: true, chainHintAfter: 3 },
+    codemode: { enabled: true, chainHintAfter: 2 },
     rtk: { enabled: true },
     // ponytail: `*` = inherit the parent route, so a fresh install assumes no provider.
     subagent: { roles: { fast: ['*'], coder: ['*'], smart: ['*'] }, models: {}, thinking: {} },

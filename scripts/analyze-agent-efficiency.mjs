@@ -96,15 +96,17 @@ const report = {
 }
 const contextSamples = []
 
+const sinceMs = since ? Date.parse(`${since}T00:00:00`) : undefined
+
 for (const file of sessionFiles()) {
-  const events = loadEvents(file)
-  if (events.length === 0) continue
-  const sinceMs = since ? Date.parse(`${since}T00:00:00`) : undefined
+  let events = loadEvents(file)
   if (sinceMs !== undefined) {
-    // event.time is epoch milliseconds.
-    const lastTime = events.reduce((latest, event) => Math.max(latest, new Date(event.time ?? 0).getTime() || 0), 0)
-    if (lastTime < sinceMs) continue
+    // Filter per event, not per session: a session that spans the date would
+    // otherwise count its pre-change steps as post-change. event.time is epoch ms.
+    events = events.filter((event) => event.time === undefined || (new Date(event.time).getTime() || 0) >= sinceMs)
+    if (!events.some((event) => event.time !== undefined)) continue
   }
+  if (events.length === 0) continue
   report.sessions += 1
 
   const callsById = new Map()

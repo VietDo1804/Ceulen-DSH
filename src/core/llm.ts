@@ -68,7 +68,9 @@ export async function streamTextDetailed(
     system,
     messages: [{ role: 'user', content: [{ type: 'text', text: user }] }],
     maxTokens,
-    temperature: 0,
+    // ponytail: codex's responses backend rejects `temperature` outright
+    // ("Unsupported parameter: temperature"), so omit it there only.
+    ...(route.provider === 'openai-codex' ? {} : { temperature: 0 }),
     signal,
   })) {
     const item = chunk as LlmChunk & {

@@ -21,7 +21,7 @@ import { ceulenTool, errorMessage, objectSchema, text } from '../../core/tools.j
 import { logLine } from '../../core/log.js'
 import { randomUUID } from 'node:crypto'
 import { commitState, exitBindings, forgetState, stateBindings } from './bindings.js'
-import { createChainState, HINT, noteToolCall, type ChainState } from './chain-hint.js'
+import { createChainState, hintText, noteToolCall, type ChainState } from './chain-hint.js'
 import { clipOneLine, formatCalls, renderResult, scriptTail, STATUS_LINE, stripModelNotes, toolBindings } from './render.js'
 import { DEFAULT_OUTPUT_BUDGET, EXIT_SENTINEL, parseOptionsLine, scriptErrorHint, suggestBinding, trimScriptError } from './script.js'
 import type {
@@ -292,6 +292,7 @@ export function apply(ctx: PluginContext): void {
       arguments: argumentsJson,
     }, threshold)
     if (!hint) return
+    const text = hintText(state.hintedLabels)
     // This observer runs inside the session's own append publication; appending
     // from here throws "cannot reenter while another append is being published".
     // A macrotask lands after that publication commits.
@@ -300,7 +301,7 @@ export function apply(ctx: PluginContext): void {
         agent.inject({
           id: randomUUID(),
           role: 'user',
-          content: [{ type: 'text', text: HINT }],
+          content: [{ type: 'text', text }],
           // Never source.kind 'user': that would fake a human prompt.
           source: { kind: 'ceulen-codemode-hint', form: 'notice', summary: 'codemode hint' },
         })

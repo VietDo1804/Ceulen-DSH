@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { AgentLike, MessageLike, PluginContext } from '../../core/types.js'
+import type { AgentLike, PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync, updateSettings, type ReasoningEffort } from '../../core/settings.js'
 import { parseRoute, streamText, type LlmRoute } from '../../core/llm.js'
 import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerToolSafe, tuiStatusPublisher } from '../../core/tools.js'
@@ -94,6 +94,9 @@ async function streamChain(
     } finally {
       clearTimeout(timer)
     }
+    // A silent fall-through hid an expired primary credential for a whole day:
+    // every skipped route leaves a line, even when a later one answers.
+    logLine('advisor', `route failed ${failures[failures.length - 1]}`)
   }
   throw new Error(`no reviewer route answered (${failures.join('; ')})`)
 }
@@ -139,11 +142,10 @@ function deliver(agent: AgentLike, severity: Severity, note: string, reviewer: s
   try {
     if (severity === 'nit') agent.inject(message)
     else agent.followup(message)
-  } catch {
-    // A harness build that rejects the namespaced source still gets the note.
-    const fallback = { ...message, source: { kind: 'user' } }
-    if (severity === 'nit') agent.inject(fallback)
-    else agent.followup(fallback)
+  } catch (error) {
+    // Never fall back to source.kind 'user': renderTurn would pin the note as
+    // the user's own request at the next review. Losing one note is cheaper.
+    logLine('advisor', `note not delivered: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
@@ -351,8 +353,9 @@ export function apply(ctx: PluginContext): void {
       const transcript = renderTurn(messages, CONSULT_BUDGET)
       const evidence = await gitEvidence(agent.session.header?.cwd, touchedPaths(messages), exec.signal)
       publishStatus('advisor · reviewing…')
+      const startedAt = Date.now()
       try {
-        const { text } = await streamChain(
+        const { text, route } = await streamChain(
           ctx,
           routes,
           'You are a second-opinion reviewer for a coding agent. You cannot use tools. Be concise: at most 5 sentences, evidence-based, no restating the question.',
@@ -361,7 +364,11 @@ export function apply(ctx: PluginContext): void {
         )
         publishStatus('advisor · done')
         scheduleClear(5_000)
-        return text
+        // The model cannot tell which route served it; name it so a smoke test
+        // can check the configured primary actually answered.
+        const routeLabel = `${route.provider}/${route.model}`
+        logLine('advisor', `consult done ${Math.round((Date.now() - startedAt) / 1000)}s route=${routeLabel}`)
+        return `${text}\n\n(reviewer: ${routeLabel})`
       } catch (error) {
         publishStatus(undefined)
         throw error

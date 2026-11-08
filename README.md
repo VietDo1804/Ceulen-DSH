@@ -180,9 +180,10 @@ transcript.
 It is on by default. Turn it off in `/ceulen-config` → Tools → Codemode, then
 restart DSH (`/reload` does not reload plugin code). The panel also reports
 whether the `ptcRuntime` service is mounted. The chain-hint experiment lives
-there too: after `codemode.chainHintAfter` (default 3, `0` = off) consecutive
+there too: after `codemode.chainHintAfter` (default 2, `0` = off) consecutive
 steps that each make one read-only call, the next step gets a one-line nudge to
-batch the following reads into one script or one parallel tool batch.
+batch the following reads into one script or one parallel tool batch; the
+nudge names the steps it is about.
 
 ```js
 const results = await Promise.allSettled([

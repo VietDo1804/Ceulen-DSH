@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { isAbsolute, resolve, sep } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import type { MessageLike } from '../../core/types.js'
 import { clampText } from '../../core/tools.js'
@@ -116,17 +116,29 @@ export async function gitEvidence(
   }
 
   if (status.length > 0 && diffable.length > 0) {
-    const untracked = status
-      .split('\n')
-      .map(line => line.startsWith('?? ') ? line.slice(3).replace(/^"|"$/g, '') : undefined)
-      .filter((path): path is string => path !== undefined)
-      .filter(path => diffable.includes(path) && !isSecretPath(path) && insideCwd(cwd, path))
+    // Status paths are cwd-relative while edit/write paths are often absolute,
+    // so match on resolved paths. A new directory shows as one `?? dir/` entry:
+    // the touched files under it are the new files.
+    const touchedAbsolute = new Set(diffable.map(path => resolve(cwd, path)))
+    const candidates: string[] = []
+    for (const line of status.split('\n')) {
+      if (!line.startsWith('?? ')) continue
+      const entry = line.slice(3).replace(/^"|"$/g, '')
+      const absolute = resolve(cwd, entry)
+      if (entry.endsWith('/')) {
+        for (const path of diffable) if (resolve(cwd, path).startsWith(absolute + sep)) candidates.push(path)
+      } else if (touchedAbsolute.has(absolute)) {
+        candidates.push(entry)
+      }
+    }
+    const untracked = [...new Set(candidates.map(path => resolve(cwd, path)))]
+      .filter(path => !isSecretPath(path) && insideCwd(cwd, path))
       .slice(0, UNTRACKED_READ_LIMIT)
     const heads: string[] = []
     for (const path of untracked) {
       try {
-        const lines = readFileSync(resolve(cwd, path), 'utf8').split('\n').slice(0, 40)
-        heads.push(`--- new file: ${path} (first 40 lines) ---\n${lines.join('\n')}`)
+        const lines = readFileSync(path, 'utf8').split('\n').slice(0, 40)
+        heads.push(`--- new file: ${relative(cwd, path)} (first 40 lines) ---\n${lines.join('\n')}`)
       } catch {
         // Unreadable file: status already names it.
       }

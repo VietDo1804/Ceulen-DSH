@@ -117,10 +117,19 @@ export function suggestBinding(message: string, names: readonly string[]): strin
 
 const STRING_METHOD_ON_OBJECT = /\.(?:slice|substring|trim|trimStart|trimEnd|split|match|matchAll|replace|replaceAll|includes|startsWith|endsWith|toLowerCase|toUpperCase) is not a function/
 
-/** A recovery line for the two failure classes the session logs show most. */
+const PROPERTY_OF_NOTHING = /Cannot read properties of (?:undefined|null) \(reading '([^']+)'\)/
+const LOSSLESS_ARGUMENTS = /binding arguments must be lossless JSON/
+
+/** A recovery line for the failure classes the session logs show most. */
 export function scriptErrorHint(kind: string, message: string): string | undefined {
   if (kind === 'invalid-output') return 'return only JSON values: no undefined, functions, NaN or Date; use null or a string instead'
-  if (kind === 'exception' && STRING_METHOD_ON_OBJECT.test(message)) return 'tool results are objects: bash output is r.stdout.text, read output is r.lines; inspect with Object.keys(r)'
+  if (kind !== 'exception') return undefined
+  if (STRING_METHOD_ON_OBJECT.test(message)) return 'tool results are objects: bash output is r.stdout.text, read output is r.lines; inspect with Object.keys(r)'
+  const property = PROPERTY_OF_NOTHING.exec(message)
+  if (property !== null) {
+    return `a value has no .${property[1]} where the script expected one: bash output is r.stdout.text, read output is r.lines, a rejected allSettled entry has .reason not .value; console.log(Object.keys(r)) before drilling in`
+  }
+  if (LOSSLESS_ARGUMENTS.test(message)) return 'tool arguments must be plain JSON: drop undefined fields (spread them conditionally) and pass strings or numbers, never Date, functions or buffers'
   return undefined
 }
 
