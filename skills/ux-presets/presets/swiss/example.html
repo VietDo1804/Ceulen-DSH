@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grid Days 2027 — Zürich</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&display=swap">
+<style>
+  :root {
+    --paper: #F3F3EF;
+    --ink: #121314;
+    --ink-muted: #55575A;
+    --red: #BE2219;
+    --red-text: #A51C14;
+    --rule: 2px solid var(--ink);
+    --hair: 1px solid var(--ink);
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 32px;
+    --space-6: 48px;
+    --space-7: 112px;
+    --sans: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+    --dur-fast: 150ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --m-accent: var(--red);
+    --m-surface: var(--paper);
+    --m-rise: 24px;
+    --m-side: 32px;
+    --m-arrive: 680ms;
+    --m-gap: 60ms;
+    --m-out: cubic-bezier(0.65, 0, 0.35, 1);
+  }
+  * { box-sizing: border-box; }
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 1.0625rem/1.5 var(--sans); }
+  .speakers b, .count, [data-count] { font-variant-numeric: tabular-nums; }
+  a { color: inherit; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+  a:hover { color: var(--red-text); }
+  :focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+  .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--space-4); max-width: 1320px; margin: 0 auto; padding: 0 var(--space-4); }
+
+  .top { border-bottom: var(--rule); padding-top: var(--space-3); padding-bottom: var(--space-3); align-items: center; }
+  .top .mark { grid-column: span 3; font-weight: 800; font-size: 1.125rem; }
+  .top nav { grid-column: 4 / span 6; display: flex; gap: var(--space-4); }
+  .top nav a, .top .cta { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; font-weight: 600; }
+  .top .cta { grid-column: 10 / span 3; justify-self: end; white-space: nowrap; background: var(--red); color: var(--paper); padding: 0 var(--space-4); transition: background-color var(--dur-fast) var(--ease-out); }
+  .top .cta:hover { background: var(--ink); color: var(--paper); }
+
+  /* signature: the date numeral, red, bleeding off the right edge */
+  .hero { position: relative; padding: var(--space-6) 0 var(--space-6); }
+  .deco { position: absolute; inset: 0; margin: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+  .numeral {
+    position: absolute; right: -0.08em; top: -0.12em; margin: 0;
+    font-weight: 900; font-size: clamp(16rem, 42vw, 40rem); line-height: 0.8; letter-spacing: -0.06em; color: var(--red);
+  }
+  .hero .grid { position: relative; z-index: 1; }
+  .hero h1 { grid-column: 1 / span 8; margin: var(--space-6) 0 0; font-weight: 800; font-size: clamp(3rem, 7.4vw, 7rem); line-height: 0.95; letter-spacing: -0.04em; }
+  .facts { grid-column: 1 / span 7; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin-top: var(--space-6); border-top: var(--rule); padding-top: var(--space-3); }
+  .facts dt { color: var(--ink-muted); font-size: 0.9375rem; }
+  .facts dd { margin: 0; font-weight: 700; font-size: 1.25rem; }
+
+  section { padding: var(--space-7) 0 0; }
+  .label { grid-column: 1 / span 3; position: sticky; top: var(--space-4); align-self: start; }
+  .label h2 { margin: 0; font-size: 2.25rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .label p { color: var(--ink-muted); margin: var(--space-3) 0 0; max-width: 24ch; }
+  .body { grid-column: 4 / span 9; }
+
+  .tracks { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
+  .tracks button {
+    min-height: 44px; padding: 0 var(--space-4); font: 600 1rem var(--sans); color: var(--ink); background: transparent;
+    border: var(--rule); border-radius: 0; cursor: pointer; transition: color var(--dur-fast) var(--ease-out);
+  }
+  .tracks button[aria-pressed="true"] { color: var(--red-text); border-color: var(--red); }
+  .count { color: var(--ink-muted); margin: 0 0 var(--space-3); }
+
+  .program { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+  .program li { display: grid; grid-template-columns: 6rem minmax(0, 1fr) 11rem 5rem; gap: var(--space-4); align-items: baseline; padding: var(--space-3) 0; border-bottom: var(--hair); }
+  .program time { font-weight: 800; font-size: 1.25rem; }
+  .program h3 { margin: 0; font-size: 1.25rem; font-weight: 700; letter-spacing: -0.01em; }
+  .program .who { color: var(--ink-muted); }
+  .program .room { font-weight: 700; color: var(--red-text); text-align: right; }
+  .empty { color: var(--ink-muted); }
+
+  .speakers { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); column-gap: var(--space-4); }
+  .speakers li { border-top: var(--rule); padding: var(--space-3) 0 var(--space-5); }
+  .speakers b { display: block; font-size: 3.5rem; font-weight: 900; line-height: 1; letter-spacing: -0.04em; color: var(--red); }
+  .speakers strong { display: block; font-size: 1.25rem; margin-top: var(--space-3); }
+  .speakers span { color: var(--ink-muted); }
+
+  .band { margin-top: var(--space-7); background: var(--red); color: var(--paper); padding: var(--space-6) 0; font-size: 1.5rem; font-weight: 700; }
+  .band p { grid-column: 1 / span 8; margin: 0; font-size: clamp(2rem, 4.5vw, 4rem); font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+  .band a { grid-column: 10 / span 3; align-self: end; justify-self: end; color: var(--paper); font-weight: 700; font-size: 1.375rem; display: inline-flex; min-height: 44px; align-items: center; }
+  .band a:hover { color: var(--ink); }
+  footer.site { padding: var(--space-4) 0 var(--space-6); color: var(--ink-muted); }
+  footer.site p { grid-column: 1 / -1; margin: 0; }
+
+  @media (max-width: 900px) {
+    .top .mark { grid-column: span 6; }
+    .top { row-gap: var(--space-2); }
+    .top nav { grid-column: 1 / -1; grid-row: 2; gap: var(--space-4); flex-wrap: wrap; }
+    .top .cta { grid-column: 7 / span 6; }
+    .hero h1, .facts, .label, .body, .band p, .band a { grid-column: 1 / -1; }
+    .band a { justify-self: start; margin-top: var(--space-4); }
+    .label { margin-bottom: var(--space-4); position: static; }
+    .facts { grid-template-columns: 1fr 1fr; }
+    .program li { grid-template-columns: 4.5rem minmax(0, 1fr); row-gap: var(--space-1); }
+    .hero { padding-top: 46vw; }
+    .numeral { font-size: 56vw; top: var(--space-3); }
+    .program .who, .program .room { grid-column: 2; text-align: left; }
+    .speakers { grid-template-columns: 1fr 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<header class="top grid">
+  <span class="mark">Grid Days</span>
+  <nav aria-label="Main"><a href="#program">Program</a><a href="#speakers">Speakers</a><a href="#venue">Venue</a></nav>
+  <a class="cta" href="#tickets">Tickets CHF 340</a>
+</header>
+
+<div class="hero">
+  <figure class="deco" aria-hidden="true"><span class="numeral" data-parallax="0.18">27</span></figure>
+  <div class="grid">
+    <h1 data-words>Two days on the typographic grid.</h1>
+    <dl class="facts" data-load>
+      <div><dt>Dates</dt><dd>22–23 April 2027</dd></div>
+      <div><dt>Place</dt><dd>Kongresshaus Zürich</dd></div>
+      <div><dt>Seats</dt><dd><span data-count>640</span> in one hall</dd></div>
+    </dl>
+  </div>
+</div>
+
+<section id="program">
+  <div class="grid">
+    <div class="label"><h2 data-sweep>Program</h2><p>Day one. Every talk is 30 minutes, every break is 15.</p></div>
+    <div class="body">
+      <fieldset class="tracks" aria-label="Track">
+        <button type="button" data-filter="all" aria-pressed="true">All</button>
+        <button type="button" data-filter="type" aria-pressed="false">Type</button>
+        <button type="button" data-filter="systems" aria-pressed="false">Systems</button>
+        <button type="button" data-filter="print" aria-pressed="false">Print</button>
+      </fieldset>
+      <p class="count"><span data-filter-count>7</span> talks</p>
+      <ol class="program" data-filter-list>
+        <li data-type="type" data-arrive="left"><time>09:30</time><h3>Why the grid outlived modernism</h3><span class="who">Lena Brunner</span><span class="room">Hall A</span></li>
+        <li data-type="systems" data-arrive="left"><time>10:15</time><h3>Tokens are a grid for decisions</h3><span class="who">Marco Ruiz</span><span class="room">Hall A</span></li>
+        <li data-type="print" data-arrive="left"><time>11:00</time><h3>Setting timetables for the SBB</h3><span class="who">Anna Keller</span><span class="room">Hall B</span></li>
+        <li data-type="type" data-arrive="left"><time>11:45</time><h3>Akzidenz, Helvetica, and the rest</h3><span class="who">Jonas Weber</span><span class="room">Hall A</span></li>
+        <li data-type="systems" data-arrive="left"><time>14:00</time><h3>Twelve columns on a phone</h3><span class="who">Priya Natarajan</span><span class="room">Hall B</span></li>
+        <li data-type="print" data-arrive="left"><time>14:45</time><h3>Posters that read at forty metres</h3><span class="who">Felix Meier</span><span class="room">Hall A</span></li>
+        <li data-type="type" data-arrive="left"><time>15:30</time><h3>Numerals as structure</h3><span class="who">Sofia Bianchi</span><span class="room">Hall A</span></li>
+      </ol>
+      <p class="empty" data-filter-empty hidden>No talks in this track today.</p>
+    </div>
+  </div>
+</section>
+
+<section id="speakers">
+  <div class="grid">
+    <div class="label"><h2 data-sweep>Speakers</h2><p>Six of the fourteen.</p></div>
+    <ol class="speakers body">
+      <li data-arrive><b>01</b><strong>Lena Brunner</strong><span>Type historian, Basel</span></li>
+      <li data-arrive><b>02</b><strong>Marco Ruiz</strong><span>Design systems lead</span></li>
+      <li data-arrive><b>03</b><strong>Anna Keller</strong><span>Wayfinding, SBB</span></li>
+      <li data-arrive><b>04</b><strong>Jonas Weber</strong><span>Type designer</span></li>
+      <li data-arrive><b>05</b><strong>Priya Natarajan</strong><span>Product designer</span></li>
+      <li data-arrive><b>06</b><strong>Felix Meier</strong><span>Poster printer</span></li>
+    </ol>
+  </div>
+</section>
+
+<div class="band" id="tickets">
+  <div class="grid">
+    <p data-arrive>640 seats. 212 left.</p>
+    <a href="#top">Buy a ticket</a>
+  </div>
+</div>
+<footer class="site grid" id="venue"><p>Grid Days is a fictional event used to show the Swiss grid preset.</p></footer>
+<script src="motion.js"></script>
+</body>
+</html>

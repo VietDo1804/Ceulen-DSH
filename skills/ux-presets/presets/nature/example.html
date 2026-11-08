@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moss &amp; Row — a weekly box from three farms</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400..700&display=swap">
+<style>
+  :root {
+    --sage: #ECEFE4;
+    --leaf: #F7F8F2;
+    --ink: #1F2A1D;
+    --ink-muted: #525C4E;
+    --moss: #3A5A2B;
+    --on-moss: #F4F6EE;
+    --ochre: #66450B;
+    --ochre-soft: #F3EBD6;
+    --moss-soft: #DCE5CF;
+    --moss-ink: #2C4520;
+    --forest: #24331F;
+    --forest-text: #E8EDDF;
+    --radius-sm: 12px;
+    --radius-md: 20px;
+    --radius-lg: 32px;
+    --radius-pill: 999px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 32px;
+    --space-6: 56px;
+    --space-7: 112px;
+    --serif: "Young Serif", Georgia, serif;
+    --sans: "Figtree", system-ui, sans-serif;
+    --dur-fast: 180ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --m-accent: var(--moss);
+    --m-surface: var(--moss-soft);
+    --m-rise: 32px;
+    --m-arrive: 820ms;
+    --m-gap: 90ms;
+    --m-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--sage); color: var(--ink); font: 400 1.0625rem/1.6 var(--sans); }
+  a { color: var(--moss); text-underline-offset: 3px; }
+  :focus-visible { outline: 2px solid var(--moss); outline-offset: 3px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 var(--space-4); }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 400; }
+
+  .top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) 0; }
+  .logo { font-family: var(--serif); font-size: 1.375rem; color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
+  .btn {
+    display: inline-flex; align-items: center; min-height: 48px; padding: 0 var(--space-5); border-radius: var(--radius-pill);
+    background: var(--moss); color: var(--on-moss); font: 600 1rem var(--sans); text-decoration: none; border: 0; cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+  }
+  .btn:hover { background: var(--forest); }
+  .btn:active { transform: scale(0.97); }
+  .btn.soft { background: var(--moss-soft); color: var(--ink); }
+  .btn.soft:hover { background: var(--leaf); }
+
+  .hero { position: relative; border-radius: var(--radius-lg); background: var(--leaf); padding: var(--space-7) var(--space-6); margin-top: var(--space-2); }
+  .hero h1 { position: relative; margin: 0; max-width: 13ch; font-size: clamp(2.75rem, 6.5vw, 5.75rem); line-height: 1.02; letter-spacing: -0.01em; }
+  .hero p { position: relative; max-width: 40ch; font-size: 1.25rem; color: var(--ink-muted); margin: var(--space-4) 0 var(--space-5); }
+  .hero .actions { position: relative; display: flex; gap: var(--space-3); flex-wrap: wrap; }
+  /* signature: a leaf's veins drawn across the hero, quiet as a watermark */
+  .deco { position: absolute; inset: 0; margin: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+  .veins { position: absolute; right: -6%; top: -10%; width: 62%; height: 130%; color: var(--moss); opacity: 0.28; pointer-events: none; }
+  .veins path { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; }
+
+  section { padding: var(--space-7) 0 0; }
+  .head { display: flex; justify-content: space-between; align-items: end; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-5); }
+  h2 { margin: 0; font-size: clamp(2rem, 4vw, 3.25rem); line-height: 1.05; }
+  .head p { margin: 0; color: var(--ink-muted); max-width: 36ch; }
+
+  .box { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+  .box li { display: grid; grid-template-columns: 3.5rem minmax(0, 1.4fr) minmax(0, 1fr) 7rem 7.5rem; gap: var(--space-4); align-items: center; background: var(--leaf); border-radius: var(--radius-md); padding: var(--space-3) var(--space-4); }
+  .box .glyph { width: 44px; height: 44px; border-radius: var(--radius-pill); background: var(--moss-soft); display: grid; place-items: center; font-family: var(--serif); font-size: 1.25rem; color: var(--moss-ink); }
+  .box h3 { margin: 0; font-size: 1.25rem; line-height: 1.2; }
+  .box .farm { color: var(--ink-muted); }
+  .box .qty { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .badge { justify-self: end; font-size: 0.8125rem; font-weight: 700; padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); background: var(--moss-soft); color: var(--moss-ink); }
+  .badge.first { background: var(--ochre-soft); color: var(--ochre); }
+
+  .route { display: grid; grid-template-columns: 1fr 1.2fr; gap: var(--space-6); align-items: start; }
+  .route ol { list-style: none; margin: var(--space-5) 0 0; padding: 0 0 0 var(--space-5); position: relative; }
+  .route li { position: relative; padding: 0 0 var(--space-5); }
+  .route .pin { position: absolute; left: calc(var(--space-5) * -1 - 7px); top: 6px; width: 16px; height: 16px; border-radius: var(--radius-pill); background: var(--moss); }
+  .route time { font-weight: 700; color: var(--moss); }
+  .route h3 { margin: var(--space-1) 0; font-size: 1.5rem; }
+  .route p { margin: 0; color: var(--ink-muted); }
+  .season { background: var(--leaf); border-radius: var(--radius-lg); padding: var(--space-5); }
+  .season h3 { margin: 0 0 var(--space-4); font-size: 1.5rem; }
+  .season dl { margin: 0; display: grid; gap: var(--space-4); }
+  .season dt { display: flex; justify-content: space-between; font-weight: 600; }
+  .season dd { margin: var(--space-2) 0 0; }
+  .season [data-fill] { height: 8px; border-radius: var(--radius-pill); }
+
+  .plans { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+  .plan { border-radius: var(--radius-lg); padding: var(--space-5); background: var(--leaf); }
+  .plan.deep { background: var(--forest); color: var(--forest-text); }
+  .plan h3 { margin: 0; font-size: 1.75rem; }
+  .plan .price { font-family: var(--serif); font-size: 3.5rem; line-height: 1; margin: var(--space-4) 0; }
+  .plan .price small { font-family: var(--sans); font-size: 1rem; }
+  .plan ul { padding-left: 1.1em; margin: 0 0 var(--space-5); }
+  .plan.deep .btn { background: var(--moss-soft); color: var(--ink); }
+  .plan.deep .btn:hover { background: var(--leaf); }
+  footer.site { padding: var(--space-7) 0 var(--space-5); color: var(--ink-muted); }
+
+  @media (max-width: 860px) {
+    .hero { padding: var(--space-6) var(--space-4); }
+    .veins { width: 110%; right: -40%; }
+    .route, .plans { grid-template-columns: 1fr; }
+    .box li { grid-template-columns: 2.75rem minmax(0, 1fr) auto; row-gap: var(--space-1); }
+    .box .farm { grid-column: 2; grid-row: 2; }
+    .box .qty { grid-column: 3; grid-row: 2; justify-self: end; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<div class="wrap">
+  <header class="top">
+    <a class="logo" href="#top">Moss &amp; Row</a>
+    <a class="btn soft" href="#plans">Choose a box</a>
+  </header>
+
+  <div class="hero">
+    <figure class="deco" aria-hidden="true"><svg class="veins" viewBox="0 0 600 700" aria-hidden="true" data-parallax="0.15">
+      <path d="M300 690 C290 520 300 300 330 20"/>
+      <path d="M302 600 C230 560 150 540 70 560"/><path d="M304 520 C380 470 450 450 540 460"/>
+      <path d="M306 440 C230 390 160 360 80 360"/><path d="M310 360 C390 300 450 280 530 280"/>
+      <path d="M314 280 C250 230 190 200 120 190"/><path d="M320 200 C380 150 430 130 490 120"/>
+      <path d="M325 120 C290 90 250 70 200 60"/>
+    </svg></figure>
+    <h1 data-words>Picked on Monday, at your door on Wednesday.</h1>
+    <p data-load>One box a week from three small farms in the valley. Whatever is ready, nothing flown in, and you can skip any week.</p>
+    <div class="actions" data-load><a class="btn" href="#plans">Start with the small box</a><a class="btn soft" href="#week">See this week</a></div>
+  </div>
+
+  <section id="week">
+    <div class="head"><h2 data-sweep>This week's box</h2><p>Week 46. Six things, about <span data-count>5.1</span> kg, from three farms.</p></div>
+    <ul class="box">
+      <li data-arrive="left"><span class="glyph">K</span><h3>Cavolo nero</h3><span class="farm">Ridge Farm</span><span class="qty">1 bunch</span><span class="badge" data-pop>picked Mon</span></li>
+      <li data-arrive="left"><span class="glyph">B</span><h3>Beetroot, Chioggia</h3><span class="farm">Hollow Lane</span><span class="qty">750 g</span><span class="badge" data-pop>picked Mon</span></li>
+      <li data-arrive="left"><span class="glyph">S</span><h3>Squash, Crown Prince</h3><span class="farm">Ridge Farm</span><span class="qty">1.6 kg</span><span class="badge" data-pop>stored 3 wk</span></li>
+      <li data-arrive="left"><span class="glyph">L</span><h3>Leeks</h3><span class="farm">Millbrook</span><span class="qty">3</span><span class="badge" data-pop>picked Mon</span></li>
+      <li data-arrive="left"><span class="glyph">P</span><h3>Pears, Conference</h3><span class="farm">Hollow Lane</span><span class="qty">1 kg</span><span class="badge first" data-pop>first this year</span></li>
+      <li data-arrive="left"><span class="glyph">C</span><h3>Celeriac</h3><span class="farm">Millbrook</span><span class="qty">1</span><span class="badge" data-pop>picked Mon</span></li>
+    </ul>
+  </section>
+
+  <section>
+    <div class="route">
+      <div>
+        <h2 data-sweep>From the row to your door</h2>
+        <ol data-rail>
+          <li data-arrive><span class="pin" data-dot></span><time>Mon 06:00</time><h3>Picked</h3><p>Each farm picks to the week's order, no more.</p></li>
+          <li data-arrive><span class="pin" data-dot></span><time>Tue 09:00</time><h3>Packed</h3><p>Boxes are packed in the Millbrook barn, paper only.</p></li>
+          <li data-arrive><span class="pin" data-dot></span><time>Wed 08:00 to 13:00</time><h3>Delivered</h3><p>An electric van, a two-hour window by text.</p></li>
+        </ol>
+      </div>
+      <div class="season" data-arrive="right">
+        <h3>Where the season is</h3>
+        <dl>
+          <div><dt><span>Brassicas</span><span>peak</span></dt><dd><div data-fill="0.9"></div></dd></div>
+          <div><dt><span>Roots</span><span>rising</span></dt><dd><div data-fill="0.7"></div></dd></div>
+          <div><dt><span>Squash, stored</span><span>half gone</span></dt><dd><div data-fill="0.5"></div></dd></div>
+          <div><dt><span>Orchard fruit</span><span>ending</span></dt><dd><div data-fill="0.2"></div></dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section id="plans">
+    <div class="head"><h2 data-sweep>Two sizes</h2><p>Pause, skip or cancel from your phone. No contract.</p></div>
+    <div class="plans">
+      <div class="plan" data-arrive="left"><h3>Small</h3><div class="price">€<span data-count>19</span><small> a week</small></div><ul><li>For one or two people</li><li>Five to six things</li></ul><a class="btn" href="#top">Start small</a></div>
+      <div class="plan deep" data-arrive="right"><h3>Family</h3><div class="price">€<span data-count>31</span><small> a week</small></div><ul><li>For three to five people</li><li>Eight to nine things, plus eggs</li></ul><a class="btn" href="#top">Start the family box</a></div>
+    </div>
+  </section>
+  <footer class="site">Moss &amp; Row is a fictional farm box used to show the Nature distilled preset.</footer>
+</div>
+<script src="motion.js"></script>
+</body>
+</html>
