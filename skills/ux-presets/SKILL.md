@@ -34,8 +34,13 @@ not pick by taste and do not mix two presets.
 
 | Preset | Words in the request |
 |---|---|
-| `pipeline-desk` | crm, pipeline, sales, deal, lead, inventory, stock, warehouse, kho, tồn kho, order, đơn hàng, admin, back office, quản lý, quản trị, erp, hr, nhân sự, ticket, helpdesk, khách hàng |
+| `care` | clinic, phòng khám, hospital, bệnh viện, doctor, bác sĩ, healthcare, y tế, dental, nha khoa, pharmacy, nhà thuốc, therapy, patient, bệnh nhân, đặt lịch khám |
+| `ledger` | invoice, hoá đơn, hóa đơn, accounting, kế toán, finance, tài chính, payroll, bảng lương, bank, ngân hàng, expense, chi phí, budget, ngân sách, legal, pháp lý |
+| `instrument-panel` | monitoring, giám sát, server, máy chủ, infrastructure, hạ tầng, logs, incident, sự cố, devops, uptime, alert, cảnh báo |
+| `pipeline-desk` | crm, pipeline, sales, deal, lead, inventory, stock, warehouse, kho, tồn kho, order management, quản lý đơn hàng, admin, back office, quản lý, quản trị, erp, hr, nhân sự, ticket, helpdesk, khách hàng |
+| `storefront` | shop, store, cửa hàng, e-commerce, thương mại điện tử, catalog, product, sản phẩm, cart, giỏ hàng, checkout, bán hàng online |
 | `bento` | usage, analytics, billing, overview, tổng quan, thống kê, metrics, kpi, ai dashboard, token, spend |
+| `editorial` | blog, article, bài viết, magazine, tạp chí, news, tin tức, báo, essay, journal, newsletter, case study, story, câu chuyện |
 | `kinetic-type` | festival, concert, lineup, music, nhạc, âm nhạc, podcast, sport, thể thao, tournament, campaign, chiến dịch |
 | `swiss` | conference, hội thảo, hội nghị, schedule, lịch trình, agenda, timetable, transit, docs, documentation, tài liệu, architecture |
 | `bauhaus` | school, trường, workshop, course, khoá học, class, lớp học, museum, bảo tàng, studio, education, giáo dục |

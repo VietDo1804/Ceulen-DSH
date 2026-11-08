@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The last keepers — Tidewater Review</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Source+Serif+4:opsz,wght@8..60,400..700&family=Public+Sans:wght@400..700&display=swap">
+<style>
+  :root {
+    --paper: #F1F0EB;
+    --shade: #E6E4DC;
+    --ink: #161616;
+    --ink-muted: #55544F;
+    --teal: #0E5C63;
+    --rule: 1px solid var(--ink);
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 40px;
+    --space-6: 64px;
+    --space-7: 120px;
+    --display: "Instrument Serif", Georgia, serif;
+    --serif: "Source Serif 4", Georgia, serif;
+    --sans: "Public Sans", system-ui, sans-serif;
+    --dur-fast: 160ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --m-accent: var(--teal);
+    --m-surface: var(--shade);
+    --m-rise: 32px;
+    --m-side: 32px;
+    --m-arrive: 780ms;
+    --m-gap: 90ms;
+    --m-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 1.1875rem/1.65 var(--serif); }
+  a { color: var(--teal); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+
+  .mast { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); max-width: 1180px; margin: 0 auto; padding: var(--space-3) var(--space-4); border-bottom: var(--rule); font-family: var(--sans); font-size: 0.9375rem; }
+  .mast a { color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
+  .mast .name { font-family: var(--display); font-size: 1.75rem; }
+  .mast nav { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+
+  header.story { max-width: 1180px; margin: 0 auto; padding: var(--space-6) var(--space-4) var(--space-5); display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1fr); gap: var(--space-5); align-items: end; }
+  .kicker { font: 700 0.9375rem var(--sans); color: var(--teal); margin: 0 0 var(--space-3); }
+  h1 { margin: 0; font: 400 clamp(3.25rem, 8vw, 7.5rem)/0.95 var(--display); letter-spacing: -0.02em; }
+  h1 em { color: var(--teal); }
+  .stand { font-size: 1.375rem; line-height: 1.45; margin: var(--space-4) 0 0; max-width: 34ch; }
+  .byline { font: 400 0.9375rem/1.5 var(--sans); color: var(--ink-muted); border-top: var(--rule); padding-top: var(--space-3); }
+  .byline strong { color: var(--ink); font-weight: 600; display: block; }
+
+  .body { max-width: 1180px; margin: 0 auto; padding: 0 var(--space-4); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 40rem) minmax(0, 1fr); gap: var(--space-5); }
+  .col { grid-column: 2; }
+  .col p { margin: 0 0 var(--space-4); }
+  .col > p:first-of-type::first-letter { float: left; font: 400 6.2em/0.8 var(--display); margin: 0.06em 0.08em 0 0; color: var(--teal); }
+  h2 { font: 400 2.5rem/1.05 var(--display); margin: var(--space-6) 0 var(--space-4); display: flex; gap: var(--space-3); align-items: baseline; }
+  h2 span { font: italic 400 2.5rem/1 var(--display); color: var(--teal); min-width: 1.4em; }
+  blockquote { margin: var(--space-5) calc(var(--space-6) * -1); padding: var(--space-4) 0; border-top: var(--rule); border-bottom: var(--rule); font: italic 400 clamp(1.75rem, 3.5vw, 2.75rem)/1.15 var(--display); }
+  blockquote cite { display: block; margin-top: var(--space-3); font: 400 0.9375rem var(--sans); font-style: normal; color: var(--ink-muted); }
+
+  aside.side { grid-column: 3; align-self: start; position: sticky; top: var(--space-4); font-family: var(--sans); font-size: 0.9375rem; }
+  .side h3 { font: 700 0.9375rem var(--sans); margin: 0 0 var(--space-3); padding-bottom: var(--space-2); border-bottom: var(--rule); }
+  .side dl { margin: 0; display: grid; gap: var(--space-3); }
+  .side dd { margin: 0; font: 400 2.75rem/1 var(--display); }
+  .side dt { color: var(--ink-muted); }
+
+  .years { list-style: none; margin: var(--space-4) 0; padding: 0 0 0 var(--space-5); position: relative; font-family: var(--sans); font-size: 1rem; }
+  .years li { position: relative; padding-bottom: var(--space-4); }
+  .years .dot { position: absolute; left: calc(var(--space-5) * -1 - 5px); top: 6px; width: 11px; height: 11px; border-radius: 50%; background: var(--teal); }
+  .years b { font: 400 1.75rem/1 var(--display); display: block; }
+
+  .more { background: var(--shade); margin-top: var(--space-7); padding: var(--space-6) 0; }
+  .more .inner { max-width: 1180px; margin: 0 auto; padding: 0 var(--space-4); }
+  .more h2 { margin-top: 0; }
+  .more ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: var(--space-5); }
+  .more li { border-top: var(--rule); padding-top: var(--space-3); }
+  .more li:first-child h3 { font-size: 2.5rem; }
+  .more h3 { font: 400 1.75rem/1.1 var(--display); margin: 0 0 var(--space-2); }
+  .more h3 a { color: var(--ink); text-decoration: none; }
+  .more h3 a:hover { color: var(--teal); }
+  .more p { margin: 0; font: 400 0.9375rem/1.5 var(--sans); color: var(--ink-muted); }
+  footer.site { max-width: 1180px; margin: 0 auto; padding: var(--space-4); font: 400 0.9375rem var(--sans); color: var(--ink-muted); }
+
+  @media (max-width: 960px) {
+    header.story { grid-template-columns: minmax(0, 1fr); }
+    .body { grid-template-columns: minmax(0, 1fr); }
+    .col, aside.side { grid-column: 1; position: static; }
+    blockquote { margin-left: 0; margin-right: 0; }
+    .more ol { grid-template-columns: minmax(0, 1fr); }
+    .mast { flex-wrap: wrap; }
+    .mast nav { order: 3; width: 100%; gap: var(--space-3); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<div class="mast">
+  <a class="name" href="#top">Tidewater Review</a>
+  <nav aria-label="Sections"><a href="#more">Essays</a><a href="#more">Places</a><a href="#more">Archive</a></nav>
+  <a href="#more">Subscribe</a>
+</div>
+
+<header class="story">
+  <div>
+    <p class="kicker" data-load>Coasts · Long read</p>
+    <h1 data-words>The last <em>keepers</em> of the light</h1>
+    <p class="stand" data-load>Norway automated its final manned lighthouse in 2002. Three of the people who lived in them still go back every winter.</p>
+  </div>
+  <p class="byline" data-load><strong>Ingrid Solberg</strong>Photographs by Tomas Ek · 14 min read · 6 November 2026</p>
+</header>
+
+<div class="body">
+  <div class="col">
+    <p data-arrive>The boat from Bodø takes two hours when the sea is kind. Arne Pedersen has made the trip forty-one times since he handed over the keys, and he still stands at the rail for the last mile, watching the tower lift out of the swell as if it might not be there.</p>
+    <p data-arrive>He kept Skomvær light for nineteen years. He knows the weight of the lens, the sound of the clockwork, the number of steps from the kitchen to the gallery. What he did not know, he says, was how quiet the island would be once the light ran itself.</p>
+
+    <h2 data-sweep><span>I</span>The handover</h2>
+    <p data-arrive>Automation came slowly and then all at once. Between 1970 and 2002 the Norwegian Coastal Administration replaced keepers at every station, first with timers, then with sensors and a radio link to the mainland.</p>
+    <ol class="years" data-rail>
+      <li data-arrive><span class="dot" data-dot></span><b>1970</b>The first stations get electric lamps and timers.</li>
+      <li data-arrive><span class="dot" data-dot></span><b>1987</b>Skomvær's keepers drop from three to one.</li>
+      <li data-arrive><span class="dot" data-dot></span><b>2002</b>The last keeper leaves Ytre Møkkalasset.</li>
+    </ol>
+
+    <blockquote data-arrive>“You do not keep a light. It keeps you, and then one day it stops needing you.”<cite>Arne Pedersen, keeper of Skomvær, 1983–2002</cite></blockquote>
+
+    <h2 data-sweep><span>II</span>Going back</h2>
+    <p data-arrive>Every February the three of them book the same week. They repaint what the salt has taken, check the logbook they still keep by hand, and eat at the table where the radio used to sit.</p>
+    <p data-arrive>Nobody asked them to. The administration pays for the fuel, and the island has no other visitors in winter.</p>
+  </div>
+
+  <aside class="side" data-arrive="right">
+    <h3>By the numbers</h3>
+    <dl>
+      <div><dd data-count>211</dd><dt>lighthouses on Norway's coast</dt></div>
+      <div><dd data-count>2002</dd><dt>year the last keeper left</dt></div>
+      <div><dd data-count>41</dd><dt>winter trips Arne has made back</dt></div>
+    </dl>
+  </aside>
+</div>
+
+<section class="more" id="more">
+  <div class="inner">
+    <h2 data-sweep>More from the coast</h2>
+    <ol>
+      <li data-arrive="left"><h3><a href="#top">The ferry that runs on a single phone call</a></h3><p>Places · 9 min</p></li>
+      <li data-arrive><h3><a href="#top">Salt, cod and the Lofoten winter</a></h3><p>Food · 6 min</p></li>
+      <li data-arrive="right"><h3><a href="#top">A map of every shipwreck since 1900</a></h3><p>Data · 4 min</p></li>
+    </ol>
+  </div>
+</section>
+<footer class="site">Tidewater Review is a fictional magazine used to show the Editorial preset.</footer>
+<script src="motion.js"></script>
+</body>
+</html>

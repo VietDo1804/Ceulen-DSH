@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en" data-recount="off">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relay — edge status</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400..700&family=IBM+Plex+Mono:wght@400..600&display=swap">
+<style>
+  :root {
+    --chassis: #0E1116;
+    --panel: #151A21;
+    --well: #1C232C;
+    --text: #E6EAF0;
+    --text-muted: #B2BDC9;
+    --teal: #8FE3DA;
+    --teal-ink: #0E1116;
+    --ok: #9BE3B8;
+    --ok-soft: #12251B;
+    --warn: #F2CE86;
+    --warn-soft: #2A2314;
+    --bad: #FFC4BA;
+    --bad-soft: #2A1917;
+    --border: #2A333E;
+    --grid: #232C36;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-pill: 999px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --dur-fast: 140ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --m-accent: var(--teal);
+    --m-surface: var(--well);
+    --m-rise: 32px;
+    --m-side: 32px;
+    --m-arrive: 700ms;
+    --m-gap: 70ms;
+  }
+  * { box-sizing: border-box; }
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  body { margin: 0; background: var(--chassis); color: var(--text); font: 400 0.9375rem/1.5 var(--sans); }
+  a { color: var(--teal); }
+  :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: var(--space-5); }
+
+  .top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-5); }
+  .top h1 { margin: 0; font-size: 1.375rem; font-weight: 600; letter-spacing: -0.01em; display: flex; align-items: center; gap: var(--space-3); }
+  .lamp { display: inline-block; width: 10px; height: 10px; border-radius: var(--radius-pill); background: var(--warn); }
+  .top p { margin: 0; color: var(--text-muted); font-family: var(--mono); font-size: 0.8125rem; }
+  .btn {
+    display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-5); border: 0; border-radius: var(--radius-md);
+    background: var(--teal); color: var(--teal-ink); font: 600 0.9375rem var(--sans); text-decoration: none; cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+  .btn:hover { background: var(--text); }
+
+  .strip { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: var(--space-4); }
+  .strip div { padding: var(--space-4) var(--space-5); }
+  .strip div + div { border-left: 1px solid var(--border); }
+  .strip dt { font: 500 0.75rem var(--mono); letter-spacing: 0.04em; color: var(--text-muted); }
+  .strip dd { margin: var(--space-1) 0 0; font: 600 1.75rem/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+  .strip small { display: block; font: 500 0.75rem var(--mono); color: var(--warn); margin-top: var(--space-1); }
+
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: var(--space-4); }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4) var(--space-5); min-width: 0; }
+  .panel h2 { margin: 0 0 var(--space-3); font-size: 0.9375rem; font-weight: 600; }
+
+  .chart svg { display: block; width: 100%; height: 210px; overflow: visible; }
+  .chart path { fill: none; stroke: var(--teal); stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  .chart line { stroke: var(--warn); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+  .chart line.base { stroke: var(--grid); stroke-dasharray: none; }
+  .chart [data-axis] { font: 500 0.75rem var(--mono); color: var(--text-muted); height: 1.6em; }
+  .chart .mark { color: var(--warn); }
+
+  .regions { width: 100%; border-collapse: collapse; margin-top: var(--space-4); }
+  .regions th { text-align: left; font: 500 0.75rem var(--mono); color: var(--text-muted); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); }
+  .regions td { padding: var(--space-3); border-bottom: 1px solid var(--grid); }
+  .regions td.num, .regions th.r { text-align: right; }
+  .regions td.num:first-child { text-align: left; }
+  .chip { display: inline-flex; align-items: center; gap: var(--space-2); font: 600 0.75rem var(--mono); padding: 2px var(--space-2); border-radius: var(--radius-pill); }
+  .chip i { width: 7px; height: 7px; border-radius: var(--radius-pill); background: currentColor; }
+  .chip.ok { color: var(--ok); background: var(--ok-soft); }
+  .chip.warn { color: var(--warn); background: var(--warn-soft); }
+  .chip.bad { color: var(--bad); background: var(--bad-soft); }
+
+  .tools { display: flex; gap: var(--space-1); flex-wrap: wrap; margin-top: var(--space-5); }
+  .tools button { min-height: 40px; min-width: 44px; padding: 0 var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); color: var(--text); font: 500 0.8125rem var(--mono); cursor: pointer; }
+  .tools button[aria-pressed="true"] { color: var(--teal); border-color: var(--teal); }
+
+  .log { align-self: start; position: sticky; top: var(--space-4); }
+  .log ol { list-style: none; margin: 0; padding: 0 0 0 var(--space-5); position: relative; }
+  .log li { position: relative; padding-bottom: var(--space-4); }
+  .log .dot { position: absolute; left: calc(var(--space-5) * -1 - 4px); top: 6px; width: 9px; height: 9px; border-radius: var(--radius-pill); background: var(--teal); }
+  .log time { display: block; font: 500 0.8125rem var(--mono); color: var(--text-muted); }
+  .log p { margin: 2px 0 0; }
+
+  @media (max-width: 960px) {
+    .grid2 { grid-template-columns: minmax(0, 1fr); }
+    .log { position: static; }
+    .strip { grid-template-columns: 1fr 1fr; }
+    .strip div:nth-child(3) { border-left: 0; }
+    .strip div:nth-child(n+3) { border-top: 1px solid var(--border); }
+    .regions .hide-s { display: none; }
+    .tools button { min-height: 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<main class="wrap">
+  <header class="top">
+    <div>
+      <h1 data-words><span class="lamp" data-pulse></span>Edge network · degraded</h1>
+      <p data-load>Last sample 20:00:04 UTC · 14 regions · 2 h window</p>
+    </div>
+    <a class="btn" href="#log" data-load>Open incident</a>
+  </header>
+
+  <dl class="strip" data-load>
+    <div><dt>requests / s</dt><dd><span data-count>45.2</span>k</dd></div>
+    <div><dt>p95 latency</dt><dd><span data-count>182</span> ms</dd><small>+64 ms vs 18:00</small></div>
+    <div><dt>error rate</dt><dd><span data-count>0.41</span>%</dd></div>
+    <div><dt>regions healthy</dt><dd><span data-count>12</span>/14</dd></div>
+  </dl>
+
+  <div class="grid2">
+    <div>
+      <section class="panel chart" data-load>
+        <h2>Requests per second, thousands</h2>
+        <div data-axis><span class="mark" data-time="19:10">19:10 · fra-1 drained</span><span class="mark" data-time="19:40">19:40 · recovered</span></div>
+        <svg data-draw data-start="18:00" data-end="20:00" viewBox="0 0 1000 190" preserveAspectRatio="none" role="img" aria-labelledby="rps-title">
+          <title id="rps-title">Requests per second from 18:00 to 20:00, falling to 22 thousand at 19:20 and back to 45 thousand by 20:00</title>
+          <line class="base" x1="0" x2="1000" y1="190" y2="190"/>
+          <line data-time="19:10" y1="0" y2="190"/>
+          <line data-time="19:40" y1="0" y2="190"/>
+          <path data-line d="M0.0,50.6 L83.3,43.8 L166.7,47.2 L250.0,40.4 L333.3,33.6 L416.7,37.0 L500.0,30.2 L583.3,84.6 L666.7,115.2 L750.0,108.4 L833.3,60.8 L916.7,40.4 L1000.0,37.0"/>
+        </svg>
+        <div data-axis><span data-time="18:00">18:00</span><span data-time="18:30">18:30</span><span data-time="19:00">19:00</span><span data-time="19:30">19:30</span><span data-time="20:00">20:00</span></div>
+      </section>
+
+      <fieldset class="tools" aria-label="Region status">
+        <button type="button" data-filter="all" aria-pressed="true">busiest 6</button>
+        <button type="button" data-filter="bad" aria-pressed="false">down</button>
+        <button type="button" data-filter="warn" aria-pressed="false">degraded</button>
+        <button type="button" data-filter="ok" aria-pressed="false">healthy</button>
+      </fieldset>
+      <table class="regions">
+        <thead><tr><th>Region</th><th>Status</th><th class="r hide-s">p95</th><th class="r">Load</th></tr></thead>
+        <tbody data-filter-list>
+          <tr data-type="bad" data-arrive><td class="num">fra-1</td><td><span class="chip bad" data-pop><i></i>down</span></td><td class="num hide-s">—</td><td class="num">0%</td></tr>
+          <tr data-type="warn" data-arrive><td class="num">ams-2</td><td><span class="chip warn" data-pop><i></i>degraded</span></td><td class="num hide-s">412 ms</td><td class="num">96%</td></tr>
+          <tr data-type="ok" data-arrive><td class="num">lhr-1</td><td><span class="chip ok" data-pop><i></i>healthy</span></td><td class="num hide-s">141 ms</td><td class="num">71%</td></tr>
+          <tr data-type="ok" data-arrive><td class="num">cdg-1</td><td><span class="chip ok" data-pop><i></i>healthy</span></td><td class="num hide-s">156 ms</td><td class="num">68%</td></tr>
+          <tr data-type="ok" data-arrive><td class="num">sin-1</td><td><span class="chip ok" data-pop><i></i>healthy</span></td><td class="num hide-s">128 ms</td><td class="num">54%</td></tr>
+          <tr data-type="ok" data-arrive><td class="num">iad-3</td><td><span class="chip ok" data-pop><i></i>healthy</span></td><td class="num hide-s">119 ms</td><td class="num">62%</td></tr>
+        </tbody>
+      </table>
+      <p data-filter-empty hidden>No region in this state.</p>
+    </div>
+
+    <aside class="panel log" id="log" data-arrive="right">
+      <h2>Incident 2291</h2>
+      <ol data-rail>
+        <li data-arrive><span class="dot" data-dot></span><time>19:08</time><p>fra-1 health checks fail on 3 of 4 racks.</p></li>
+        <li data-arrive><span class="dot" data-dot></span><time>19:10</time><p>fra-1 drained; traffic moves to ams-2.</p></li>
+        <li data-arrive><span class="dot" data-dot></span><time>19:20</time><p>Requests bottom out at 22k/s.</p></li>
+        <li data-arrive><span class="dot" data-dot></span><time>19:40</time><p>ams-2 scaled to 96%; rate back above 38k/s.</p></li>
+        <li data-arrive><span class="dot" data-dot></span><time>20:00</time><p>fra-1 still out. Next update 20:30.</p></li>
+      </ol>
+    </aside>
+  </div>
+</main>
+<script src="motion.js"></script>
+</body>
+</html>
