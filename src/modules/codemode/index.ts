@@ -20,7 +20,7 @@ import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { ceulenTool, errorMessage, objectSchema, text } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import { randomUUID } from 'node:crypto'
-import { exitBindings, stateBindings } from './bindings.js'
+import { commitState, exitBindings, forgetState, stateBindings } from './bindings.js'
 import { createChainState, HINT, noteToolCall, type ChainState } from './chain-hint.js'
 import { clipOneLine, formatCalls, renderResult, scriptTail, STATUS_LINE, stripModelNotes, toolBindings } from './render.js'
 import { DEFAULT_OUTPUT_BUDGET, EXIT_SENTINEL, parseOptionsLine, scriptErrorHint, suggestBinding, trimScriptError } from './script.js'
@@ -232,13 +232,7 @@ function codemodeTool(ctx: PluginContext) {
         }
       }
       // Pi semantics: store writes commit only when the script succeeded.
-      if (result.error === undefined && pending.size > 0) {
-        try {
-          session?.append?.('codemode-store', { store: Object.fromEntries(pending) })
-        } catch (error) {
-          logLine('codemode', `store commit failed: ${errorMessage(error)}`)
-        }
-      }
+      if (result.error === undefined && pending.size > 0) commitState(session, pending)
       const label = code.split('\n').map(line => line.trim()).find(line => line.length > 0) ?? 'script'
       logLine('codemode', `${clipOneLine(label, 100)} -> ${result.error === undefined ? 'ok' : result.error.kind}`)
       const rendered = renderResult(result, seconds, options.maxOutputChars ?? DEFAULT_OUTPUT_BUDGET, calls, usage.rawChars)
@@ -277,6 +271,7 @@ export function apply(ctx: PluginContext): void {
     const key = String(payload.agent.session.id)
     agents.delete(key)
     states.delete(key)
+    forgetState(key)
   })
   ctx.on('session/event', (session: { id?: string; header?: { parentSession?: string } } | undefined, event: { type?: string; data?: { turn?: number; step?: number; name?: unknown; arguments?: unknown } } | undefined) => {
     if (event?.type !== 'tool/call' || typeof event.data?.name !== 'string') return

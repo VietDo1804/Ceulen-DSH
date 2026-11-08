@@ -235,7 +235,7 @@
       "status": "partial",
       "dsh": "codemode tool over ctx.ptcRuntime; scripts call every visible tool through a tools binding; the TUI card lists the nested calls",
       "phase": 6,
-      "notes": "New in ceulen-dsh; Pi built-in extension. 2026-10-28: output budget (~6k chars, head+tail, spill file) + @options line, state.store/load as codemode-store session events, and typo close-match hints shipped. 2026-11-03: codemode.exit() shipped (sentinel unwind, commits store writes) and failed-script stacks trimmed to message + the script's own <anonymous>:line:column frame. Remaining gap: models namespace, text()/image(), searchTools/ALL_TOOLS. Node PTC subprocess, not QuickJS. On by default; toggle in /ceulen-config and restart.",
+      "notes": "New in ceulen-dsh; Pi built-in extension. 2026-10-28: output budget (~6k chars, head+tail, spill file) + @options line, state.store/load as codemode-store session events, and typo close-match hints shipped. 2026-11-03: codemode.exit() shipped (sentinel unwind, commits store writes) and failed-script stacks trimmed to message + the script's own <anonymous>:line:column frame. 2026-11-07: state.store values moved out of the session log — session.append() cannot mark an event ignorable, so the codemode-store record it wrote made every later open of that session fail; the store is now in memory per session, and a poisoned log is repaired by renaming the row to plugin:codemode/store with ignorable:true. Remaining gap: models namespace, text()/image(), searchTools/ALL_TOOLS. Node PTC subprocess, not QuickJS. On by default; toggle in /ceulen-config and restart.",
       "rowId": "ceulen-codemode"
     },
     {

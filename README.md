@@ -206,10 +206,11 @@ spilled to a file path named in the result — an unfiltered dump can never blow
 up the context. A first line `// @options: {"timeout_ms": 60000,
 "max_output_chars": 4000}` overrides the per-call deadline (default 120s, max
 600s) and the budget (200–50 000 chars). `state.store({ key, value })` /
-`state.load({ key })` keep small JSON values across calls (~256k per value,
-~1M total) as `codemode-store` session events — writes commit only when the
-script succeeds, and a typo like `tools.Bash` gets a "did you mean
-'tools.bash'?" hint in the error.
+`state.load({ key })` keep small JSON values across calls of one live session
+(~256k per value, ~1M total) in memory, never in the session log: an event type
+the resume reader does not know makes that whole session refuse to open. Writes
+commit only when the script succeeds, and a typo like `tools.Bash` gets a "did
+you mean 'tools.bash'?" hint in the error.
 
 While it runs, the card shows the script under a `Codemode` header (the body
 folds past three lines; click or `Ctrl+O` expands). Once it settles, the header

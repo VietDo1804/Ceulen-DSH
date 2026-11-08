@@ -25,22 +25,59 @@ export function exitBindings(): BindingNamespace {
   }
 }
 
-/** One committed `codemode-store` session event's payload. */
+/** One committed store event's payload. */
 interface StoreEvent {
   store: Record<string, Json>
 }
 
-function readCommittedStore(session: { snapshotEvents?(): readonly { type: string; data?: unknown }[] }): Map<string, Json> | undefined {
-  if (typeof session.snapshotEvents !== 'function') return undefined
+/** The plugin record type a repaired session log carries committed values in. */
+const STORE_EVENT = 'plugin:codemode/store'
+
+/**
+ * Committed store per session id, held in memory rather than in the session log:
+ * `session.append()` has no `ignorable` flag, and the resume reader refuses any
+ * event type it does not know unless the event is ignorable — so one
+ * `state.store` write used to make every later open of that session fail with
+ * "contains event type ... unknown to this harness". A commit therefore
+ * survives across codemode calls of one live session, not across a restart.
+ */
+const STORES = new Map<string, Map<string, Json>>()
+
+/** Drop one session's committed state when its agent is disposed. */
+export function forgetState(sessionId: string): void {
+  STORES.delete(sessionId)
+}
+
+/** Values a session committed before this store moved in-process. */
+function readCommittedStore(session: { snapshotEvents?(): readonly { type: string; data?: unknown }[] }): Map<string, Json> {
   const committed = new Map<string, Json>()
-  const events = session.snapshotEvents()
-  for (const event of events) {
-    if (event.type !== 'codemode-store') continue
+  if (typeof session.snapshotEvents !== 'function') return committed
+  for (const event of session.snapshotEvents()) {
+    if (event.type !== STORE_EVENT) continue
     const data = event.data as StoreEvent | undefined
     if (data === null || typeof data !== 'object') continue
     for (const [key, value] of Object.entries(data.store ?? {})) committed.set(key, value)
   }
   return committed
+}
+
+function storeFor(session: unknown): Map<string, Json> | undefined {
+  const view = session as { id?: unknown; snapshotEvents?(): readonly { type: string; data?: unknown }[] } | undefined
+  const id = view?.id
+  if (typeof id !== 'string' || id.length === 0) return undefined
+  let store = STORES.get(id)
+  if (store === undefined) {
+    store = readCommittedStore(view!)
+    STORES.set(id, store)
+  }
+  return store
+}
+
+/** Merge one successful script's writes into its session's store. */
+export function commitState(session: unknown, pending: Map<string, Json>): void {
+  const store = storeFor(session)
+  if (store === undefined) return
+  for (const [key, value] of pending) store.set(key, value)
 }
 
 function jsonLength(value: Json): number {
@@ -49,16 +86,14 @@ function jsonLength(value: Json): number {
 
 /**
  * `state.store({ key, value })` / `state.load({ key })`: small JSON values that
- * survive across codemode calls. Committed values live as `codemode-store`
- * session events (so resumed sessions and branches keep the right path); a
+ * survive across codemode calls of one live session (see {@link STORES}); a
  * script's writes apply only when that script succeeds, like Pi.
  */
 export function stateBindings(session: unknown, success: { pending: Map<string, Json> }): BindingNamespace {
   const fail = (): never => {
-    throw new Error('state is unavailable: this session does not expose event storage')
+    throw new Error('state is unavailable: this call has no session to store state in')
   }
-  const view = session as { append?(type: string, data: unknown): void; snapshotEvents?(): readonly { type: string; data?: unknown }[] } | undefined
-  const committed = view === undefined || typeof view.append !== 'function' ? undefined : readCommittedStore(view)
+  const committed = storeFor(session)
   return {
     global: 'state',
     functions: {
