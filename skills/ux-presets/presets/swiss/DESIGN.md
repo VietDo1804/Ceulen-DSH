@@ -17,8 +17,8 @@ rules: { structural: "2px solid {colors.ink}", hairline: "1px solid {colors.ink}
 components:
   button: { backgroundColor: "{colors.red}", textColor: "{colors.paper}", rounded: 0px, minHeight: 44px }
   button-hover: { backgroundColor: "{colors.ink}" }
-  filter: { border: "{rules.structural}", pressed: "{colors.red-text} text, {colors.red} border" }
-  row: { borderBottom: "{rules.hairline}", columns: "time | title | person | place" }
+  filter: { border: "2px solid {colors.ink}", pressed: "{colors.red-text} text, {colors.red} border" }
+  row: { borderBottom: "1px solid {colors.ink}", columns: "time | title | person | place" }
 motion:
   m-rise: 32px
   m-side: 32px

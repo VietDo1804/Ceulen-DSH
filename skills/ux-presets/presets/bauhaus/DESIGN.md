@@ -13,11 +13,11 @@ typography:
   display: { fontFamily: Jost, fontWeight: 800, textTransform: uppercase, letterSpacing: "-0.02em", lineHeight: 0.92 }
   label: { fontFamily: Jost, fontWeight: 700, textTransform: uppercase, letterSpacing: "0.04em", fontSize: 0.9375rem }
   body: { fontFamily: Jost, fontSize: 1.0625rem, lineHeight: 1.55 }
-rounded: { square: 0px, circle: 50% }
+rounded: { square: 0px, circle: 9999px }
 spacing: { 1: 4px, 2: 8px, 3: 16px, 4: 24px, 5: 32px, 6: 48px, 7: 104px }
 elevation: { hard: "6px 6px 0 {colors.ink}" }
 components:
-  button: { backgroundColor: "{colors.yellow}", textColor: "{colors.ink}", border: "3px solid {colors.ink}", shadow: "{elevation.hard}", minHeight: 48px }
+  button: { backgroundColor: "{colors.yellow}", textColor: "{colors.ink}", border: "3px solid {colors.ink}", shadow: "6px 6px 0 #171717", minHeight: 48px }
   button-active: { transform: "translate(6px, 6px)", shadow: "0 0 0 {colors.ink}" }
   block-red: { backgroundColor: "{colors.red}", textColor: "{colors.light}", minTextSize: 18px bold }
   block-blue: { backgroundColor: "{colors.blue}", textColor: "{colors.light}" }

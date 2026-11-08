@@ -21,10 +21,10 @@ elevation:
   press: "2px 2px 0 {colors.ink}"
   block-hot: "6px 6px 0 {colors.tomato}"
 components:
-  button: { backgroundColor: "{colors.lime}", textColor: "{colors.ink}", border: "3px solid {colors.ink}", shadow: "{elevation.block}", minHeight: 52px }
+  button: { backgroundColor: "{colors.lime}", textColor: "{colors.ink}", border: "3px solid {colors.ink}", shadow: "6px 6px 0 #151515", minHeight: 52px }
   button-hover: { backgroundColor: "{colors.sky}" }
-  button-active: { transform: "translate(4px, 4px)", shadow: "{elevation.press}" }
-  block: { border: "3px solid {colors.ink}", shadow: "{elevation.block}", rounded: "{rounded.block}" }
+  button-active: { transform: "translate(4px, 4px)", shadow: "2px 2px 0 #151515" }
+  block: { border: "3px solid {colors.ink}", shadow: "6px 6px 0 #151515", rounded: "{rounded.block}" }
   tag: { fontFamily: JetBrains Mono, border: "2px solid {colors.ink}", backgroundColor: "{colors.lime}" }
 motion:
   m-rise: 32px
