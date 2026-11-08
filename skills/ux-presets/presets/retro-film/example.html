@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Darkroom Coffee — roastery and café</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Work+Sans:wght@400..700&family=Courier+Prime:wght@400;700&display=swap">
+<style>
+  :root {
+    --paper: #F1ECE2;
+    --brown: #24170F;
+    --brown-muted: #5E4E40;
+    --yellow: #F7C843;
+    --red: #931D13;
+    --on-red: #F7F1E6;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 32px;
+    --space-6: 56px;
+    --space-7: 104px;
+    --radius-sm: 4px;
+    --radius-frame: 10px;
+    --display: "Alfa Slab One", Rockwell, serif;
+    --sans: "Work Sans", system-ui, sans-serif;
+    --mono: "Courier Prime", "Courier New", monospace;
+    --dur-fast: 150ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --m-accent: var(--red);
+    --m-surface: var(--yellow);
+    --m-rise: 32px;
+    --m-side: 32px;
+    --m-arrive: 740ms;
+    --m-gap: 90ms;
+  }
+  * { box-sizing: border-box; }
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  body { margin: 0; background: var(--paper); color: var(--brown); font: 400 1.0625rem/1.6 var(--sans); }
+  a { color: var(--red); text-underline-offset: 4px; }
+  :focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 var(--space-4); }
+
+  .top { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-4) 0; flex-wrap: wrap; }
+  .logo { font: 400 1.5rem var(--display); color: var(--brown); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
+  .top nav { display: flex; gap: var(--space-4); font: 700 0.9375rem var(--mono); flex-wrap: wrap; }
+  .top nav a { color: var(--brown); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; }
+  .btn {
+    display: inline-flex; align-items: center; min-height: 52px; padding: 0 var(--space-5); border: 0; border-radius: var(--radius-sm);
+    background: var(--red); color: var(--on-red); font: 700 1rem var(--mono); text-decoration: none; cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+  }
+  .btn:hover { background: var(--brown); color: var(--paper); }
+  .btn:active { transform: translateY(2px); }
+  .btn.alt { background: var(--yellow); color: var(--brown); }
+  .btn.alt:hover { background: var(--paper); }
+
+  .hero { padding: var(--space-6) 0 var(--space-6); }
+  .hero h1 { margin: 0; font: 400 clamp(3.25rem, 9vw, 8rem)/0.95 var(--display); letter-spacing: -0.01em; max-width: 12ch; }
+  .hero h1 span { color: var(--red); }
+  .hero p { font-size: 1.25rem; max-width: 40ch; color: var(--brown-muted); margin: var(--space-4) 0 var(--space-5); }
+  .actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+
+  /* signature: a contact strip with sprocket holes, each frame one origin */
+  .strip { background: var(--brown); padding: var(--space-5) 0; }
+  .holes { display: flex; gap: 22px; padding: 0 var(--space-3); overflow: hidden; }
+  .holes i { flex: none; width: 18px; height: 12px; border-radius: 3px; background: var(--paper); }
+  .frames { display: grid; grid-template-columns: repeat(4, minmax(220px, 1fr)); gap: var(--space-3); padding: var(--space-3); }
+  .frame { background: var(--yellow); color: var(--brown); border-radius: var(--radius-frame); padding: var(--space-4); min-height: 240px; display: flex; flex-direction: column; justify-content: space-between; }
+  .frame:nth-child(even) { background: var(--red); color: var(--on-red); }
+  .frame svg { width: 72px; height: 72px; }
+  .frame svg circle, .frame svg path { fill: none; stroke: currentColor; stroke-width: 6; stroke-linecap: round; }
+  .frame h3 { margin: 0; font: 400 1.75rem/1.05 var(--display); }
+  .frame small { font: 700 0.9375rem var(--mono); }
+  .num-row { display: flex; justify-content: space-between; font: 700 0.875rem var(--mono); color: var(--yellow); padding: 0 var(--space-3); }
+
+  section { padding: var(--space-7) 0 0; }
+  h2 { margin: 0 0 var(--space-4); font: 400 clamp(2.25rem, 5vw, 3.75rem)/1 var(--display); }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
+  .tabs { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4); }
+  .tabs button { min-height: 44px; padding: 0 var(--space-4); border: 2px solid var(--brown); border-radius: var(--radius-sm); background: var(--paper); color: var(--brown); font: 700 0.9375rem var(--mono); cursor: pointer; }
+  .menu { list-style: none; margin: 0; padding: 0; }
+  .menu li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-1) var(--space-3); align-items: baseline; padding: var(--space-3) 0; border-bottom: 2px dashed var(--brown-muted); }
+  .menu h3 { margin: 0; font: 700 1.1875rem var(--sans); }
+  .menu p { margin: 0; color: var(--brown-muted); font-size: 0.9375rem; grid-column: 1; }
+  .menu b { font: 700 1.125rem var(--mono); grid-row: 1; grid-column: 2; }
+  .beans { display: grid; gap: var(--space-4); }
+  .bean h3 { margin: 0; font: 400 1.5rem var(--display); }
+  .bean p { margin: var(--space-1) 0 var(--space-2); color: var(--brown-muted); }
+  .bean [data-fill] { height: 10px; border-radius: var(--radius-sm); }
+  .bean small { display: flex; justify-content: space-between; font: 700 0.8125rem var(--mono); margin-top: var(--space-1); }
+
+  .roast { list-style: none; margin: var(--space-6) 0 0; padding: 0 0 0 var(--space-5); position: relative; }
+  .roast li { position: relative; padding-bottom: var(--space-4); }
+  .roast .dot { position: absolute; left: calc(var(--space-5) * -1 - 6px); top: 6px; width: 14px; height: 14px; border-radius: 50%; background: var(--red); }
+  .roast b { font: 700 1rem var(--mono); display: block; }
+
+  .visit { margin-top: var(--space-7); background: var(--brown); color: var(--paper); padding: var(--space-6) 0; }
+  .visit .wrap { display: flex; justify-content: space-between; align-items: center; gap: var(--space-5); flex-wrap: wrap; }
+  .visit p { margin: 0; font: 400 clamp(1.75rem, 4vw, 3rem)/1.1 var(--display); }
+  .visit p span { color: var(--yellow); }
+  footer.site { padding: var(--space-4) 0 var(--space-6); color: var(--brown-muted); }
+
+  @media (max-width: 880px) {
+    .grid2 { grid-template-columns: minmax(0, 1fr); }
+    .frames { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<div class="wrap">
+  <header class="top">
+    <a class="logo" href="#top">Darkroom Coffee</a>
+    <nav aria-label="Main"><a href="#menu">Menu</a><a href="#beans">Beans</a><a href="#visit">Visit</a></nav>
+  </header>
+  <div class="hero">
+    <h1 data-words>Roasted on Tuesday. <span>Gone by Sunday.</span></h1>
+    <p data-load>A café in an old photo lab on Nygårdsgaten. We roast forty kilos a week, brew it all, and start again.</p>
+    <div class="actions" data-load><a class="btn" href="#menu">See the menu</a><a class="btn alt" href="#beans">Buy beans</a></div>
+  </div>
+</div>
+
+<section class="strip" aria-label="This month's origins">
+  <div class="holes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="num-row" aria-hidden="true"><span>24</span><span>24A</span><span>25</span><span>25A</span><span>26</span><span>26A</span><span>27</span></div>
+  <div class="frames">
+    <article class="frame" data-arrive="left"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="30"/><path d="M40 12 C28 30 52 50 40 68"/></svg><div><small>Frame 24</small><h3>Huila, Colombia</h3></div></article>
+    <article class="frame" data-arrive="left"><svg viewBox="0 0 80 80" aria-hidden="true"><path d="M14 34h44v14a22 22 0 0 1-44 0z"/><path d="M58 38h6a8 8 0 0 1 0 16h-6"/><path d="M28 12c-4 6 4 10 0 16M42 12c-4 6 4 10 0 16"/></svg><div><small>Frame 25</small><h3>Guji, Ethiopia</h3></div></article>
+    <article class="frame" data-arrive="left"><svg viewBox="0 0 80 80" aria-hidden="true"><path d="M10 60 L30 30 L44 48 L54 36 L70 60 Z"/></svg><div><small>Frame 26</small><h3>Nyeri, Kenya</h3></div></article>
+    <article class="frame" data-arrive="left"><svg viewBox="0 0 80 80" aria-hidden="true"><circle cx="40" cy="40" r="28"/><circle cx="40" cy="40" r="12"/></svg><div><small>Frame 27</small><h3>Cerrado, Brazil</h3></div></article>
+  </div>
+  <div class="holes" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+</section>
+
+<div class="wrap">
+  <section>
+    <div class="grid2">
+      <div id="menu">
+        <h2 data-sweep>Menu</h2>
+        <fieldset class="tabs" aria-label="Menu section">
+          <button type="button" data-filter="all" aria-pressed="true">All</button>
+          <button type="button" data-filter="espresso" aria-pressed="false">Espresso</button>
+          <button type="button" data-filter="filter" aria-pressed="false">Filter</button>
+          <button type="button" data-filter="food" aria-pressed="false">Food</button>
+        </fieldset>
+        <ul class="menu" data-filter-list>
+          <li data-type="espresso" data-arrive><h3>Espresso</h3><b>38</b><p>Today: Huila, Colombia</p></li>
+          <li data-type="espresso" data-arrive><h3>Flat white</h3><b>52</b><p>Double shot, whole or oat milk</p></li>
+          <li data-type="filter" data-arrive><h3>Batch brew</h3><b>40</b><p>Guji, Ethiopia, refilled free</p></li>
+          <li data-type="filter" data-arrive><h3>Pour-over</h3><b>58</b><p>Any bean on the shelf, 4 minutes</p></li>
+          <li data-type="food" data-arrive><h3>Cardamom bun</h3><b>45</b><p>Baked here at 07:00</p></li>
+          <li data-type="food" data-arrive><h3>Rye toast, cheese, pickles</h3><b>78</b><p>Until 14:00</p></li>
+        </ul>
+        <p data-filter-empty hidden>Nothing here today.</p>
+        <p>Prices in kroner.</p>
+      </div>
+      <div id="beans">
+        <h2 data-sweep>On the shelf</h2>
+        <div class="beans">
+          <div class="bean" data-arrive="right"><h3>Huila</h3><p>Red apple, cocoa, a long sweet finish. 250 g, 189 kr.</p><div data-fill="0.35"></div><small><span>light</span><span>dark</span></small></div>
+          <div class="bean" data-arrive="right"><h3>Guji</h3><p>Peach, bergamot, black tea. 250 g, 209 kr.</p><div data-fill="0.2"></div><small><span>light</span><span>dark</span></small></div>
+          <div class="bean" data-arrive="right"><h3>Cerrado</h3><p>Hazelnut, caramel, milk chocolate. 250 g, 169 kr.</p><div data-fill="0.65"></div><small><span>light</span><span>dark</span></small></div>
+        </div>
+        <ol class="roast" data-rail>
+          <li data-arrive><span class="dot" data-dot></span><b>Tuesday</b>Forty kilos, roasted in the back room.</li>
+          <li data-arrive><span class="dot" data-dot></span><b>Wednesday</b>Rests. Espresso needs a week, filter four days.</li>
+          <li data-arrive><span class="dot" data-dot></span><b>Saturday</b>Filter coffee from Tuesday's roast is at its best.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="visit" id="visit">
+  <div class="wrap">
+    <p data-arrive>Nygårdsgaten 31. <span>Open 07 to 17,</span> closed Mondays.</p>
+    <a class="btn alt" href="#top">Get directions</a>
+  </div>
+</div>
+<div class="wrap"><footer class="site">Darkroom Coffee is a fictional café used to show the Retro film preset.</footer></div>
+<script src="motion.js"></script>
+</body>
+</html>

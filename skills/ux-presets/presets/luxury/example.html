@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier Nord — mechanical watches</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400&family=Hanken+Grotesk:wght@400..600&display=swap">
+<style>
+  :root {
+    --bone: #EDEDEA;
+    --ink: #111111;
+    --ink-muted: #55554F;
+    --bronze: #5E4B2D;
+    --night: #1B1814;
+    --night-muted: #B9B8B1;
+    --rule: 1px solid var(--ink);
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 40px;
+    --space-6: 72px;
+    --space-7: 144px;
+    --display: "Bodoni Moda", Didot, serif;
+    --sans: "Hanken Grotesk", system-ui, sans-serif;
+    --dur-fast: 200ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --m-accent: var(--bronze);
+    --m-surface: var(--bone);
+    --m-rise: 32px;
+    --m-side: 32px;
+    --m-arrive: 860ms;
+    --m-gap: 110ms;
+    --m-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bone); color: var(--ink); font: 400 1rem/1.7 var(--sans); letter-spacing: 0.01em; }
+  a { color: var(--ink); text-underline-offset: 5px; text-decoration-thickness: 1px; }
+  a:hover { color: var(--bronze); }
+  :focus-visible { outline: 1px solid var(--ink); outline-offset: 6px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 0 var(--space-5); }
+
+  .top { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); padding: var(--space-4) 0; flex-wrap: wrap; }
+  .top a { text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+  .mark { font: 500 1.25rem var(--display); letter-spacing: 0.08em; }
+  .top nav { display: flex; gap: var(--space-5); font-size: 0.9375rem; flex-wrap: wrap; }
+
+  .hero { position: relative; min-height: min(82vh, 820px); display: grid; align-items: end; padding: var(--space-6) 0 var(--space-6); }
+  .deco { position: absolute; inset: 0; margin: 0; overflow: hidden; pointer-events: none; }
+  .dial { position: absolute; right: -6%; top: 2%; width: min(58vw, 760px); height: auto; opacity: 0.32; }
+  .dial circle, .dial path { fill: none; stroke: var(--ink); }
+  .dial .ring { stroke-width: 1.5; stroke-dasharray: 1; animation: draw 1200ms var(--ease-in-out) 200ms both; }
+  .dial .ticks { stroke-width: 1.5; opacity: 0.9; }
+  .dial .hand { stroke-width: 2; stroke-linecap: round; }
+  .dial .sec { stroke: var(--bronze); stroke-width: 1; }
+  @keyframes draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+  .hero .copy { position: relative; }
+  .hero h1 { margin: 0; font: 400 clamp(4rem, 12vw, 12.5rem)/0.92 var(--display); letter-spacing: -0.035em; }
+  .hero h1 em { font-style: italic; color: var(--bronze); }
+  .hero .sub { display: flex; justify-content: space-between; align-items: end; gap: var(--space-5); flex-wrap: wrap; margin-top: var(--space-5); border-top: var(--rule); padding-top: var(--space-4); }
+  .hero .sub p { margin: 0; max-width: 40ch; color: var(--ink-muted); }
+  .link { font-weight: 500; display: inline-flex; align-items: center; min-height: 44px; }
+
+  section { padding: var(--space-7) 0 0; }
+  .label { font-size: 0.9375rem; color: var(--ink-muted); margin: 0 0 var(--space-4); }
+  h2 { margin: 0 0 var(--space-6); font: 400 clamp(2.5rem, 6vw, 5.5rem)/1 var(--display); letter-spacing: -0.03em; max-width: 14ch; }
+  .collection { list-style: none; margin: 0; padding: 0; border-top: var(--rule); }
+  .collection li { display: grid; grid-template-columns: 4rem minmax(0, 2fr) minmax(0, 2fr) minmax(0, 1fr) auto; gap: var(--space-4); align-items: baseline; padding: var(--space-5) 0; border-bottom: var(--rule); }
+  .collection .no { font: italic 400 1.25rem var(--display); color: var(--bronze); }
+  .collection h3 { margin: 0; font: 400 clamp(1.75rem, 3vw, 2.75rem)/1 var(--display); }
+  .collection .spec { color: var(--ink-muted); }
+  .collection .price { font-variant-numeric: tabular-nums; }
+  .collection a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+
+  .night { margin-top: var(--space-7); background: var(--night); color: var(--bone); padding: var(--space-7) 0; }
+  .night .wrap { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: var(--space-6); align-items: end; }
+  .night p.big { margin: 0; font: 400 clamp(2.25rem, 4.5vw, 4.25rem)/1.05 var(--display); letter-spacing: -0.02em; }
+  .night dl { margin: 0; display: grid; gap: var(--space-4); }
+  .night dd { margin: 0; font: 400 3.5rem/1 var(--display); }
+  .night dt { color: var(--night-muted); font-size: 0.9375rem; }
+
+  .visit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-6); padding-bottom: var(--space-7); }
+  .visit address { font-style: normal; font-size: 1.125rem; }
+  .btn {
+    display: inline-flex; align-items: center; min-height: 52px; padding: 0 var(--space-5); border: var(--rule); background: transparent; color: var(--ink);
+    font: 500 1rem var(--sans); letter-spacing: 0.04em; text-decoration: none; cursor: pointer; transition: background-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  }
+  .btn:hover { background: var(--night); color: var(--bone); }
+  footer.site { border-top: var(--rule); padding: var(--space-4) 0 var(--space-5); color: var(--ink-muted); font-size: 0.9375rem; }
+
+  @media (max-width: 900px) {
+    .wrap { padding: 0 var(--space-4); }
+    .hero { min-height: 0; padding-top: 72vw; }
+    .dial { width: 92vw; right: -18%; top: 0; }
+    .collection li { grid-template-columns: 2.5rem minmax(0, 1fr) auto; }
+    .collection .spec { grid-column: 2 / -1; }
+    .night .wrap, .visit { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="#top">ATELIER NORD</a>
+    <nav aria-label="Main"><a href="#collection">Collection</a><a href="#atelier">Atelier</a><a href="#visit">Visit</a></nav>
+  </header>
+
+  <div class="hero">
+    <figure class="deco" aria-hidden="true">
+      <svg class="dial" viewBox="0 0 500 500" aria-hidden="true" data-parallax="0.1">
+        <circle class="ring" cx="250" cy="250" r="214" pathLength="1"/>
+        <path class="ticks" d="M250.0 50.0L250.0 80.0M270.9 51.1L269.7 63.0M291.6 54.4L289.1 66.1M311.8 59.8L308.1 71.2M331.3 67.3L326.5 78.3M350.0 76.8L335.0 102.8M367.6 88.2L360.5 97.9M383.8 101.4L375.8 110.3M398.6 116.2L389.7 124.2M411.8 132.4L402.1 139.5M423.2 150.0L397.2 165.0M432.7 168.7L421.7 173.5M440.2 188.2L428.8 191.9M445.6 208.4L433.9 210.9M448.9 229.1L437.0 230.3M450.0 250.0L420.0 250.0M448.9 270.9L437.0 269.7M445.6 291.6L433.9 289.1M440.2 311.8L428.8 308.1M432.7 331.3L421.7 326.5M423.2 350.0L397.2 335.0M411.8 367.6L402.1 360.5M398.6 383.8L389.7 375.8M383.8 398.6L375.8 389.7M367.6 411.8L360.5 402.1M350.0 423.2L335.0 397.2M331.3 432.7L326.5 421.7M311.8 440.2L308.1 428.8M291.6 445.6L289.1 433.9M270.9 448.9L269.7 437.0M250.0 450.0L250.0 420.0M229.1 448.9L230.3 437.0M208.4 445.6L210.9 433.9M188.2 440.2L191.9 428.8M168.7 432.7L173.5 421.7M150.0 423.2L165.0 397.2M132.4 411.8L139.5 402.1M116.2 398.6L124.2 389.7M101.4 383.8L110.3 375.8M88.2 367.6L97.9 360.5M76.8 350.0L102.8 335.0M67.3 331.3L78.3 326.5M59.8 311.8L71.2 308.1M54.4 291.6L66.1 289.1M51.1 270.9L63.0 269.7M50.0 250.0L80.0 250.0M51.1 229.1L63.0 230.3M54.4 208.4L66.1 210.9M59.8 188.2L71.2 191.9M67.3 168.7L78.3 173.5M76.8 150.0L102.8 165.0M88.2 132.4L97.9 139.5M101.4 116.2L110.3 124.2M116.2 101.4L124.2 110.3M132.4 88.2L139.5 97.9M150.0 76.8L165.0 102.8M168.7 67.3L173.5 78.3M188.2 59.8L191.9 71.2M208.4 54.4L210.9 66.1M229.1 51.1L230.3 63.0"/>
+        <path class="hand" d="M250 250 L250 120"/>
+        <path class="hand" d="M250 250 L335 290"/>
+        <path class="sec" d="M250 280 L250 70"/>
+      </svg>
+    </figure>
+    <div class="copy">
+      <h1 data-words>Time, kept <em>by hand</em>.</h1>
+      <div class="sub" data-load>
+        <p>Eleven mechanical watches a month, assembled and regulated by four watchmakers in Bergen.</p>
+        <a class="link" href="#collection">See the collection</a>
+      </div>
+    </div>
+  </div>
+
+  <section id="collection">
+    <p class="label" data-load>The collection, 2027</p>
+    <h2 data-sweep>Four watches, one calibre.</h2>
+    <ol class="collection">
+      <li data-arrive="left"><span class="no">i</span><h3>Nord I</h3><span class="spec">Hand-wound AN-21 · 38 mm steel · 72 h reserve</span><span class="price">€6,400</span><a href="#visit">Enquire</a></li>
+      <li data-arrive="left"><span class="no">ii</span><h3>Nord I Salmon</h3><span class="spec">Hand-wound AN-21 · 38 mm steel · salmon dial</span><span class="price">€6,900</span><a href="#visit">Enquire</a></li>
+      <li data-arrive="left"><span class="no">iii</span><h3>Polar</h3><span class="spec">Hand-wound AN-21 · 40 mm titanium · lume</span><span class="price">€7,800</span><a href="#visit">Enquire</a></li>
+      <li data-arrive="left"><span class="no">iv</span><h3>Midnatt</h3><span class="spec">Hand-wound AN-21 · 38 mm bronze · 12 a year</span><span class="price">€9,200</span><a href="#visit">Enquire</a></li>
+    </ol>
+  </section>
+</div>
+
+<div class="night" id="atelier">
+  <div class="wrap">
+    <p class="big" data-arrive>Each watch passes through one pair of hands, from the first screw to the last regulation.</p>
+    <dl data-arrive="right">
+      <div><dd data-count>140</dd><dt>hours of work in every watch</dt></div>
+      <div><dd data-count>11</dd><dt>watches leave the atelier each month</dt></div>
+    </dl>
+  </div>
+</div>
+
+<div class="wrap">
+  <section class="visit" id="visit">
+    <div data-arrive="left"><p class="label">Visit</p><h2>See them on the wrist.</h2></div>
+    <div data-arrive="right">
+      <address>Atelier Nord<br>Øvregaten 14, Bergen<br>Thursday to Saturday, by appointment</address>
+      <p><a class="btn" href="#top">Book an appointment</a></p>
+    </div>
+  </section>
+  <footer class="site">Atelier Nord is a fictional watchmaker used to show the Luxury preset.</footer>
+</div>
+<script src="motion.js"></script>
+</body>
+</html>
