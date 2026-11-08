@@ -37,9 +37,9 @@ in "sidebar"). Do not pick by taste and do not mix two presets.
 |---|---|
 | `care` | clinic, phòng khám, hospital, bệnh viện, doctor, bác sĩ, healthcare, y tế, dental, nha khoa, pharmacy, nhà thuốc, therapy, patient, bệnh nhân, đặt lịch khám |
 | `bento` | usage, token, ai dashboard, insights, analytics, overview, tổng quan, thống kê, metrics, kpi |
-| `ledger` | invoice, hoá đơn, hóa đơn, billing, accounting, kế toán, finance, tài chính, payroll, bảng lương, bank, ngân hàng, expense, chi phí, budget, ngân sách, legal, pháp lý |
+| `ledger` | invoice, hoá đơn, hóa đơn, billing, accounting, kế toán, finance, tài chính, payroll, bảng lương, bank, ngân hàng, expense, chi phí, budget, ngân sách, legal, pháp lý, pháp lí |
 | `instrument-panel` | monitoring, giám sát, server, máy chủ, infrastructure, hạ tầng, logs, incident, sự cố, devops, uptime, alert, cảnh báo |
-| `pipeline-desk` | crm, pipeline, sales, deal, lead, inventory, stock, warehouse, kho, tồn kho, order management, quản lý đơn hàng, admin, back office, quản lý, quản trị, erp, hr, nhân sự, ticket, helpdesk, khách hàng |
+| `pipeline-desk` | crm, pipeline, sales, deal, lead, inventory, stock, warehouse, kho, tồn kho, order management, quản lý đơn hàng, quản lí đơn hàng, admin, back office, quản lý, quản lí, quản trị, erp, hr, nhân sự, ticket, helpdesk, khách hàng |
 | `luxury` | luxury, sang trọng, fashion, thời trang, jewellery, jewelry, trang sức, watch, đồng hồ, perfume, nước hoa, hotel, khách sạn, resort, real estate, bất động sản, wedding, cưới, gallery |
 | `retro-film` | coffee, cà phê, café, cafe, quán, restaurant, nhà hàng, bakery, tiệm bánh, bar, menu, thực đơn, photography, nhiếp ảnh, vinyl, barber |
 | `storefront` | shop, store, cửa hàng, e-commerce, thương mại điện tử, catalog, product, sản phẩm, cart, giỏ hàng, checkout, bán hàng online |
@@ -47,10 +47,10 @@ in "sidebar"). Do not pick by taste and do not mix two presets.
 | `memphis` | kids, children, trẻ em, thiếu nhi, camp, trại hè, toy, đồ chơi, party, tiệc, playful, vui nhộn, family, gia đình |
 | `kinetic-type` | festival, concert, lineup, music, nhạc, âm nhạc, podcast, sport, thể thao, tournament, campaign, chiến dịch |
 | `swiss` | conference, hội thảo, hội nghị, schedule, lịch trình, agenda, timetable, transit, docs, documentation, tài liệu, architecture |
-| `bauhaus` | school, trường, workshop, course, khoá học, class, lớp học, museum, bảo tàng, studio, education, giáo dục |
+| `bauhaus` | school, trường, workshop, course, khoá học, khóa học, class, lớp học, museum, bảo tàng, studio, education, giáo dục |
 | `nature` | farm, food, thực phẩm, rau, organic, wellness, spa, yoga, garden, vườn, eco, sustainability, community, cộng đồng |
 | `neubrutalism` | developer, dev tool, api, sdk, cli, startup, launch, hackathon, indie, creator, saas |
-| `civic` | government, chính phủ, public service, dịch vụ công, council, ủy ban, city, thành phố, permit, giấy phép, licence, license, tax, thuế, application, hồ sơ, form, biểu mẫu, đăng ký |
+| `civic` | government, chính phủ, public service, dịch vụ công, council, ủy ban, uỷ ban, city, thành phố, permit, giấy phép, licence, license, tax, thuế, application, hồ sơ, form, biểu mẫu, đăng ký, đăng kí |
 | `pipeline-desk` | dashboard, app, tool, công cụ, ứng dụng, internal, nội bộ, settings, cài đặt, portal, account, tài khoản, screen, màn hình |
 | `swiss` | anything else |
 
