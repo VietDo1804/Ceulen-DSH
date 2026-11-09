@@ -16,6 +16,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
+import { redact } from './evo-redact.mjs'
 
 const evoBase = () => process.env.EVO_DIR?.trim() || join(process.env.DSH_HOME?.trim() || join(homedir(), '.dsh'), 'ceulen', 'self-evo')
 const queueDir = base => join(base, 'queue')
@@ -24,9 +25,9 @@ const reportsDir = base => join(base, 'reports')
 const stamp = (date = new Date()) => date.toISOString().slice(0, 10)
 
 const section = (text, name) => {
-  const start = text.indexOf(`## ${name}`)
-  if (start < 0) return ''
-  const rest = text.slice(start + name.length + 3)
+  const heading = new RegExp(`^## ${name}(?:[ \\t].*)?$`, 'm').exec(text)
+  if (heading === null) return ''
+  const rest = text.slice(heading.index + heading[0].length)
   const end = rest.indexOf('\n## ')
   return end < 0 ? rest : rest.slice(0, end)
 }
@@ -36,19 +37,31 @@ const bullets = block => block.split('\n').filter(line => line.startsWith('- '))
 /** Pure: one digest markdown -> one ledger entry. */
 export function digestToEntry(text, file = '') {
   const id = /^# session (.+)$/m.exec(text)?.[1]?.trim() ?? basename(file).replace(/\.md$/, '')
-  const workspace = /^workspace: (.+)$/m.exec(text)?.[1]?.trim() ?? ''
+  const workspace = redact(/^workspace: (.+)$/m.exec(text)?.[1]?.trim() ?? '')
   const started = /^started: (\S+)/m.exec(text)?.[1] ?? ''
-  const outcome = section(text, 'outcome').trim()
-  const artifacts = bullets(section(text, 'artifacts'))
+  const outcome = redact(section(text, 'outcome').trim())
+  const artifacts = bullets(section(text, 'artifacts')).map(redact)
   // The first request is the fixture's task prompt: /evo-probe replays it.
-  const task = bullets(section(text, 'requests'))[0] ?? ''
+  const task = redact(bullets(section(text, 'requests'))[0] ?? '')
+  const revision = /^revision: (\S+)$/m.exec(text)?.[1]
+  const activityAt = /^activity: (\S+)$/m.exec(text)?.[1]
+  const snapshotAt = /^snapshot: (\S+)$/m.exec(text)?.[1]
+  const countsText = section(text, 'failure counts').trim()
+  const counted = /^```json\r?\n([\s\S]*)\r?\n```$/.exec(countsText)
+  if (countsText && !counted) throw new Error('invalid failure counts block')
+  const errors = counted ? JSON.parse(counted[1]) : bullets(section(text, 'failures'))
+  if (!Array.isArray(errors) || errors.some(error => typeof error !== 'string' && (typeof error?.error !== 'string' || !Number.isSafeInteger(error.count) || error.count < 1))) throw new Error('invalid failure counts')
+  if (errors.some(error => typeof error === 'object' && error.times !== undefined && (!Array.isArray(error.times) || error.times.length > error.count || error.times.some(at => typeof at !== 'string' || !Number.isFinite(Date.parse(at)))))) throw new Error('invalid failure timestamps')
   return {
     ts: started === '?' ? new Date().toISOString() : started,
     session_id: id,
+    ...(revision ? { revision } : {}),
+    ...(activityAt && Number.isFinite(Date.parse(activityAt)) ? { activity_at: activityAt } : {}),
+    ...(snapshotAt && Number.isFinite(Date.parse(snapshotAt)) ? { snapshot_at: snapshotAt } : {}),
     ws: workspace.split('/').filter(Boolean).pop() ?? workspace,
     ...(task === '' ? {} : { task }),
     done: [...artifacts, ...(outcome.length > 0 ? [outcome.slice(0, 400)] : [])],
-    errors: bullets(section(text, 'failures')),
+    errors: errors.map(error => typeof error === 'string' ? redact(error) : { ...error, error: redact(error.error) }),
     friction: [],
     improvements: [],
     source: 'distill',
@@ -75,33 +88,56 @@ const normalize = text => String(text)
   .trim()
   .slice(0, 140)
 
-/** Pure: ledger entries -> ranked failure signatures + workspace totals. */
-export function aggregate(entries) {
+/** Append-only ledger snapshots are superseded, not counted again. */
+export function latestEntries(entries) {
+  const latest = new Map()
+  for (const entry of entries) {
+    const id = entry.session_id ?? '?'
+    const previous = latest.get(id)
+    if (!previous || (entry.revision && (!previous.snapshot_at || !entry.snapshot_at || entry.snapshot_at >= previous.snapshot_at))) latest.set(id, entry)
+  }
+  return [...latest.values()]
+}
+
+/** Optional half-open window: undated failures are disclosed, never guessed. */
+export function aggregate(entries, { since, until } = {}) {
   const signatures = new Map()
   const workspaces = new Map()
-  const sessions = new Set()
   let failures = 0
   let withFailures = 0
+  let sessions = 0
+  let untimedFailures = 0
   let first = ''
   let last = ''
 
-  for (const entry of entries) {
+  const bounded = since !== undefined || until !== undefined
+  const lower = since === undefined ? -Infinity : Date.parse(since)
+  const upper = until === undefined ? Infinity : Date.parse(until)
+  if (Number.isNaN(lower) || Number.isNaN(upper) || lower >= upper) throw new Error('invalid report window')
+  const inWindow = at => { const time = Date.parse(at); return time >= lower && time < upper }
+  for (const entry of latestEntries(entries)) {
     const id = entry.session_id ?? '?'
-    if (sessions.has(id)) continue
-    sessions.add(id)
-    const ts = String(entry.ts ?? '')
+    const ts = String((bounded ? entry.activity_at : undefined) ?? entry.ts ?? '')
+    const errors = Array.isArray(entry.errors) ? entry.errors : []
+    const texts = errors.map(error => {
+      const count = typeof error === 'object' && Number.isSafeInteger(error?.count) && error.count > 0 ? error.count : 1
+      const times = Array.isArray(error?.times) ? error.times.filter(at => typeof at === 'string' && Number.isFinite(Date.parse(at))).slice(0, count) : []
+      untimedFailures += count - times.length
+      return { text: redact(typeof error === 'string' ? error : error?.error ?? ''), count: bounded ? times.filter(inWindow).length : count }
+    }).filter(item => item.text && item.count > 0)
+    if (bounded && !inWindow(ts) && texts.length === 0) continue
+    sessions += 1
     if (ts !== '' && (first === '' || ts < first)) first = ts
     if (ts > last) last = ts
-    const errors = Array.isArray(entry.errors) ? entry.errors : []
-    const texts = errors.map(error => (typeof error === 'string' ? error : error?.error ?? '')).filter(Boolean)
-    failures += texts.length
+    const count = texts.reduce((sum, item) => sum + item.count, 0)
+    failures += count
     if (texts.length > 0) withFailures += 1
-    const ws = entry.ws ?? '?'
-    workspaces.set(ws, (workspaces.get(ws) ?? 0) + texts.length)
-    for (const text of texts) {
+    const ws = redact(entry.ws ?? '?')
+    workspaces.set(ws, (workspaces.get(ws) ?? 0) + count)
+    for (const { text, count } of texts) {
       const key = normalize(text)
       const found = signatures.get(key) ?? { count: 0, sessions: new Set(), first: ts, last: ts, example: String(text).slice(0, 220) }
-      found.count += 1
+      found.count += count
       found.sessions.add(id)
       if (ts !== '' && ts < found.first) found.first = ts
       if (ts > found.last) found.last = ts
@@ -115,13 +151,16 @@ export function aggregate(entries) {
     .sort((a, b) => b.count - a.count || b.sessions - a.sessions)
   const byWorkspace = [...workspaces.entries()].map(([workspace, count]) => ({ workspace, count })).sort((a, b) => b.count - a.count)
 
-  return { sessions: sessions.size, entries: entries.length, failures, withFailures, first, last, signatures: ranked, workspaces: byWorkspace }
+  return { sessions, entries: entries.length, failures, withFailures, untimedFailures, first, last, signatures: ranked, workspaces: byWorkspace }
 }
+
+export const eligibleCandidates = (agg, min = 5) => agg.signatures.filter(item => item.count >= Math.max(5, min) && item.sessions >= 3)
 
 /** Pure: aggregate -> markdown report. */
 export function reportText(agg, min = 5) {
+  min = Math.max(5, min)
   const pct = n => (agg.sessions === 0 ? '0' : ((n / agg.sessions) * 100).toFixed(0))
-  const candidates = agg.signatures.filter(item => item.count >= min)
+  const candidates = eligibleCandidates(agg, min)
   return [
     `# evo report — ${stamp()}`,
     '',
@@ -140,7 +179,7 @@ export function reportText(agg, min = 5) {
     '|---|---|',
     ...agg.workspaces.slice(0, 12).map(item => `| ${item.count} | ${item.workspace} |`),
     '',
-    `## promotion candidates (>= ${min} occurrences)`,
+    `## promotion candidates (>= ${min} occurrences across >= 3 sessions)`,
     '',
     ...(candidates.length > 0
       ? candidates.map(item => `- **${item.count}×** (${item.sessions} sessions, ${item.first.slice(0, 10)} → ${item.last.slice(0, 10)}): ${item.example}`)
@@ -151,12 +190,14 @@ export function reportText(agg, min = 5) {
 
 /** Pure: aggregate -> promotion packet for the model to turn into rules. */
 export function promotionText(agg, min = 5) {
-  const candidates = agg.signatures.filter(item => item.count >= min)
+  min = Math.max(5, min)
+  const candidates = eligibleCandidates(agg, min)
   return [
     `# evo promotion packet — ${stamp()}`,
     '',
     `Evidence window: ${agg.first || '?'} → ${agg.last || '?'} (${agg.sessions} sessions, ${agg.failures} failures).`,
-    'Rule: a signature qualifies only at >= min occurrences (default 5). One occurrence proves nothing.',
+    `Qualified candidates: ${candidates.length}`,
+    'Rule: >= 5 occurrences across >= 3 distinct sessions. Audit and propose only; never apply automatically. A proposed rule requires a passing probe and valid scope before application.',
     '',
     ...candidates.flatMap((item, index) => [
       `## ${index + 1}. ${item.count}× across ${item.sessions} sessions`,
@@ -198,7 +239,7 @@ export function offendingToken(text, repoRoot = process.cwd()) {
     const token = raw.replace(/[.,;:!?)\]}"']+$/, '')
     if (token === '' ) continue
     if (token === repoName) return token
-    if (/^[\w.-]+\.(md|json|ya?ml|toml|mjs|ts|js)$/.test(token) && existsSync(join(repoRoot, token))) return token
+    if (/^(?:\.{1,2}\/)?[\w./@-]+\.(md|json|ya?ml|toml|mjs|ts|js)$/.test(token) && existsSync(join(repoRoot, token))) return token
   }
   return undefined
 }
@@ -241,7 +282,7 @@ export function parseProposal(text, options = {}) {
   return { proposed, errors }
 }
 
-function loadLedger(base) {
+export function loadLedger(base) {
   const file = join(base, 'ledger.jsonl')
   if (!existsSync(file)) return []
   return readFileSync(file, 'utf8')
@@ -256,31 +297,49 @@ function loadLedger(base) {
     })
 }
 
+/** Redact prose and parsed values, never run a prose regex over serialized JSON. */
+function archiveDigest(text, errors) {
+  const heading = /^## failure counts[^\n]*\n/m.exec(text)
+  if (heading === null) return redact(text)
+  const tail = text.indexOf('\n## ', heading.index + heading[0].length)
+  return redact(text.slice(0, heading.index)) + '## failure counts\n```json\n' + JSON.stringify(errors) + '\n```\n' + (tail < 0 ? '' : redact(text.slice(tail)))
+}
+
 function drain(base, dry) {
   const queue = queueDir(base)
-  if (!existsSync(queue)) return { drained: 0, skipped: 0 }
-  const seen = new Set(loadLedger(base).map(entry => entry.session_id))
+  if (!existsSync(queue)) return { drained: 0, skipped: 0, invalid: 0 }
+  const seen = new Map(loadLedger(base).map(entry => [entry.session_id, entry.revision]))
   const files = readdirSync(queue).filter(file => file.endsWith('.md'))
   let drained = 0
   let skipped = 0
+  let invalid = 0
   for (const file of files) {
-    const text = readFileSync(join(queue, file), 'utf8')
-    const entry = digestToEntry(text, file)
-    if (seen.has(entry.session_id)) {
+    let text
+    let entry
+    try {
+      text = readFileSync(join(queue, file), 'utf8')
+      entry = digestToEntry(text, file)
+    } catch (error) {
+      invalid += 1
+      console.error(`skip ${file}: ${redact(error.message)}`)
+      continue // Preserve invalid evidence for repair; do not block other sessions.
+    }
+    if (seen.has(entry.session_id) && (!entry.revision || seen.get(entry.session_id) === entry.revision)) {
       skipped += 1
     } else {
       if (!dry) {
         writeFileSync(join(base, 'ledger.jsonl'), `${JSON.stringify(entry)}\n`, { flag: 'a' })
-        seen.add(entry.session_id)
+        seen.set(entry.session_id, entry.revision)
       }
       drained += 1
     }
     if (!dry) {
       mkdirSync(doneDir(base), { recursive: true })
+      writeFileSync(join(queue, file), archiveDigest(text, entry.errors))
       renameSync(join(queue, file), join(doneDir(base), file))
     }
   }
-  return { drained, skipped }
+  return { drained, skipped, invalid }
 }
 
 function main(argv) {
@@ -291,7 +350,7 @@ function main(argv) {
 
   if (argv.includes('--drain')) {
     const result = drain(base, dry)
-    console.log(`evo-drain: ${result.drained} new, ${result.skipped} already in ledger${dry ? ' (dry run)' : ''}`)
+    console.log(`evo-drain: ${result.drained} new, ${result.skipped} already in ledger, ${result.invalid} invalid (left in queue)${dry ? ' (dry run)' : ''}`)
     return
   }
 

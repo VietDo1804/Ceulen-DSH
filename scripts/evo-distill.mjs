@@ -14,10 +14,12 @@
  *   node scripts/evo-distill.mjs --limit 5  # cap this run
  */
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import { zstdDecompressSync } from 'node:zlib'
+import { redact } from './evo-redact.mjs'
 
 // DSH appends one zstd frame per flush; Node's zstd helper decodes only the
 // first frame, so the CLI is used when present and the helper is the fallback.
@@ -33,12 +35,13 @@ const NOISE = /^(Current runtime context\.|Time sampled while preparing|<system-
 const ACTIVE_MS = 5 * 60_000
 const MAX_TEXT = 400
 const MAX_ITEMS = 8
+const DIGEST_VERSION = 3
 
 const dshHome = () => process.env.DSH_HOME?.trim() || join(homedir(), '.dsh')
 const evoDir = () => join(dshHome(), 'ceulen', 'self-evo')
 
 const cut = (text, n = MAX_TEXT) => {
-  const one = String(text ?? '').replace(/\s+/g, ' ').trim()
+  const one = redact(text).replace(/\s+/g, ' ').trim()
   return one.length > n ? `${one.slice(0, n)}…` : one
 }
 
@@ -56,6 +59,7 @@ function textOf(message) {
 export function buildDigest(events, meta = {}) {
   const requests = []
   const failures = []
+  const recordFailure = (error, time) => failures.push({ error: cut(error, 600), at: Number.isFinite(time) && time > 0 ? new Date(time).toISOString() : null })
   const artifacts = []
   const tools = new Map()
   let turns = 0
@@ -93,21 +97,21 @@ export function buildDigest(events, meta = {}) {
       }
       case 'tool/result': {
         for (const call of data?.meta?.calls ?? []) {
-          const name = String(call?.name ?? 'unknown')
+          const name = cut(call?.name ?? 'unknown', 80)
           tools.set(name, (tools.get(name) ?? 0) + 1)
         }
         const failed = data?.meta?.ok === false || data?.message?.isError === true
-        if (failed) failures.push(`tool ${data?.meta?.calls?.[0]?.name ?? '?'}: ${cut(textOf(data?.message), 200)}`)
+        if (failed) recordFailure(`tool ${data?.meta?.calls?.[0]?.name ?? '?'}: ${cut(textOf(data?.message), 200)}`, time)
         break
       }
       case 'job/settled': {
         const dirty = data?.status !== 'completed' || /exit code: [1-9]/.test(String(data?.detail ?? ''))
-        if (dirty) failures.push(`${data?.kind ?? 'job'} ${data?.status ?? '?'} (${cut(data?.detail ?? '', 60)}): ${cut(data?.label, 160)}`)
+        if (dirty) recordFailure(`${data?.kind ?? 'job'} ${data?.status ?? '?'} (${cut(data?.detail ?? '', 60)}): ${cut(data?.label, 160)}`, time)
         break
       }
       case 'llm/retry':
         retries += 1
-        failures.push(`provider ${data?.provider ?? '?'} retry ${data?.retry ?? '?'}: ${cut(data?.failure?.message, 160)}`)
+        recordFailure(`provider ${data?.provider ?? '?'} retry ${data?.retry ?? '?'}: ${cut(data?.failure?.message, 160)}`, time)
         break
       case 'todo/write':
         artifacts.push(`todos ${Array.isArray(data?.todos) ? data.todos.filter(t => t?.status === 'completed').length : 0} done`)
@@ -124,11 +128,21 @@ export function buildDigest(events, meta = {}) {
   const minutes = started > 0 && ended > started ? Math.round((ended - started) / 60_000) : 0
   const toolLine = [...tools.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, n]) => `${name}×${n}`).join(', ') || 'none'
   const unique = list => [...new Set(list)]
+  const counts = new Map()
+  for (const { error, at } of failures) {
+    const found = counts.get(error) ?? { error, count: 0, times: [] }
+    found.count += 1
+    if (at !== null) found.times.push(at)
+    counts.set(error, found)
+  }
 
   return [
-    `# session ${meta.id ?? basename(meta.file ?? '', '.v4.jsonl.zstd')}`,
+    `# session ${cut(meta.id ?? basename(meta.file ?? '', '.v4.jsonl.zstd'))}`,
     '',
-    `workspace: ${meta.workspace ?? '?'}`,
+    `workspace: ${cut(meta.workspace ?? '?', 800)}`,
+    ...(meta.revision ? [`revision: ${meta.revision}`] : []),
+    ...(meta.snapshotAt ? [`snapshot: ${meta.snapshotAt}`] : []),
+    `activity: ${ended > 0 ? new Date(ended).toISOString() : startedAt}`,
     `started: ${startedAt}  duration: ${minutes}m  turns: ${turns}  steps: ${steps}  tokens: ${tokens}`,
     `tools: ${toolLine}`,
     '',
@@ -136,7 +150,12 @@ export function buildDigest(events, meta = {}) {
     ...(requests.length > 0 ? unique(requests).slice(0, MAX_ITEMS).map(text => `- ${text}`) : ['- (none captured)']),
     '',
     `## failures (${failures.length})`,
-    ...(failures.length > 0 ? unique(failures).slice(0, MAX_ITEMS).map(text => `- ${text}`) : ['- none']),
+    ...(failures.length > 0 ? [...counts.keys()].slice(0, MAX_ITEMS).map(text => `- ${text}`) : ['- none']),
+    '',
+    '## failure counts',
+    '```json',
+    JSON.stringify([...counts.values()]),
+    '```',
     '',
     '## outcome',
     outcome.length > 0 ? outcome : '(no final assistant text)',
@@ -192,12 +211,17 @@ function main(argv) {
   let wrote = 0
   for (const session of sessions()) {
     if (limit > 0 && wrote >= limit) break
-    if (!all && processed[session.id]) continue
     if (session.id === process.env.DSH_SESSION_ID) continue
-    if (now - statSync(session.file).mtimeMs < ACTIVE_MS) continue
+    const stat = statSync(session.file)
+    if (now - stat.mtimeMs < ACTIVE_MS) continue
+    const fingerprint = `${stat.size}:${stat.mtimeMs}`
+    if (!all && processed[session.id]?.fingerprint === fingerprint && processed[session.id]?.digestVersion === DIGEST_VERSION) continue
     let events
+    let revision
     try {
-      events = readTranscript(session.file).split('\n').filter(Boolean).map(line => JSON.parse(line))
+      const transcript = readTranscript(session.file)
+      revision = createHash('sha256').update(`digest-v${DIGEST_VERSION}\n`).update(transcript).digest('hex')
+      events = transcript.split('\n').filter(Boolean).map(line => JSON.parse(line))
     } catch (error) {
       console.error(`skip ${session.id}: ${error.message}`)
       continue
@@ -213,6 +237,8 @@ function main(argv) {
       workspace: header.cwd ?? session.workspace,
       createdAt: header.createdAt,
       file: session.file,
+      revision,
+      snapshotAt: new Date(now).toISOString(),
     })
 
     const name = `${new Date(header.createdAt ?? now).toISOString().replace(/[:.]/g, '-')}_${session.id}.md`
@@ -220,7 +246,7 @@ function main(argv) {
       console.log(`--- ${name} (${digest.length}B)\n${digest}\n`)
     } else {
       writeFileSync(join(queue, name), digest)
-      processed[session.id] = { at: new Date().toISOString(), file: name }
+      processed[session.id] = { at: new Date().toISOString(), file: name, fingerprint, revision, digestVersion: DIGEST_VERSION }
     }
     wrote += 1
   }

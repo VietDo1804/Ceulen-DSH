@@ -65,6 +65,7 @@ function cycleTask(reportFile: string): string {
 const EVO_SYSTEM = [
   'You maintain the sticky rule file of an AI coding agent (DeepSeek Harness).',
   'You receive a promotion packet: recurring failure signatures, each with a count and affected sessions.',
+  'Only signatures with >= 5 occurrences across >= 3 distinct sessions qualify. Draft only: never claim a rule was applied; adoption requires a matching passing probe and valid scope.',
   'Turn it into the SMALLEST set of rule lines that would have prevented those failures.',
   'Rules are imperative, scoped, and one line each; put the evidence count in parentheses.',
   'Skip signatures that are incident-specific (one provider outage, one broken checkout) or not fixable by a rule.',

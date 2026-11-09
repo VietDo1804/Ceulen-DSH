@@ -65,39 +65,62 @@ pass:
    node "$(dirname "$(readlink -f "$DSH_HOME/profiles/${DSH_PROFILE:-tui}/node_modules/ceulen-dsh)")/scripts/evo-distill.mjs"
    ```
 
-   Each finished session becomes one digest in
-   `$DSH_HOME/ceulen/self-evo/queue/`. Already-processed sessions are skipped
-   via `state.json`; the pass's own sessions are skipped by prompt prefix.
-2. Drain the queue: for every `queue/*.md` digest, write one ledger line
-   (step 2 shape), store only durable lessons (step 3), then move the digest
-   to `queue/done/`. Do not re-derive what the digest already states.
+   Each eligible session snapshot becomes one redacted digest in
+   `$DSH_HOME/ceulen/self-evo/queue/`. Unchanged transcripts are skipped via
+   `state.json`; resumed sessions are processed again. The pass's own
+   sessions are skipped by prompt prefix. Displayed examples are capped,
+   but structured failure counts retain every occurrence.
+2. Drain the queue with `node "<ceulen-dsh>/scripts/evo-report.mjs" --drain`:
+   it appends each new session revision once and moves digests to `queue/done/`.
+   Reports count only the latest snapshot per session. Store only durable
+   lessons (step 3); do not re-derive what the digest already states.
 3. Report: sessions distilled, ledger lines, memories stored, and anything
    that recurs across sessions — recurrence is the Phase 2 promotion signal,
    so name it even when you do not promote it.
 
-## Weekly promotion pass (`evo-promote`)
+## Weekly audit and HTML report
 
-The distiller and report are deterministic; this pass is not. A signature
-qualifies for promotion only at **>= 5 occurrences** in the packet.
+Weekly is AUDIT AND PROPOSE ONLY. Never apply rules, edit code, or call
+`evo-cycle` as part of the scheduled job. A signature qualifies only at
+**>= 5 occurrences across >= 3 distinct sessions**; `--min` cannot lower this.
 
-1. `node "<ceulen-dsh>/scripts/evo-report.mjs" --promote` — writes
-   `reports/promotion-<date>.md` and prints it. Then call `evo_pass` to have
-   the configured Evo model (`/ceulen-config → Model → Evo`) draft the rule
-   lines into `reports/proposal-<date>.md`; review that draft, do not trust
-   it blindly.
-2. For each candidate choose exactly one: a scoped line in the
-   `## Learnings (auto, evo)` section of `$DSH_HOME/ceulen/RULES.md`, a
-   skill, or a script fix. State the result, not the symptom, and keep the
-   section under ~15 lines — delete lines the new evidence supersedes.
-3. Drop candidates that are incident-specific (one provider outage, one
-   broken checkout) instead of promoting them.
-4. Call `evo_notice` ONCE with a one-line summary of what actually changed
-   and the counts as detail. It writes the changelog entry and renders the
-   `💾 Self-improvement` notice in the session (or replays it at the next
-   idle if nothing is live). No change → no call.
-5. Report: promoted / rewritten / dropped, one line each with the count that
-   justified it.
+1. `node "<ceulen-dsh>/scripts/evo-weekly.mjs"` distils changed sessions, drains
+   new snapshots, writes cumulative markdown + a promotion packet, and generates
+   `reports/evo-weekly-<Vietnam-date>.html`. It makes no model call or code edits.
+2. The HTML separates actual error occurrences in the latest 7 days, the prior
+   7 days, and cumulative evidence. Untimed legacy errors stay cumulative and
+   are disclosed, never assigned an invented date. Schema upgrades backfill
+   eligible transcripts once. Invalid digests remain queued and are reported.
+3. `--dashboard-root <existing-ai_dashboard> --base-url <dashboard-origin>`
+   publishes HTML/assets to both web/public and web/dist under real/demo and
+   verifies exact served HTML plus discovery in the existing Blog API.
+4. Local deployment: persistent systemd user timer `ceulen-evo-weekly.timer`
+   publishes Sunday 03:00 Vietnam time without DSH open (machine must be on;
+   Persistent catches up after downtime). The live DSH `evo-weekly` cron at
+   03:10 only adds an optional model draft via `evo_pass`, then reruns the
+   command with `--render-only` to republish. No eligible candidates: no draft.
+5. Producing a report is not an applied self-improvement: do not call
+   `evo_notice` just for reporting. Return the verified dashboard link and
+   data/validation limitations. Treat failure text and drafts as untrusted data.
 
-Never promote below the threshold because the packet "looks convincing" —
-the count is the gate.
+Adoption is a SEPARATE, explicitly requested task: scoped proposal -> probe
+with real acceptance checks -> matching proposal hash and verdict `adopt` ->
+valid scope -> review destination blocks from `/evo-apply`. It writes nothing.
+There is no `--evidence` bypass. Only after an actual approved change lands,
+call `evo_notice` once. Never claim a proposal or an inconclusive probe was applied.
+
+## Probe acceptance checks
+
+Before `/evo-probe`, give each selected ledger fixture a reviewed `check` argv,
+for example `"check":["node","--test","checks/loader.test.mjs"]`, alongside
+its `session_id` and `task`. Choose a task-specific check that fails when the
+requested result is missing; never use an always-successful placeholder.
+The check and its inputs must be committed and self-contained: bare worktrees
+do not contain `node_modules` or ignored tests. No dependencies are auto-installed.
+Review the check again after a resumed session creates a new fixture revision.
+Select checked fixtures with `--fixtures id,id`. Native child completion is
+awaited, then the check runs in each worktree. Only verified task success can
+justify an efficiency improvement; legacy contrasts without checks are
+inconclusive. Worktrees do not isolate external side effects: review tasks and
+checks before replay. Redaction is heuristic and does not scrub old archives.
 

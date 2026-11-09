@@ -11,6 +11,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export interface ProbeMetrics {
+  /** Undefined on legacy records: unverified work must never win a probe. */
+  passed?: boolean
   toolErrors: number
   denials: number
   steps: number
@@ -41,6 +43,8 @@ export interface Contrast {
 export interface ProbeFixture {
   id: string
   task: string
+  /** Explicit acceptance command (argv, not shell text), run after the child exits. */
+  check?: string[]
 }
 
 export interface ProbeRunner {
@@ -50,6 +54,8 @@ export interface ProbeRunner {
   spawn(task: { label: string; prompt: string; cwd: string }): Promise<string>
   /** Wait for a child to settle and return its measured session. */
   collect(childId: string, options: { cwd: string; timeoutMs: number }): Promise<ProbeMetrics>
+  stop(childId: string): Promise<void>
+  verify(worktree: string, check: readonly string[], timeoutMs: number): Promise<boolean>
   /** Write the candidate rule into the worktree's own rules file. */
   applyCandidate(worktree: string, rule: string): Promise<void>
   now(): number
@@ -73,6 +79,7 @@ function average(runs: readonly ProbeMetrics[]): ProbeMetrics {
   if (runs.length === 0) return emptyMetrics()
   const sum = (pick: (metrics: ProbeMetrics) => number): number => runs.reduce((total, metrics) => total + pick(metrics), 0)
   return {
+    ...(runs.every(metrics => metrics.passed === true) ? { passed: true } : runs.some(metrics => metrics.passed === false) ? { passed: false } : {}),
     toolErrors: Math.round(sum(metrics => metrics.toolErrors) / runs.length),
     denials: Math.round(sum(metrics => metrics.denials) / runs.length),
     steps: Math.round(sum(metrics => metrics.steps) / runs.length),
@@ -84,9 +91,12 @@ function average(runs: readonly ProbeMetrics[]): ProbeMetrics {
 
 /**
  * Per-fixture comparison, never one blended score: fewer tool errors wins; a
- * tie falls back to denials, then steps. A tie on all three is no signal.
+ * tie falls back to denials, then steps, but only after acceptance checks pass.
  */
 export function compareMetrics(base: ProbeMetrics, cand: ProbeMetrics): -1 | 0 | 1 {
+  if (typeof base.passed !== 'boolean' || typeof cand.passed !== 'boolean') return 0
+  if (base.passed !== cand.passed) return cand.passed ? -1 : 1
+  if (!base.passed) return 0
   if (cand.toolErrors !== base.toolErrors) return cand.toolErrors < base.toolErrors ? -1 : 1
   if (cand.denials !== base.denials) return cand.denials < base.denials ? -1 : 1
   if (cand.steps !== base.steps) return cand.steps < base.steps ? -1 : 1
@@ -184,23 +194,35 @@ export async function runProbe(options: ProbeOptions, runner: ProbeRunner): Prom
       const suffix = runs > 1 ? `-r${index + 1}` : ''
       const baseDir = join(probeRoot, `${fixture.id}-base${suffix}`)
       const candDir = join(probeRoot, `${fixture.id}-cand${suffix}`)
+      const children: string[] = []
       try {
         await runner.git(['worktree', 'add', '--detach', baseDir, 'HEAD'], options.repoRoot)
         await runner.git(['worktree', 'add', '--detach', candDir, 'HEAD'], options.repoRoot)
         await runner.applyCandidate(candDir, options.rule)
-        const [baseId, candId] = await Promise.all([
+        const spawned = await Promise.allSettled([
           runner.spawn({ label: `probe ${fixture.id} base`, prompt: fixture.task, cwd: baseDir }),
           runner.spawn({ label: `probe ${fixture.id} cand`, prompt: fixture.task, cwd: candDir }),
         ])
-        const [baseMetrics, candMetrics] = await Promise.all([
-          runner.collect(baseId, { cwd: baseDir, timeoutMs }),
-          runner.collect(candId, { cwd: candDir, timeoutMs }),
-        ])
+        for (const result of spawned) if (result.status === 'fulfilled') children.push(result.value)
+        const failed = spawned.find(result => result.status === 'rejected')
+        if (failed?.status === 'rejected') throw failed.reason
+        const measured = await Promise.allSettled(children.map((child, index) => runner.collect(child, { cwd: index === 0 ? baseDir : candDir, timeoutMs })))
+        const incomplete = measured.find(result => result.status === 'rejected')
+        if (incomplete?.status === 'rejected') throw incomplete.reason
+        const [baseMetrics, candMetrics] = measured.map(result => (result as PromiseFulfilledResult<ProbeMetrics>).value) as [ProbeMetrics, ProbeMetrics]
+        delete baseMetrics.passed
+        delete candMetrics.passed
+        if (fixture.check !== undefined) {
+          baseMetrics.passed = await runner.verify(baseDir, fixture.check, timeoutMs)
+          candMetrics.passed = await runner.verify(candDir, fixture.check, timeoutMs)
+        }
         baseMetrics.diffLines = await worktreeDiffLines(runner, baseDir)
         candMetrics.diffLines = await worktreeDiffLines(runner, candDir)
         baseRuns.push(baseMetrics)
         candRuns.push(candMetrics)
       } finally {
+        // Never delete a worktree while its child may still be writing to it.
+        await Promise.all(children.map(child => runner.stop(child)))
         await runner.git(['worktree', 'remove', '--force', baseDir], options.repoRoot).catch(() => undefined)
         await runner.git(['worktree', 'remove', '--force', candDir], options.repoRoot).catch(() => undefined)
       }
@@ -235,7 +257,9 @@ export function readContrast(reportsDir: string, proposalName: string): Contrast
   const file = join(reportsDir, contrastName(proposalName))
   if (!existsSync(file)) return undefined
   try {
-    return JSON.parse(readFileSync(file, 'utf8')) as Contrast
+    const contrast = JSON.parse(readFileSync(file, 'utf8')) as Contrast
+    // Legacy records did not measure correctness; never retain their adopt verdict.
+    return { ...contrast, verdict: verdictFor(contrast.fixtures) }
   } catch {
     return undefined
   }
@@ -244,7 +268,7 @@ export function readContrast(reportsDir: string, proposalName: string): Contrast
 /** Compact table for the command output and the ledger line. */
 export function formatContrast(contrast: Contrast): string {
   const row = (label: string, metrics: ProbeMetrics): string =>
-    `  ${label.padEnd(6)} errors ${String(metrics.toolErrors).padStart(2)} · denials ${String(metrics.denials).padStart(2)} · steps ${String(metrics.steps).padStart(3)} · tokens ${String(metrics.outputTokens).padStart(6)} · wall ${Math.round(metrics.wallMs / 1000)}s · diff ${metrics.diffLines}`
+    `  ${label.padEnd(6)} check ${metrics.passed === undefined ? 'unverified' : metrics.passed ? 'pass' : 'FAIL'} · errors ${String(metrics.toolErrors).padStart(2)} · denials ${String(metrics.denials).padStart(2)} · steps ${String(metrics.steps).padStart(3)} · tokens ${String(metrics.outputTokens).padStart(6)} · wall ${Math.round(metrics.wallMs / 1000)}s · diff ${metrics.diffLines}`
   return [
     `contrast ${contrast.proposal} · k=${contrast.k} · verdict ${contrast.verdict}`,
     ...contrast.fixtures.flatMap(fixture => [
@@ -264,22 +288,21 @@ export function readFixtures(ledgerPath: string, ids?: readonly string[]): Probe
     return []
   }
   const wanted = ids === undefined || ids.length === 0 ? undefined : new Set(ids)
-  const fixtures: ProbeFixture[] = []
-  const seen = new Set<string>()
+  const latest = new Map<string, ProbeFixture>()
   for (const line of text.split('\n')) {
     if (line.trim() === '') continue
-    let entry: { session_id?: unknown; task?: unknown }
+    let entry: { session_id?: unknown; task?: unknown; check?: unknown; revision?: unknown }
     try {
-      entry = JSON.parse(line) as { session_id?: unknown; task?: unknown }
+      entry = JSON.parse(line) as typeof entry
     } catch {
       continue
     }
     const id = typeof entry.session_id === 'string' ? entry.session_id : ''
     const task = typeof entry.task === 'string' ? entry.task.trim() : ''
-    if (id === '' || task === '' || seen.has(id)) continue
+    if (id === '' || !/^[\w-]+$/.test(id) || task === '') continue
     if (wanted !== undefined && !wanted.has(id)) continue
-    seen.add(id)
-    fixtures.push({ id, task })
+    const check = Array.isArray(entry.check) && entry.check.length > 0 && entry.check.every(part => typeof part === 'string' && part.length > 0 && !part.includes('\0')) ? entry.check as string[] : undefined
+    if (!latest.has(id) || entry.revision) latest.set(id, { id, task, ...(check === undefined ? {} : { check }) })
   }
-  return fixtures
+  return [...latest.values()]
 }

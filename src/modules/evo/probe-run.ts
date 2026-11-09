@@ -1,5 +1,5 @@
 import { execFile, execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { zstdDecompressSync } from 'node:zlib'
@@ -17,7 +17,11 @@ export interface SubagentRuntimeLike {
     request: Record<string, unknown>
     signal: AbortSignal
     delivery: 'parent'
-  }): Promise<{ readonly childId: unknown }>
+  }): Promise<{
+    readonly childId: unknown
+    readonly result: Promise<{ readonly stopReason: string }>
+    dispose(): Promise<void>
+  }>
 }
 
 function transcriptEvents(file: string): unknown[] {
@@ -39,8 +43,8 @@ function transcriptEvents(file: string): unknown[] {
     })
 }
 
-/** The child's transcript: by session id first, else by the worktree it ran in. */
-function findSessionFile(childId: string, cwd: string): string | undefined {
+/** Exact child identity only: an old session with the same cwd is not evidence. */
+function findSessionFile(childId: string): string | undefined {
   const root = join(dshHome(), 'sessions')
   try {
     for (const workspace of readdirSync(root)) {
@@ -50,48 +54,11 @@ function findSessionFile(childId: string, cwd: string): string | undefined {
   } catch {
     return undefined
   }
-  try {
-    for (const workspace of readdirSync(root)) {
-      for (const entry of readdirSync(join(root, workspace))) {
-        const file = join(root, workspace, entry, 'session.v4.jsonl.zstd')
-        if (!existsSync(file)) continue
-        const header = transcriptEvents(file).find(event => (event as { type?: string }).type === 'session') as { cwd?: string } | undefined
-        if (header?.cwd === cwd) return file
-      }
-    }
-  } catch {
-    return undefined
-  }
   return undefined
 }
 
-async function collectSession(childId: string, cwd: string, timeoutMs: number): Promise<ProbeMetrics> {
-  const start = Date.now()
-  let lastSize = -1
-  let stable = 0
-  for (;;) {
-    const file = findSessionFile(childId, cwd)
-    if (file !== undefined) {
-      const size = statSync(file).size
-      if (size > 0 && size === lastSize) stable += 1
-      else {
-        stable = 0
-        lastSize = size
-      }
-      // Two stable polls = the child stopped flushing; parse once.
-      if (stable >= 2) {
-        const metrics = sessionMetrics(transcriptEvents(file))
-        if (metrics.steps > 0) return metrics
-      }
-    }
-    if (Date.now() - start > timeoutMs) {
-      throw new Error(`probe child ${childId} did not settle within ${Math.round(timeoutMs / 60_000)} min`)
-    }
-    await new Promise(resolve => setTimeout(resolve, 2_000))
-  }
-}
-
 export function realProbeRunner(agent: AgentLike, subagents: SubagentRuntimeLike, signal: AbortSignal): ProbeRunner {
+  const children = new Map<string, Awaited<ReturnType<SubagentRuntimeLike['startActivation']>>>()
   return {
     async git(args, cwd) {
       const { stdout } = await run('git', ['-C', cwd, ...args], { cwd, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 })
@@ -114,10 +81,54 @@ export function realProbeRunner(agent: AgentLike, subagents: SubagentRuntimeLike
         signal,
         delivery: 'parent',
       })
-      return String(activation.childId)
+      const id = String(activation.childId)
+      children.set(id, activation)
+      void activation.result.catch(() => undefined)
+      return id
     },
     async collect(childId, options) {
-      return await collectSession(childId, options.cwd, options.timeoutMs)
+      const child = children.get(childId)
+      if (child === undefined) throw new Error(`unknown probe child ${childId}`)
+      let timer: ReturnType<typeof setTimeout> | undefined
+      let abort: () => void = () => undefined
+      try {
+        const interrupted = new Promise<never>((_resolve, reject) => {
+          abort = () => reject(new Error(`probe child ${childId} aborted`))
+          if (signal.aborted) abort()
+          else signal.addEventListener('abort', abort, { once: true })
+          timer = setTimeout(() => reject(new Error(`probe child ${childId} timed out`)), options.timeoutMs)
+        })
+        const result = await Promise.race([child.result, interrupted])
+        if (result.stopReason !== 'completed') throw new Error(`probe child ${childId} ended: ${result.stopReason}`)
+      } finally {
+        clearTimeout(timer)
+        signal.removeEventListener('abort', abort)
+        await child.dispose()
+        children.delete(childId)
+      }
+      const file = findSessionFile(childId)
+      if (file === undefined) throw new Error(`transcript missing for probe child ${childId}`)
+      const metrics = sessionMetrics(transcriptEvents(file))
+      if (metrics.steps === 0) throw new Error(`empty transcript for probe child ${childId}`)
+      return metrics
+    },
+    async stop(childId) {
+      const child = children.get(childId)
+      if (child !== undefined) {
+        await child.dispose()
+        children.delete(childId)
+      }
+    },
+    async verify(worktree, check, timeoutMs) {
+      const [command, ...args] = check
+      if (command === undefined) return false
+      try {
+        await run(command, args, { cwd: worktree, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024, timeout: timeoutMs, signal })
+        return true
+      } catch (error) {
+        if (signal.aborted) throw error
+        return false
+      }
     },
     async applyCandidate(worktree, rule) {
       const dir = join(worktree, '.dsh')

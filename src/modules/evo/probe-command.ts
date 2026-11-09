@@ -63,6 +63,10 @@ export async function probeCommand(
     }
   }
 
+  if (fixtures.some(fixture => fixture.check === undefined)) {
+    return { kind: 'error', text: 'fixtures need an explicit acceptance check argv, e.g. "check":["node","--test","checks/loader.test.mjs"] for a committed dependency-free check in the ledger entry; select checked fixtures with --fixtures id,id. Worktrees do not include node_modules or ignored files. Unverified work cannot be adopted.' }
+  }
+
   let rule: string
   try {
     const parseProposal = await scopeParser()
@@ -123,20 +127,19 @@ export async function probeCommand(
 
 export async function applyCommand(rawInput: string): Promise<CommandResult> {
   const args = rawInput.trim().split(/\s+/).filter(Boolean)
+  if (args.includes('--evidence')) return { kind: 'error', text: 'manual evidence overrides are disabled: a matching adopt probe and valid scope are required' }
   const proposalName = proposalArg(args)
   if (proposalName === undefined) return { kind: 'error', text: 'no proposal: run evo_pass (or pass a proposal-*.md file)' }
   const proposalText = readProposalFile(proposalName)
   if (proposalText === undefined) return { kind: 'error', text: `proposal not found: ${join(reportsDir(), proposalName)}` }
 
   const contrast = readContrast(reportsDir(), proposalName)
-  const evidence = flagValue(args, '--evidence')
-  if (contrast === undefined && evidence === undefined) {
+  if (contrast === undefined) {
     return {
       kind: 'error',
       text: [
         `no probe evidence for ${proposalName}: the --probe gate refuses an unprobed proposal.`,
         `  run /evo-probe ${proposalName}`,
-        '  (or pass --evidence <file> for a manual override; the override is recorded in the probe ledger)',
       ].join('\n'),
     }
   }
@@ -148,22 +151,21 @@ export async function applyCommand(rawInput: string): Promise<CommandResult> {
     return { kind: 'error', text: `proposal unreadable: ${error instanceof Error ? error.message : String(error)}` }
   }
   // A contrast measures one proposal text: an edited proposal needs a new probe.
-  if (contrast?.proposalHash !== undefined && contrast.proposalHash !== proposalHash(proposalText)) {
+  if (contrast.proposalHash !== proposalHash(proposalText)) {
     return {
       kind: 'error',
       text: `proposal ${proposalName} changed since the probe: re-run /evo-probe ${proposalName} (the recorded contrast is for an older revision).`,
     }
   }
-  if (contrast === undefined && evidence !== undefined) {
-    appendProbeRun({ at: new Date().toISOString(), proposal: proposalName, verdict: 'override', evidence })
-  }
+  if (report.errors.length > 0 || report.proposed.length === 0) return { kind: 'error', text: 'proposal scope rejected: ' + (report.errors.map(error => error.reason).join('; ') || 'no scoped rule lines') }
+  if (contrast.verdict !== 'adopt') return { kind: 'error', text: `probe verdict ${contrast.verdict}: adoption requires verified improvement; nothing was written` }
 
   return {
     kind: 'success',
     text: [
-      `proposal ${proposalName}${contrast === undefined ? ' · manual override recorded' : ` · verdict ${contrast.verdict}`}`,
+      `proposal ${proposalName} · verdict ${contrast.verdict}`,
       ...proposalLines(report),
-      ...(contrast === undefined ? [] : ['', formatContrast(contrast)]),
+      '', formatContrast(contrast),
       '',
       'Nothing was written: copy each block into its destination (invariant lines to ~/.dsh/ceulen/RULES.md, domain lines to <repo>/.dsh/RULES.md).',
     ].join('\n'),

@@ -66,8 +66,8 @@ export function registerEvoCommands(ctx: PluginContext, flash: (text: string) =>
 
   registerCommandSafe(ctx, {
     name: 'evo-apply',
-    description: 'Render a proposal as reviewable blocks per destination; refuses without a probe contrast (--evidence <file> overrides and is recorded)',
-    input: { hint: '[proposal.md] [--evidence <file>]' },
+    description: 'Render reviewable rule blocks only after a matching adopt probe and valid scope; never writes rules and has no manual bypass',
+    input: { hint: '[proposal.md]' },
     async handler({ rawInput }) {
       return await applyCommand(rawInput)
     },
