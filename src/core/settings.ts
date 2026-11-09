@@ -180,7 +180,10 @@ export function defaultSettings(): CeulenSettings {
         'agentmem_capabilities', 'agentmem_list', 'agentmem_recent',
         'agentmem_versions', 'agentmem_diff', 'agentmem_rollback',
         'agentmem_delete', 'agentmem_share',
-        'workflow', 'read_image', 'list_agents', 'interrupt_agent',
+        // `read_image` stays in the prompt: 720 direct calls in nine days of
+        // November 2026 sessions against 389 bytes of schema. A tool the model
+        // reaches for by name every session is not cold.
+        'workflow', 'list_agents', 'interrupt_agent',
       ],
     },
     rules: { projectFile: '.dsh/RULES.md', userFile: 'RULES.md', maxBytes: 20_000, guards: 'audit' },

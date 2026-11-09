@@ -1,9 +1,10 @@
 import { readdir } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve as resolvePath } from 'node:path'
-import type { AgentLike, PluginContext, ToolContent } from '../../core/types.js'
+import type { AgentLike, PluginContext, ToolContent, ToolDefinition } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { logLine } from '../../core/log.js'
 import { ceulenTool, clampText, coldTool, nativeTool, objectSchema, registerToolSafe } from '../../core/tools.js'
+import { missingRequired, synthesizeUsage } from '../../core/toolguard.js'
 
 export const name = 'ceulen-repair'
 export const inject = ['tools']
@@ -341,6 +342,34 @@ async function candidatePaths(path: string, cwd: string): Promise<string | undef
  * Names as the calling agent sees them. The global view alone misses every tool
  * an app registers in a scoped layer (the TUI's native `read`, `bash`, …).
  */
+/**
+ * A held tool has no schema in the prompt, so a call by its own name is a
+ * guess at the arguments too. The hint carries the whole next call: the
+ * `ceulen_tools` form with the real argument names, and what each required
+ * one is. Sending the model to search first costs it a second failed call.
+ */
+function heldToolHint(name: string, definition: ToolDefinition, sent: unknown): string {
+  const parameters = (definition.parameters ?? {}) as { properties?: Record<string, { type?: unknown; enum?: unknown; description?: unknown }>; required?: unknown }
+  const properties = parameters.properties ?? {}
+  const required = Array.isArray(parameters.required) ? parameters.required.filter((key): key is string => typeof key === 'string') : []
+  const lines = required.map(key => {
+    const prop = properties[key]
+    const type = Array.isArray(prop?.enum) ? prop.enum.map(entry => JSON.stringify(entry)).join(' | ') : typeof prop?.type === 'string' ? prop.type : 'any'
+    const note = typeof prop?.description === 'string' && prop.description.length > 0 ? ` — ${clampText(prop.description.replace(/\s+/g, ' ').trim(), 140)}` : ''
+    return `  ${key} (${type}, required)${note}`
+  })
+  const sentKeys = sent !== null && typeof sent === 'object' && !Array.isArray(sent) ? Object.keys(sent) : []
+  const usable = sentKeys.length > 0 && missingRequired(sent, parameters as Record<string, unknown>).length === 0
+  const optional = Object.keys(properties).length > required.length
+  return [
+    `Closest tool: ceulen_tools — "${name}" exists but is held behind ceulen_tools, so it is not callable by its own name. Call it like this:`,
+    `ceulen_tools({ action: "call", name: "${name}", arguments: ${synthesizeUsage(parameters as Record<string, unknown>)} })`,
+    ...lines,
+    ...(usable ? ['The arguments you sent are fine: put the same object in `arguments`.'] : []),
+    ...(optional ? [`ceulen_tools({ action: "search", query: "^${name}$" }) describes the optional arguments.`] : []),
+  ].join('\n')
+}
+
 function registeredToolNames(ctx: PluginContext, agent?: AgentLike): string[] {
   const registry = ctx.get('tools', false) as { schemas?(scope?: unknown): readonly { name?: string }[] } | undefined
   const names = new Set<string>()
@@ -410,9 +439,8 @@ async function repair(ctx: PluginContext, exec: ExecuteHook, result: HookResult)
     const wanted = /unknown tool[:\s]+["'`]?([\w.:/-]+)/i.exec(message)?.[1]
     if (wanted === undefined) return undefined
     // A cold tool is real but not callable by its own name: name the way in.
-    if (coldTool(wanted) !== undefined || nativeTool(wanted) !== undefined) {
-      return { kind: 'tool', text: `Closest tool: ceulen_tools — "${wanted}" is held behind it. Call ceulen_tools({ action: "call", name: "${wanted}", arguments: { … } }); ceulen_tools({ action: "search", query: "${wanted}" }) prints its arguments.` }
-    }
+    const held = coldTool(wanted) ?? nativeTool(wanted)
+    if (held !== undefined) return { kind: 'tool', text: heldToolHint(wanted, held, args) }
     const closest = closestToolName(wanted, registeredToolNames(ctx, exec.agent))
     // A near name is a guess, not a correction (`codemap` is not `codemode`):
     // say that no such tool exists and leave the choice to the model.
