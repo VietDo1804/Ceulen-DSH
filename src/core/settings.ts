@@ -196,6 +196,9 @@ export function defaultSettings(): CeulenSettings {
         // sessions used it.
         'plugin_manager', 'github', 'cron',
         'validate_schema', 'list_subagent_models', 'related_files', 'working_directory',
+        // MCP resource tools: 0 calls in the same audit. The MCP prompt section
+        // still names them, so a direct call gets the held-tool hint.
+        'list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource',
       ],
     },
     rules: { projectFile: '.dsh/RULES.md', userFile: 'RULES.md', maxBytes: 20_000, guards: 'audit' },
