@@ -40,6 +40,12 @@ export interface ToolRunContext {
   readonly arguments: unknown
   readonly signal: AbortSignal
   readonly agent?: AgentLike
+  /**
+   * DSH's step admission (`ResolvedToolSet`), opaque here. A nested dispatcher
+   * must pass it on: without it DSH refuses every conditionally registered
+   * tool (`web_search`, …) as unknown.
+   */
+  readonly toolSet?: unknown
   deferContext?(message: UserMessageLike): void
   concludeTurn?(): void
 }

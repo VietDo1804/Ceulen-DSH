@@ -52,6 +52,8 @@ export function formatCalls(calls: readonly CodemodeCall[]): string {
  * Bind every tool the calling agent can see. Names are passed through
  * unchanged: the model uses bracket access for names that are not identifiers,
  * which avoids the silent alias collisions Pi's `_` normalization can create.
+ * The step's `toolSet` rides along on both the listing and every nested call,
+ * so a conditional tool is bound exactly when this step admitted it.
  */
 export function toolBindings(
   registry: RegistryLike,
@@ -61,7 +63,7 @@ export function toolBindings(
 ): Record<string, BindingFunction> {
   const functions: Record<string, BindingFunction> = Object.create(null) as Record<string, BindingFunction>
   let sequence = 0
-  for (const schema of registry.schemas(exec.agent)) {
+  for (const schema of registry.schemas(exec.agent, exec.toolSet)) {
     if (SELF_NAMES.has(schema.name)) continue
     functions[schema.name] = async args => {
       const startedAt = Date.now()
@@ -71,6 +73,7 @@ export function toolBindings(
           calls: [{ id: `${exec.callId ?? 'codemode'}:codemode:${++sequence}`, name: schema.name, arguments: JSON.stringify(args ?? {}) }],
           ...(exec.agent === undefined ? {} : { agent: exec.agent }),
           ...(exec.signal === undefined ? {} : { signal: exec.signal }),
+          ...(exec.toolSet === undefined ? {} : { toolSet: exec.toolSet }),
         })
         const settled = batch?.results?.[0]?.result
         if (settled === undefined) throw new Error(`${schema.name} settled without a result`)
