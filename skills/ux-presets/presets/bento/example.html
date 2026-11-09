@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumen — model usage today</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..800&family=Geist+Mono:wght@400..600&display=swap">
+<style>
+  :root {
+    --stone: #EBE9E3;
+    --tile: #F8F7F3;
+    --ink: #1E2320;
+    --ink-muted: #5A5F59;
+    --night: #1E2320;
+    --night-text: #EDEBE5;
+    --night-muted: #BFC4BD;
+    --ember: #9A3613;
+    --ember-bright: #FFB896;
+    --on-ember: #FFF6EF;
+    --track: #DEDBD2;
+    --radius-tile: 22px;
+    --radius-inner: 12px;
+    --radius-pill: 999px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 32px;
+    --space-6: 48px;
+    --sans: "Geist", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, monospace;
+    --dur-fast: 150ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --m-accent: var(--ember);
+    --m-surface: var(--tile);
+    --m-rise: 32px;
+    --m-arrive: 720ms;
+    --m-gap: 80ms;
+  }
+  * { box-sizing: border-box; }
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  body { margin: 0; background: var(--stone); color: var(--ink); font: 400 1rem/1.5 var(--sans); }
+  :focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+  .shell { max-width: 1280px; margin: 0 auto; padding: var(--space-4); }
+
+  .top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-4); }
+  .top h1 { margin: 0; font-size: clamp(2rem, 4vw, 3rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1.22; }
+  .top h1 span { color: var(--ink-muted); font-weight: 500; }
+  .range { display: flex; gap: var(--space-1); background: var(--tile); padding: var(--space-1); border-radius: var(--radius-pill); }
+  .range button {
+    min-height: 44px; padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background: transparent;
+    font: 500 0.9375rem var(--sans); color: var(--ink); cursor: pointer; transition: background-color var(--dur-fast) var(--ease-out);
+  }
+  .range button:hover { background: var(--stone); }
+  .range button[aria-pressed="true"] { background: var(--ink); color: var(--tile); }
+
+  .bento { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: minmax(150px, auto); gap: var(--space-3); }
+  .t { background: var(--tile); border-radius: var(--radius-tile); padding: var(--space-4); display: flex; flex-direction: column; min-width: 0; }
+  .t h2 { margin: 0 0 var(--space-2); font-size: 0.9375rem; font-weight: 600; color: var(--ink-muted); letter-spacing: 0; }
+  .big { font: 600 clamp(2.5rem, 5vw, 4.25rem)/1 var(--sans); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+  .note { color: var(--ink-muted); font-size: 0.9375rem; margin: var(--space-2) 0 0; }
+
+  .chart-t { grid-column: span 4; grid-row: span 2; }
+  .chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); flex-wrap: wrap; }
+  .chart { margin-top: auto; padding-top: var(--space-4); }
+  .chart svg { display: block; width: 100%; height: 220px; overflow: visible; }
+  .chart path { fill: none; stroke: var(--ember); stroke-width: 2.5; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  .chart line { stroke: var(--ink); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+  .chart [data-axis] { font: 500 0.8125rem var(--mono); color: var(--ink-muted); height: 1.6em; }
+  .chart .peak { color: var(--ember); font-weight: 600; }
+
+  .spend { grid-column: span 2; grid-row: span 2; background: var(--night); color: var(--night-text); justify-content: space-between; }
+  .spend h2 { color: var(--night-muted); }
+  .spend .big { color: var(--ember-bright); font-size: clamp(3rem, 6vw, 5.5rem); }
+  .spend .note { color: var(--night-muted); }
+  .budget { height: 10px; background: var(--ink-muted); border-radius: var(--radius-pill); overflow: hidden; margin-top: var(--space-3); --m-tint: var(--ember-bright); }
+  .budget[data-fill], .mix .bar[data-fill] { height: 10px; border-radius: var(--radius-pill); }
+  [data-fill] > i { border-radius: var(--radius-pill); }
+  .teams { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+  .teams li { display: flex; justify-content: space-between; gap: var(--space-3); padding-bottom: var(--space-2); box-shadow: 0 1px 0 var(--ink-muted); }
+  .teams b { font: 500 1rem var(--mono); }
+
+  .mix { grid-column: span 3; }
+  .mix ul { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; gap: var(--space-3); }
+  .mix li { display: grid; grid-template-columns: 9rem 1fr 3.5rem; gap: var(--space-3); align-items: center; font-size: 0.9375rem; }
+  .mix .bar { height: 12px; background: var(--track); border-radius: var(--radius-pill); overflow: hidden; }
+  .mix li + li .bar { --m-tint: var(--ink); }
+  .mix b { font: 600 0.9375rem var(--mono); text-align: right; }
+
+  .lat { grid-column: span 2; }
+  .lat dl { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin: auto 0 0; }
+  .lat dt { color: var(--ink-muted); font-size: 0.9375rem; }
+  .lat dd { margin: 0; font: 600 2rem/1.1 var(--sans); letter-spacing: -0.03em; }
+
+  .live { grid-column: span 1; align-items: flex-start; justify-content: space-between; background: var(--ember); color: var(--on-ember); }
+  .live h2, .live .note { color: var(--on-ember); }
+  .live .big { font-size: 2.75rem; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--on-ember); margin-right: var(--space-2); }
+
+  .runs { grid-column: span 6; }
+  .runs ol { list-style: none; margin: 0; padding: 0; }
+  .runs li { display: grid; grid-template-columns: 5.5rem minmax(0, 1.6fr) minmax(0, 1fr) 6rem 5rem; gap: var(--space-3); align-items: center; padding: var(--space-3) var(--space-2); border-radius: var(--radius-inner); }
+  .runs li + li { box-shadow: 0 -1px 0 var(--track); }
+  .runs time, .runs .num { font: 500 0.9375rem var(--mono); }
+  .runs .num { text-align: right; }
+  .runs .who { color: var(--ink-muted); }
+  .badge { justify-self: end; font: 600 0.8125rem var(--sans); padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); background: var(--stone); }
+  .badge.slow { background: var(--ember); color: var(--on-ember); }
+
+  @media (max-width: 1000px) {
+    .chart-t, .runs { grid-column: span 6; }
+    .spend, .mix { grid-column: span 3; }
+    .lat { grid-column: span 4; }
+    .live { grid-column: span 2; }
+  }
+  @media (max-width: 640px) {
+    .bento { grid-template-columns: 1fr; }
+    .t { grid-column: 1 / -1 !important; grid-row: auto !important; }
+    .mix li { grid-template-columns: 1fr 3.5rem; }
+    .mix .bar { grid-column: 1 / -1; grid-row: 2; }
+    .runs li { grid-template-columns: 4.5rem minmax(0, 1fr) auto; }
+    .runs .who, .runs .num { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<main class="shell">
+  <header class="top">
+    <h1 data-words>Model usage <span>today</span></h1>
+    <fieldset class="range" aria-label="Range" data-load>
+      <button type="button" aria-pressed="true">Today</button><button type="button" aria-pressed="false">7 days</button><button type="button" aria-pressed="false">30 days</button>
+    </fieldset>
+  </header>
+
+  <div class="bento">
+    <section class="t chart-t" data-load>
+      <div class="chart-head">
+        <div><h2>Tokens per hour</h2><div class="big"><span data-count>1.26</span>M</div></div>
+        <p class="note">Peak 104k at 14:00</p>
+      </div>
+      <div class="chart">
+        <div data-axis><span class="peak" data-time="14:00">14:00 · 104k</span></div>
+        <svg data-draw data-start="0:00" data-end="23:00" viewBox="0 0 1000 220" preserveAspectRatio="none" role="img" aria-labelledby="chart-title">
+          <title id="chart-title">Tokens per hour, peaking at 104 thousand at 14:00</title>
+          <line data-time="14:00" y1="0" y2="210"/>
+          <path data-line d="M0.0,189.3 L43.5,194.5 L87.0,197.9 L130.4,199.6 L173.9,199.6 L217.4,196.2 L260.9,185.8 L304.3,165.1 L347.8,127.1 L391.3,87.4 L434.8,58.0 L478.3,44.2 L521.7,51.1 L565.2,39.0 L608.7,30.4 L652.2,42.5 L695.7,63.2 L739.1,85.6 L782.6,106.4 L826.1,125.4 L869.6,139.2 L913.0,153.0 L956.5,168.5 L1000.0,180.6"/>
+        </svg>
+        <div data-axis><span data-time="0:00">00:00</span><span data-time="6:00">06:00</span><span data-time="12:00">12:00</span><span data-time="18:00">18:00</span><span data-time="23:00">23:00</span></div>
+      </div>
+    </section>
+
+    <section class="t spend" data-load>
+      <div><h2>Spend today</h2><div class="big">$<span data-count>41.20</span></div></div>
+      <ul class="teams">
+        <li><span>ops</span><b>$18.10</b></li>
+        <li><span>finance</span><b>$14.60</b></li>
+        <li><span>growth</span><b>$8.50</b></li>
+      </ul>
+      <div><p class="note">62% of the $66 daily budget</p><div class="budget" data-fill="0.62"></div></div>
+    </section>
+
+    <section class="t mix" data-arrive>
+      <h2>Model mix</h2>
+      <ul>
+        <li><span>deepseek-v4.1-flash</span><div class="bar" data-fill="0.71"></div><b>71%</b></li>
+        <li><span>claude-sonnet</span><div class="bar" data-fill="0.19"></div><b>19%</b></li>
+        <li><span>gpt-mini</span><div class="bar" data-fill="0.10"></div><b>10%</b></li>
+      </ul>
+    </section>
+
+    <section class="t lat" data-arrive>
+      <h2>Latency</h2>
+      <dl><div><dt>p50</dt><dd><span data-count>840</span> ms</dd></div><div><dt>p95</dt><dd><span data-count>2.9</span> s</dd></div></dl>
+    </section>
+
+    <section class="t live" data-arrive>
+      <h2><span class="dot" data-pulse></span>Live</h2>
+      <div class="big" data-count>17</div>
+      <p class="note">requests in flight</p>
+    </section>
+
+    <section class="t runs" data-arrive>
+      <h2>Recent runs</h2>
+      <ol>
+        <li data-arrive><time>14:52</time><span>Summarise support tickets</span><span class="who">ops-bot</span><span class="num">18.4k</span><span class="badge">2.1 s</span></li>
+        <li data-arrive><time>14:49</time><span>Classify invoices, batch 12</span><span class="who">finance</span><span class="num">42.0k</span><span class="badge slow">9.8 s</span></li>
+        <li data-arrive><time>14:47</time><span>Draft release notes</span><span class="who">vietdo</span><span class="num">6.2k</span><span class="badge">1.4 s</span></li>
+        <li data-arrive><time>14:41</time><span>Translate onboarding emails</span><span class="who">growth</span><span class="num">11.7k</span><span class="badge">2.6 s</span></li>
+        <li data-arrive><time>14:36</time><span>Extract fields from contracts</span><span class="who">legal</span><span class="num">27.3k</span><span class="badge">4.0 s</span></li>
+      </ol>
+    </section>
+  </div>
+</main>
+<script src="motion.js"></script>
+</body>
+</html>

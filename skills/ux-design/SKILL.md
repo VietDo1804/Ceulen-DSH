@@ -40,8 +40,7 @@ never invented per screen. **Resolution order (stop at the first that holds):**
 1. **`DESIGN.md` exists** → read all of it; use its tokens verbatim. That holds for a concept, an exploration, or a redesign inside the product: a new look comes from layout, hierarchy, and motion, and a colorful page uses the accent and status colours the file already lists. "Premium", "colors", and "attractive" change nothing. Only the words `new identity`, `rebrand`, or `ignore DESIGN.md` in the request lift this. Never add a second `DESIGN.md` beside a concept. `ux_audit` reports colours outside the project's file as `off-palette`, and work does not finish with that finding open.
 2. **A system is already wired in** (shadcn/MUI/Radix theme, Tailwind config) → reuse it. With no `DESIGN.md`, record that system's real tokens in one before any markup; never invent new ones.
 3. **A reference site exists** → `web_extract` it, distill its DNA (4–6 hex, type roles, rhythm) into a DESIGN.md starter, then work inside it.
-4. **Nothing exists** → do NOT block. Load `ux-presets` and pick a starter (B1 Web, B2 Mobile, an S-starter matching the subject's material, or S4 for dashboards). **A preset is a floor, not an identity:** Step 1.5 must bend it until the page could not be mistaken for the stock preset. Then write the bent system to `DESIGN.md` in the working directory, next to the page, before any markup.
-5. **No preset fits** → derive a minimal DESIGN.md from the brief + direction (one accent, tinted neutrals, 1.25 scale, 8px grid, 4 named elevations, the state contract). Enough to generate inside; don't stall for a bigger model. Write it to `DESIGN.md` before any markup too.
+4. **Nothing exists** → do NOT block. Load `ux-presets`, pick the preset its table gives for the words in the request, and copy that preset's `DESIGN.md` into the working directory before any markup. The preset gives the palette, type and motion; your subject gives the content and the signature element.
 
 `DESIGN.md` is the contract, so it is written even when the request names only other files, and it is never a thing to offer or to skip. Keep it short: the direction line first, then the tokens this page uses, in the starter's format. When a token changes, change it here in the same edit: `ux_audit` reports colours this file lists that the stylesheet does not have.
 
@@ -58,6 +57,13 @@ elevations, and the state contract before any screen is written.
 
 Scale to the task: internal single-file tool → one-line brief; user-facing
 product UI → full brief. The gates are the same either way.
+
+Write the page's copy in English unless the request names another language:
+"in Vietnamese", "bằng tiếng Việt", "viết tiếng Việt". Nothing else counts. A
+request written in Vietnamese, a business in Vietnam, Vietnamese customers or
+Vietnamese names do not: English is this module's default even for a page whose
+readers are Vietnamese. Keep proper names as they are ("Ba Râu", "Hàng Đồng"). For a Vietnamese
+page, `ux_audit` checks its fonts, fallbacks and headline line heights.
 
 ### Step 1.5 — Derive a direction (before any markup)
 

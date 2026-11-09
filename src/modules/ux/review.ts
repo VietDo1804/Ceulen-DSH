@@ -301,6 +301,235 @@ export function pageChecks(): RuntimeFinding[] {
   return findings
 }
 
+/**
+ * Runs in the page, self-contained like `pageChecks`. Only a page written in
+ * Vietnamese is checked: ă đ ơ ư and U+1EA0–U+1EF9 occur in no other language,
+ * so English, French or Portuguese copy never triggers it.
+ *
+ * - `vi-glyphs`: a font without Vietnamese glyphs. The browser takes the letter
+ *   from another font, or breaks ế into ê plus a loose accent. A web font's
+ *   `unicode-range` says what it covers (Google Fonts serves a `vietnamese`
+ *   subset only for families that have one); any other font is compared
+ *   against two different fallbacks, which agree only when it drew the letter.
+ * - `vi-fallback`: a fallback font with no Vietnamese (Georgia, Futura…): while
+ *   the web font loads, or if it fails, ầ shows as "â`".
+ * - `vi-mixed-font`: one family drawn by two typefaces, Vietnamese letters from
+ *   one and the rest from another, so a word mixes designs.
+ * - `vi-line-height`: a wrapped headline where the ink of a letter, marks
+ *   included, touches the ink of the letter above it, descenders, dots below
+ *   and commas included, so Ấn reads as Ận or Ổ sits on a comma.
+ */
+// Runs in Chrome via toString(), so Node coverage cannot see it; the runtime
+// tests in test/ux-review.test.ts drive every branch that matters.
+/* v8 ignore start -- @preserve */
+export async function vietnameseChecks(): Promise<RuntimeFinding[]> {
+  const findings: RuntimeFinding[] = []
+  const add = (severity: Severity, check: string, message: string, detail: string): void => {
+    findings.push({ severity, check, message, detail })
+  }
+  const VIET = /[ăđơưĂĐƠƯẠ-ỹ]/
+  const body = document.body
+  if (body === null) return findings
+  const lang = (document.documentElement.getAttribute('lang') ?? '').toLowerCase()
+  if (!lang.startsWith('vi') && ((body.textContent ?? '').match(/[ăđơưĂĐƠƯẠ-ỹ]/g)?.length ?? 0) < 3) return findings
+
+  const visible = (el: Element): boolean => {
+    const style = getComputedStyle(el)
+    return style.display !== 'none' && style.visibility !== 'hidden' && el.closest('[aria-hidden="true"]') === null
+  }
+  const shown = (el: Element, ch: string): string => (getComputedStyle(el).textTransform === 'uppercase' ? ch.toLocaleUpperCase('vi') : ch)
+  const unquote = (name: string): string => name.trim().replace(/^["']|["']$/g, '')
+  const GENERIC = /^(serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-[a-z-]+|math|emoji|fangsong|-apple-system|BlinkMacSystemFont)$/i
+  const name = (el: Element): string => el.tagName.toLowerCase() + (typeof el.className === 'string' && el.className.trim() !== '' ? `.${el.className.trim().split(/\s+/)[0]}` : '')
+
+  // Letters outside ASCII, per first-choice font, with the generic family the stack falls to.
+  const groups = new Map<string, { family: string; font: string; full: string; fallbacks: string[]; generic: string; chars: Set<string> }>()
+  const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT)
+  for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+    const parent = node.parentElement
+    const text = node.nodeValue ?? ''
+    if (parent === null || !/[\u0080-\uFFFF]/.test(text) || parent.closest('script, style, noscript, svg') !== null || !visible(parent)) continue
+    const style = getComputedStyle(parent)
+    const stack = style.fontFamily.split(',').map(unquote)
+    const family = stack[0] ?? ''
+    if (family === '' || GENERIC.test(family)) continue
+    const lower = stack.map((part) => part.toLowerCase())
+    const generic = lower.some((part) => /monospace|mono$/.test(part)) ? 'monospace' : lower.some((part) => part === 'serif' || part === 'ui-serif') ? 'serif' : 'sans-serif'
+    const key = `${family}|${style.fontWeight}|${style.fontStyle}`
+    let group = groups.get(key)
+    if (group === undefined) {
+      const fallbacks = stack.slice(1).filter((part) => part !== '' && !GENERIC.test(part))
+      group = { family, font: `${style.fontStyle} ${style.fontWeight} 48px "${family}"`, full: `${style.fontStyle} ${style.fontWeight} 48px ${style.fontFamily}`, fallbacks, generic, chars: new Set() }
+      groups.set(key, group)
+    }
+    for (const ch of text) if (/[\u0080-\uFFFF]/.test(ch) && /\p{L}/u.test(ch)) group.chars.add(shown(parent, ch))
+  }
+
+  const ranges = (value: string): Array<[number, number]> => value.split(',').map((part) => part.trim().replace(/^u\+/i, '')).filter((part) => part !== '').map((part) => {
+    if (part.includes('?')) return [parseInt(part.replace(/\?/g, '0'), 16), parseInt(part.replace(/\?/g, 'f'), 16)] as [number, number]
+    const [from, to] = part.split('-')
+    return [parseInt(from ?? '0', 16), parseInt(to ?? from ?? '0', 16)] as [number, number]
+  })
+  const canvas = document.createElement('canvas').getContext('2d')
+  const signature = (font: string, fallback: string, ch: string): string => {
+    if (canvas === null) return ''
+    canvas.font = `${font}, ${fallback}`
+    const m = canvas.measureText(ch)
+    return [m.width, m.actualBoundingBoxAscent, m.actualBoundingBoxDescent, m.actualBoundingBoxLeft, m.actualBoundingBoxRight].map((v) => Math.round(v * 2)).join()
+  }
+  const drawnBy = (font: string, ch: string): boolean => signature(font, 'monospace', ch) === signature(font, 'serif', ch)
+
+  const missingBy = new Map<string, { generic: string; chars: Set<string> }>()
+  for (const group of groups.values()) {
+    const chars = [...group.chars].filter((ch) => VIET.test(ch.normalize('NFC')))
+    if (chars.length === 0) continue
+    try {
+      await Promise.race([document.fonts.load(group.font, chars.join('')), new Promise((done) => setTimeout(done, 3000))])
+    } catch {
+      // A face that fails to load leaves the fallback in place, which the comparison below reports.
+    }
+    const faces = Array.from(document.fonts).filter((face) => unquote(face.family) === group.family)
+    const covered = faces.flatMap((face) => ranges(face.unicodeRange))
+    const fullFace = covered.some(([from, to]) => from <= 0x20 && to >= 0x10ffff)
+    let missing: string[]
+    if (faces.length > 0 && !fullFace) {
+      missing = chars.filter((ch) => {
+        const code = ch.normalize('NFC').codePointAt(0) ?? 0
+        return !covered.some(([from, to]) => code >= from && code <= to)
+      })
+    } else {
+      // Not installed here at all: nothing to judge, the page names a font it cannot have.
+      if (!drawnBy(group.font, 'a') && !drawnBy(group.font, 'H')) continue
+      missing = chars.filter((ch) => !drawnBy(group.font, ch))
+    }
+    if (missing.length === 0) continue
+    const seen = missingBy.get(group.family) ?? { generic: group.generic, chars: new Set<string>() }
+    for (const ch of missing) seen.chars.add(ch)
+    missingBy.set(group.family, seen)
+  }
+  if (missingBy.size > 0) {
+    const SUGGEST: Record<string, string> = {
+      monospace: 'Roboto Mono, IBM Plex Mono or Space Mono',
+      serif: 'Playfair Display, Noto Serif or Lora',
+      'sans-serif': 'Inter, Noto Sans or Be Vietnam Pro',
+    }
+    const families = [...missingBy.keys()]
+    const detail = [...missingBy.entries()].map(([family, info]) => `"${family}" lacks ${[...info.chars].slice(0, 6).join(' ')}; use ${SUGGEST[info.generic] ?? SUGGEST['sans-serif']}`).join(' | ')
+    add('high', 'vi-glyphs', `Vietnamese letters fall back to another font: ${families.map((family) => `"${family}"`).join(', ')} ${families.length === 1 ? 'has' : 'have'} no Vietnamese glyphs`, `${detail}. Load the family with its vietnamese subset, change the font name in DESIGN.md to match, then audit again`)
+  }
+
+  // A stack whose fallback has no Vietnamese shows "â`" for ầ while the web
+  // font loads (display=swap), or for good if it never arrives. Desktop
+  // system fonts the audit machine may not have, so judged by name.
+  const NO_VIETNAMESE = new Set(['georgia', 'didot', 'futura', 'century gothic', 'rockwell', 'bodoni 72', 'baskerville', 'optima', 'hoefler text', 'american typewriter', 'big caslon'])
+  const weakFallbacks = new Set<string>()
+  for (const group of groups.values()) {
+    if (![...group.chars].some((ch) => VIET.test(ch))) continue
+    for (const part of group.fallbacks) if (NO_VIETNAMESE.has(part.toLowerCase())) weakFallbacks.add(part)
+  }
+  if (weakFallbacks.size > 0) {
+    const names = [...weakFallbacks].map((part) => `"${part}"`).join(', ')
+    add('medium', 'vi-fallback', `The font stack falls back to ${names}, which has no Vietnamese letters: until the web font loads, or if it fails, ầ shows as "â\`"`, 'Put a fallback with Vietnamese in its place: "Times New Roman" for serif, Arial or system-ui for sans, "Courier New" for mono. Change the CSS and DESIGN.md')
+  }
+
+  // One family drawn by two typefaces: Vietnamese letters from one font, the
+  // rest from another (a unicode-range composite, or a fallback per letter).
+  // A dot below changes neither the top of a letter nor its width, so ạ and a
+  // measure alike in one design and apart across two.
+  const PAIRS = ['aạ', 'eẹ', 'oọ', 'uụ', 'yỵ', 'AẠ', 'EẸ', 'OỌ', 'UỤ']
+  const mixed: string[] = []
+  for (const group of groups.values()) {
+    if (canvas === null || missingBy.has(group.family) || ![...group.chars].some((ch) => VIET.test(ch)) || mixed.some((line) => line.startsWith(`"${group.family}"`))) continue
+    try {
+      await Promise.race([document.fonts.load(group.full, PAIRS.join('')), new Promise((done) => setTimeout(done, 3000))])
+    } catch {
+      // Measured as it renders.
+    }
+    canvas.font = group.full
+    let apart = 0
+    let sample = ''
+    for (const pair of PAIRS) {
+      const [plain, dotted] = [...pair]
+      const a = canvas.measureText(plain ?? '')
+      const b = canvas.measureText(dotted ?? '')
+      if (Math.abs(a.actualBoundingBoxAscent - b.actualBoundingBoxAscent) > 1 || Math.abs(a.width - b.width) > 1) {
+        apart++
+        if (sample === '') sample = `${dotted} is ${Math.round(b.actualBoundingBoxAscent)}px tall and ${Math.round(b.width)}px wide, ${plain} ${Math.round(a.actualBoundingBoxAscent)}px and ${Math.round(a.width)}px at 48px`
+      }
+    }
+    if (apart >= 2) mixed.push(`"${group.family}": ${sample}`)
+  }
+  if (mixed.length > 0) {
+    add('high', 'vi-mixed-font', `Vietnamese letters are drawn by a different typeface than the letters around them in ${mixed.length} font(s), so one word mixes two designs`, `${mixed.slice(0, 2).join(' | ')}. Use one family that has Vietnamese for this text; never assemble one from two fonts with unicode-range. If the request named a font without Vietnamese, use the closest family that has it and say why in your report`)
+  }
+
+  // Wrapped headlines: the ink of each letter, marks included, must clear the
+  // ink of the letter above it, descenders, dots below and commas included, or
+  // Ấn reads as Ận and Ổ sits on a comma. Each letter is measured in its own
+  // font, so an italic run is judged as italic, and only letters that sit over
+  // each other count.
+  const crowded: string[] = []
+  for (const el of Array.from(document.querySelectorAll('h1, h2, h3, h4, [data-words]'))) {
+    if (canvas === null || !visible(el) || !VIET.test(el.textContent ?? '')) continue
+    const style = getComputedStyle(el)
+    const size = parseFloat(style.fontSize)
+    const lineHeight = parseFloat(style.lineHeight)
+    if (!Number.isFinite(lineHeight) || size < 20) continue
+    const inks: Array<{ baseline: number; left: number; right: number; top: number; bottom: number; ch: string }> = []
+    const range = document.createRange()
+    const texts = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+    let budget = 600
+    for (let node = texts.nextNode(); node !== null && budget > 0; node = texts.nextNode()) {
+      const parent = node.parentElement
+      if (parent === null) continue
+      const own = getComputedStyle(parent)
+      canvas.font = `${own.fontStyle} ${own.fontWeight} ${own.fontSize} ${own.fontFamily}`
+      const ascent = canvas.measureText('H').fontBoundingBoxAscent
+      const value = node.nodeValue ?? ''
+      for (let i = 0; i < value.length && budget > 0; i++, budget--) {
+        const raw = value[i] ?? ''
+        if (/\s/.test(raw)) continue
+        range.setStart(node, i)
+        range.setEnd(node, i + 1)
+        const rect = range.getBoundingClientRect()
+        if (rect.width === 0 && rect.height === 0) continue
+        const ch = shown(parent, raw)
+        const m = canvas.measureText(ch)
+        const baseline = rect.top + ascent
+        inks.push({ baseline, left: rect.left - m.actualBoundingBoxLeft, right: rect.left + m.actualBoundingBoxRight, top: baseline - m.actualBoundingBoxAscent, bottom: baseline + m.actualBoundingBoxDescent, ch })
+      }
+    }
+    const baselines: number[] = []
+    for (const ink of [...inks].sort((x, y) => x.baseline - y.baseline)) {
+      if (baselines.length === 0 || ink.baseline - (baselines.at(-1) ?? 0) > size * 0.5) baselines.push(ink.baseline)
+    }
+    if (baselines.length < 2) continue
+    const lineOf = (ink: { baseline: number }): number => baselines.findIndex((value) => Math.abs(value - ink.baseline) <= size * 0.5)
+    let worst = 0
+    let pair = ''
+    for (const lower of inks) {
+      const row = lineOf(lower)
+      if (row <= 0) continue
+      for (const upper of inks) {
+        if (lineOf(upper) !== row - 1 || upper.right - 0.5 <= lower.left || lower.right - 0.5 <= upper.left) continue
+        const overlap = upper.bottom + size * 0.02 - lower.top
+        if (overlap > worst) {
+          worst = overlap
+          pair = `"${lower.ch}" touches "${upper.ch}" above`
+        }
+      }
+    }
+    if (worst <= 0) continue
+    const need = Math.ceil(((lineHeight + worst) / size) * 100) / 100
+    crowded.push(`${name(el)}: line-height ${(lineHeight / size).toFixed(2)}, ${pair}; needs ${need.toFixed(2)}`)
+  }
+  if (crowded.length > 0) add('medium', 'vi-line-height', `${crowded.length} headline(s) set Vietnamese marks into the line above`, `${crowded.slice(0, 3).join(' | ')}. Raise line-height to the value given, here and in DESIGN.md`)
+
+  return findings
+}
+
+/* v8 ignore stop -- @preserve */
+
 /** The colours a page really shows, by how much of it they cover. */
 export function paletteChecks(): Array<{ hex: string; share: number; kind: 'surface' | 'text' }> {
   const hexOf = (value: string): string | null => {
@@ -695,6 +924,7 @@ export async function runRuntimeAudit(options: { url: string; cwd: string; viewp
           { evaluate: settleStep(500), label: `settle@${width}` },
           { evaluate: SCROLL_STEP, label: `scroll@${width}` },
           { evaluate: `(${pageChecks.toString()})()`, label: `checks@${width}` },
+          { evaluate: `(${vietnameseChecks.toString()})()`, label: `vietnamese@${width}` },
         ],
         waitForSec: 0.25,
         stepTimeoutMs: 30_000,
@@ -712,7 +942,11 @@ export async function runRuntimeAudit(options: { url: string; cwd: string; viewp
     if (step === undefined || !step.ok) {
       throw new Error(`Runtime check failed at ${width}px: ${step?.error ?? 'no result returned'}`)
     }
-    const found = Array.isArray(step.value) ? (step.value as RuntimeFinding[]) : []
+    const vietnamese = result.outcomes[3]
+    const found = [
+      ...(Array.isArray(step.value) ? (step.value as RuntimeFinding[]) : []),
+      ...(vietnamese?.ok === true && Array.isArray(vietnamese.value) ? (vietnamese.value as RuntimeFinding[]) : []),
+    ]
     for (const finding of found) {
       const key = `${finding.check}|${finding.message}`
       const hit = merged.get(key)
@@ -790,7 +1024,7 @@ export function formatRuntimeReport(audit: RuntimeAudit): string {
   // Honesty: these two limits are real, not boilerplate — say them every run.
   lines.push('')
   const motionChecked = audit.motion === undefined ? '' : 'jank-prone motion, overflow during motion, arrivals on scroll, chart time labels, '
-  lines.push(`checks: overflow, images, names, headings, meta, tap targets (≤480px), focus, contrast (approximate, inherited background), field labels, clipped text, empty space, uneven columns, ${motionChecked}reduced-motion fallback, broken text values, colours against DESIGN.md, console errors.`)
+  lines.push(`checks: overflow, images, names, headings, meta, tap targets (≤480px), focus, contrast (approximate, inherited background), field labels, clipped text, empty space, uneven columns, ${motionChecked}reduced-motion fallback, broken text values, colours against DESIGN.md, Vietnamese glyphs and headline marks (Vietnamese pages only), console errors.`)
   lines.push('not checked: keyboard order — drive the page with web_interact to verify it.')
   return lines.join('\n')
 }

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en" data-recount="off">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline — Q4</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&family=Roboto+Mono:wght@400..600&display=swap">
+<style>
+  :root {
+    --desk: #F1F3F6;
+    --panel: #FBFCFD;
+    --raise: #E7EBF1;
+    --text: #161B26;
+    --text-muted: #525B6B;
+    --cobalt: #2440B0;
+    --on-cobalt: #F7F9FF;
+    --cobalt-soft: #E3E8F8;
+    --won: #135A37;
+    --won-soft: #E3F1E8;
+    --lost: #8A1E12;
+    --lost-soft: #F8E4E1;
+    --risk: #6B4600;
+    --risk-soft: #F6ECD6;
+    --rule: #DCE1E8;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-pill: 999px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --sans: "Inter", system-ui, sans-serif;
+    --mono: "Roboto Mono", ui-monospace, monospace;
+    --dur-fast: 140ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --m-accent: var(--cobalt);
+    --m-surface: var(--cobalt-soft);
+    --m-rise: 32px;
+    --m-arrive: 680ms;
+    --m-gap: 60ms;
+  }
+  * { box-sizing: border-box; }
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  body { margin: 0; background: var(--desk); color: var(--text); font: 400 0.9375rem/1.45 var(--sans); }
+  a { color: var(--cobalt); }
+  :focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .app { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 100vh; }
+  .side { background: var(--panel); padding: var(--space-5) var(--space-4); display: flex; flex-direction: column; gap: var(--space-1); }
+  .brand { font-weight: 700; font-size: 1.125rem; padding: 0 var(--space-3) var(--space-5); }
+  .side a { display: flex; align-items: center; justify-content: space-between; min-height: 40px; padding: 0 var(--space-3); border-radius: var(--radius-sm); color: var(--text); text-decoration: none; font-weight: 500; transition: background-color var(--dur-fast) var(--ease-out); }
+  .side a:hover { background: var(--desk); }
+  .side a[aria-current="page"] { background: var(--cobalt-soft); color: var(--cobalt); font-weight: 600; }
+  .side .me { margin-top: auto; color: var(--text-muted); padding: var(--space-3); }
+
+  main { padding: var(--space-5) var(--space-6) var(--space-6); min-width: 0; }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-5); }
+  .bar h1 { margin: 0; font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
+  .bar h1 span { color: var(--text-muted); font-weight: 500; }
+  .btn {
+    display: inline-flex; align-items: center; min-height: 40px; padding: 0 var(--space-4); border-radius: var(--radius-sm); border: 0;
+    background: var(--cobalt); color: var(--on-cobalt); font: 600 0.9375rem var(--sans); cursor: pointer; text-decoration: none;
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+  .btn:hover { background: var(--text); }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--panel); border-radius: var(--radius-md); margin-bottom: var(--space-4); }
+  .kpis div { padding: var(--space-4) var(--space-5); }
+  .kpis div + div { box-shadow: inset 1px 0 0 var(--rule); }
+  .kpis dt { color: var(--text-muted); font-size: 0.875rem; }
+  .kpis dd { margin: var(--space-1) 0 0; font: 600 1.875rem/1.1 var(--sans); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  .kpis small { display: block; margin-top: var(--space-1); font-size: 0.8125rem; color: var(--won); font-weight: 600; }
+
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--space-4); align-items: start; }
+  .panel { background: var(--panel); border-radius: var(--radius-md); padding: var(--space-4) var(--space-5); }
+  .deals-panel { margin-top: var(--space-4); overflow-x: auto; }
+  .panel h2 { margin: 0 0 var(--space-4); font-size: 1rem; font-weight: 600; }
+
+  .funnel { list-style: none; margin: 0 0 var(--space-4); padding: 0; display: grid; gap: var(--space-3); }
+  .funnel li { display: grid; grid-template-columns: 7rem minmax(0, 1fr) 3rem 5rem; gap: var(--space-4); align-items: center; }
+  .funnel [data-fill] { height: 14px; border-radius: var(--radius-sm); }
+  .funnel .num { text-align: right; }
+
+  .tools { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-3); }
+  .seg { display: flex; gap: var(--space-1); background: var(--desk); padding: var(--space-1); border-radius: var(--radius-sm); flex-wrap: wrap; }
+  .seg button { min-height: 36px; min-width: 44px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: 500 0.875rem var(--sans); cursor: pointer; }
+  .seg button[aria-pressed="true"] { color: var(--cobalt); font-weight: 600; }
+  .tools p { margin: 0; color: var(--text-muted); font-size: 0.875rem; }
+
+  .deals { width: 100%; border-collapse: collapse; }
+  .deals th { text-align: left; font-size: 0.8125rem; font-weight: 600; color: var(--text-muted); padding: var(--space-2) var(--space-3); box-shadow: inset 0 -1px 0 var(--rule); }
+  .deals td { padding: var(--space-3); box-shadow: inset 0 -1px 0 var(--rule); vertical-align: middle; }
+  .deals tr td:first-child { font-weight: 600; }
+  .deals .who { color: var(--text-muted); }
+  .deals td.num, .deals th.r { text-align: right; }
+  .stage { display: inline-block; font-size: 0.75rem; font-weight: 700; padding: 2px var(--space-2); border-radius: var(--radius-pill); background: var(--raise); color: var(--text); white-space: nowrap; }
+  .stage.won { background: var(--won-soft); color: var(--won); }
+  .stage.lost { background: var(--lost-soft); color: var(--lost); }
+  .stage.risk { background: var(--risk-soft); color: var(--risk); }
+
+  .feed ol { list-style: none; margin: 0; padding: 0 0 0 var(--space-5); position: relative; }
+  .feed li { position: relative; padding-bottom: var(--space-4); }
+  .feed .dot { position: absolute; left: calc(var(--space-5) * -1 - 4px); top: 6px; width: 9px; height: 9px; border-radius: var(--radius-pill); background: var(--cobalt); }
+  .feed time { display: block; font: 500 0.8125rem var(--mono); color: var(--text-muted); }
+  .feed p { margin: 2px 0 0; }
+
+  @media (max-width: 1100px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; }
+    .side { flex-direction: row; flex-wrap: wrap; align-items: center; padding: var(--space-3) var(--space-4); }
+    .side a { min-height: 44px; }
+    .brand { padding: 0 var(--space-3) 0 0; }
+    .side .me { display: none; }
+    main { padding: var(--space-4); }
+    .kpis { grid-template-columns: 1fr 1fr; }
+    .kpis div:nth-child(3) { box-shadow: inset 0 1px 0 var(--rule); }
+    .kpis div:nth-child(4) { box-shadow: inset 1px 1px 0 var(--rule); }
+    .seg button, .btn { min-height: 44px; }
+    .funnel li { grid-template-columns: 6rem minmax(0, 1fr) 4.5rem; }
+    .funnel li .n { display: none; }
+    .deals .hide-s { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<div class="app">
+  <nav class="side" aria-label="Main">
+    <div class="brand">Northwind CRM</div>
+    <a href="#top" aria-current="page">Pipeline <span class="num">93</span></a>
+    <a href="#top">Accounts</a>
+    <a href="#top">Activities</a>
+    <a href="#top">Reports</a>
+    <div class="me">Linh Tran · Sales</div>
+  </nav>
+
+  <main>
+    <div class="bar">
+      <h1 data-words>Q4 pipeline <span>· 93 open deals</span></h1>
+      <a class="btn" href="#top" data-load>New deal</a>
+    </div>
+
+    <dl class="kpis" data-load>
+      <div><dt>Open pipeline</dt><dd>$<span data-count>2.84</span>M</dd><small>+$310k this week</small></div>
+      <div><dt>Weighted</dt><dd>$<span data-count>1.12</span>M</dd></div>
+      <div><dt>Win rate, 90 days</dt><dd><span data-count>31</span>%</dd></div>
+      <div><dt>Average cycle</dt><dd><span data-count>46</span> d</dd></div>
+    </dl>
+
+    <div class="grid2">
+      <div>
+        <section class="panel" data-load>
+          <h2>By stage</h2>
+          <ol class="funnel">
+            <li><span>Prospect</span><div data-fill="1"></div><span class="num n">42</span><span class="num">$1.10M</span></li>
+            <li><span>Qualified</span><div data-fill="0.78"></div><span class="num n">27</span><span class="num">$0.86M</span></li>
+            <li><span>Proposal</span><div data-fill="0.49"></div><span class="num n">14</span><span class="num">$0.54M</span></li>
+            <li><span>Negotiation</span><div data-fill="0.31"></div><span class="num n">10</span><span class="num">$0.34M</span></li>
+          </ol>
+        </section>
+
+        <section class="panel deals-panel" data-arrive>
+          <div class="tools">
+            <fieldset class="seg" aria-label="Stage">
+              <button type="button" data-filter="all" aria-pressed="true">All</button>
+              <button type="button" data-filter="proposal" aria-pressed="false">Proposal</button>
+              <button type="button" data-filter="negotiation" aria-pressed="false">Negotiation</button>
+              <button type="button" data-filter="closed" aria-pressed="false">Closed</button>
+            </fieldset>
+            <p><span data-filter-count>8</span> deals</p>
+          </div>
+          <table class="deals">
+            <thead><tr><th>Account</th><th class="hide-s">Owner</th><th>Stage</th><th class="hide-s">Next step</th><th class="r">Value</th></tr></thead>
+            <tbody data-filter-list>
+              <tr data-type="negotiation" data-arrive><td>Halden Logistics</td><td class="who hide-s">Linh Tran</td><td><span class="stage">Negotiation</span></td><td class="hide-s">Legal review, Thu</td><td class="num">$184,000</td></tr>
+              <tr data-type="negotiation" data-arrive><td>Brightwater Clinics</td><td class="who hide-s">Minh Pham</td><td><span class="stage risk">At risk</span></td><td class="hide-s">No reply in 12 days</td><td class="num">$96,500</td></tr>
+              <tr data-type="proposal" data-arrive><td>Oakline Foods</td><td class="who hide-s">Linh Tran</td><td><span class="stage">Proposal</span></td><td class="hide-s">Send pricing v2</td><td class="num">$72,000</td></tr>
+              <tr data-type="proposal" data-arrive><td>Kestrel Energy</td><td class="who hide-s">Huy Nguyen</td><td><span class="stage">Proposal</span></td><td class="hide-s">Demo for CFO, Mon</td><td class="num">$140,000</td></tr>
+              <tr data-type="closed" data-arrive><td>Sato Retail</td><td class="who hide-s">Minh Pham</td><td><span class="stage won">Won</span></td><td class="hide-s">Kick-off booked</td><td class="num">$58,200</td></tr>
+              <tr data-type="proposal" data-arrive><td>Larch &amp; Co</td><td class="who hide-s">Huy Nguyen</td><td><span class="stage risk">At risk</span></td><td class="hide-s">Budget moved to Q1</td><td class="num">$41,000</td></tr>
+              <tr data-type="closed" data-arrive><td>Meridian Labs</td><td class="who hide-s">Linh Tran</td><td><span class="stage lost">Lost</span></td><td class="hide-s">Chose incumbent</td><td class="num">$66,000</td></tr>
+              <tr data-type="negotiation" data-arrive><td>Fernhill Schools</td><td class="who hide-s">Huy Nguyen</td><td><span class="stage">Negotiation</span></td><td class="hide-s">Final terms, Fri</td><td class="num">$52,300</td></tr>
+            </tbody>
+          </table>
+          <p data-filter-empty hidden>No deals in this stage.</p>
+        </section>
+      </div>
+
+      <aside class="panel feed" data-arrive="right">
+        <h2>Today</h2>
+        <ol data-rail>
+          <li data-arrive><span class="dot" data-dot></span><time>16:40</time><p>Sato Retail signed, $58,200.</p></li>
+          <li data-arrive><span class="dot" data-dot></span><time>15:05</time><p>Kestrel Energy moved to Proposal.</p></li>
+          <li data-arrive><span class="dot" data-dot></span><time>13:20</time><p>Call with Halden Logistics, 34 min.</p></li>
+          <li data-arrive><span class="dot" data-dot></span><time>11:00</time><p>Brightwater Clinics flagged at risk.</p></li>
+          <li data-arrive><span class="dot" data-dot></span><time>09:15</time><p>Meridian Labs marked lost.</p></li>
+        </ol>
+      </aside>
+    </div>
+  </main>
+</div>
+<script src="motion.js"></script>
+</body>
+</html>

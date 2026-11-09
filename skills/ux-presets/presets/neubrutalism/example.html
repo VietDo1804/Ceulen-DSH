@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shipyard — preview deploys</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+  :root {
+    --paper: #FFF1C9;
+    --card: #FFFCF2;
+    --ink: #151515;
+    --ink-muted: #4A4536;
+    --tomato: #FF7A59;
+    --tomato-text: #C2361A;
+    --sky: #8FD3FF;
+    --lime: #C6F27A;
+    --rule: 3px;
+    --shadow-block: 6px 6px 0 var(--ink);
+    --shadow-press: 2px 2px 0 var(--ink);
+    --shadow-block-hot: 6px 6px 0 var(--tomato);
+    --radius: 0px;
+    --radius-pill: 999px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 32px;
+    --space-6: 48px;
+    --space-7: 96px;
+    --display: "Archivo", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --dur-fast: 120ms;
+    --dur-base: 200ms;
+    --ease-out: cubic-bezier(0.2, 0.9, 0.1, 1);
+    --m-accent: var(--ink);
+    --m-surface: var(--lime);
+    --m-rise: 32px;
+    --m-arrive: 660ms;
+    --m-gap: 70ms;
+    --m-out: cubic-bezier(0.2, 0.9, 0.1, 1);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 1.0625rem/1.55 var(--display); }
+  a { color: inherit; text-underline-offset: 4px; text-decoration-thickness: 2px; }
+  :focus-visible { outline: var(--rule) solid var(--ink); outline-offset: 3px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; box-shadow: var(--shadow-press); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--space-4); }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) 0; }
+  .logo { font-weight: 900; font-stretch: 125%; font-size: 1.5rem; letter-spacing: -0.02em; text-decoration: none; }
+  .nav ul { display: flex; gap: var(--space-4); list-style: none; margin: 0; padding: 0; font-weight: 600; }
+  .nav a, .logo { display: inline-flex; align-items: center; min-height: 44px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: var(--space-2); min-height: 52px;
+    padding: var(--space-2) var(--space-4); font: 800 1.125rem/1 var(--display);
+    color: var(--ink); background: var(--lime); border: var(--rule) solid var(--ink);
+    border-radius: var(--radius); box-shadow: var(--shadow-block); text-decoration: none; cursor: pointer;
+    transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+  }
+  .btn:hover { background: var(--sky); }
+  .btn:active { transform: translate(4px, 4px); box-shadow: var(--shadow-press); }
+  .btn.quiet { background: var(--card); }
+
+  .hero { position: relative; padding: var(--space-6) 0 var(--space-7); display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--space-6); align-items: center; }
+  .hero h1 { margin: 0; font-weight: 900; font-stretch: 112%; font-size: clamp(3rem, 8vw, 7rem); line-height: 1.3; letter-spacing: -0.035em; }
+  .hero h1 em { font-style: normal; display: inline-block; line-height: 1.3; background: var(--tomato); padding: 0.02em 0.12em 0.06em; border: var(--rule) solid var(--ink); }
+  .hero p { max-width: 40ch; font-size: 1.25rem; color: var(--ink-muted); margin: var(--space-4) 0 var(--space-5); }
+  .actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+
+  /* signature: the deploy ticket, a rotated block with real terminal output */
+  .ticket {
+    background: var(--card); border: var(--rule) solid var(--ink); box-shadow: var(--shadow-block);
+    transform: rotate(-3deg); font-family: var(--mono); font-size: 0.95rem;
+  }
+  .ticket header { background: var(--ink); color: var(--paper); padding: var(--space-2) var(--space-3); font-weight: 700; display: flex; justify-content: space-between; }
+  .ticket ol { list-style: none; margin: 0; padding: var(--space-3); display: grid; gap: var(--space-2); }
+  .ticket li { display: flex; justify-content: space-between; gap: var(--space-3); }
+  .ticket .ok { font-weight: 700; color: var(--tomato-text); }
+  .ticket footer { border-top: var(--rule) solid var(--ink); padding: var(--space-3); font-family: var(--display); font-weight: 800; font-size: 1.5rem; }
+  .ticket-wrap { position: relative; }
+  .stamp {
+    position: absolute; right: calc(var(--space-3) * -1); bottom: calc(var(--space-5) * -1); background: var(--sky); border: var(--rule) solid var(--ink);
+    border-radius: var(--radius-pill); padding: var(--space-2) var(--space-4); font-weight: 800; transform: rotate(6deg);
+  }
+
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); border: var(--rule) solid var(--ink); background: var(--card); box-shadow: var(--shadow-block); }
+  .stats div { padding: var(--space-4); }
+  .stats div + div { border-left: var(--rule) solid var(--ink); }
+  .stats strong { display: block; font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 900; font-stretch: 112%; line-height: 1; }
+  .stats span { color: var(--ink-muted); font-weight: 600; }
+
+  section { padding: var(--space-7) 0 0; }
+  h2 { font-size: clamp(2rem, 4vw, 3.25rem); font-weight: 900; font-stretch: 112%; letter-spacing: -0.03em; line-height: 1.3; margin: 0 0 var(--space-5); }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); list-style: none; margin: 0; padding: 0; }
+  .steps li { border: var(--rule) solid var(--ink); box-shadow: var(--shadow-block); padding: var(--space-4); min-height: 260px; display: flex; flex-direction: column; }
+  .steps li:nth-child(1) { background: var(--lime); }
+  .steps li:nth-child(2) { background: var(--sky); transform: translateY(var(--space-5)); }
+  .steps li:nth-child(3) { background: var(--tomato); }
+  .steps b { font: 900 4rem/1 var(--display); font-stretch: 125%; }
+  .steps h3 { font-size: 1.5rem; font-weight: 800; margin: auto 0 var(--space-2); }
+  .steps p { margin: 0; font-weight: 500; }
+
+  .log { list-style: none; margin: 0; padding: 0; border-top: var(--rule) solid var(--ink); }
+  .log li { display: grid; grid-template-columns: 7rem 1fr auto; gap: var(--space-4); align-items: baseline; padding: var(--space-3) 0; border-bottom: var(--rule) solid var(--ink); }
+  .log time { font-family: var(--mono); font-weight: 700; }
+  .log .tag { font-family: var(--mono); font-size: 0.85rem; font-weight: 700; background: var(--lime); border: 2px solid var(--ink); padding: 0 var(--space-2); }
+  .log .tag.fix { background: var(--sky); }
+
+  .plans { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+  .plan { background: var(--card); border: var(--rule) solid var(--ink); box-shadow: var(--shadow-block); padding: var(--space-5); }
+  .plan.loud { background: var(--ink); color: var(--paper); }
+  .plan.loud .btn { box-shadow: var(--shadow-block-hot); }
+  .plan .price { font: 900 4rem/1 var(--display); font-stretch: 112%; }
+  .plan ul { padding-left: 1.1em; }
+  footer.site { padding: var(--space-7) 0 var(--space-5); font-weight: 600; color: var(--ink-muted); }
+
+  @media (max-width: 860px) {
+    .hero, .plans, .steps { grid-template-columns: 1fr; }
+    .steps li:nth-child(2) { transform: none; }
+    .nav { flex-wrap: wrap; }
+    .nav ul { order: 3; width: 100%; gap: var(--space-3); overflow-x: auto; }
+    .stats { grid-template-columns: 1fr; }
+    .stats div + div { border-left: 0; border-top: var(--rule) solid var(--ink); }
+    .log li { grid-template-columns: 1fr auto; }
+    .log time { grid-column: 1 / -1; }
+    .ticket-wrap { position: relative; }
+  .stamp { right: var(--space-2); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<div class="wrap">
+  <nav class="nav" aria-label="Main">
+    <a class="logo" href="#top">Shipyard</a>
+    <ul><li><a href="#how">How it works</a></li><li><a href="#log">Changelog</a></li><li><a href="#price">Pricing</a></li></ul>
+    <a class="btn quiet" href="#price">Sign in</a>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <h1 data-words>Every pull request gets a <em>real</em> URL.</h1>
+      <p data-load>Shipyard builds each branch into a live preview in under a minute, so reviewers click a link instead of pulling code.</p>
+      <div class="actions" data-load>
+        <a class="btn" href="#price">Start free</a>
+        <a class="btn quiet" href="#how">See how it works</a>
+      </div>
+    </div>
+    <div class="ticket-wrap" data-load>
+      <article class="ticket" data-parallax="0.12">
+        <header><span>PR #482</span><span>feat/checkout</span></header>
+        <ol>
+          <li><span>install</span><span class="ok">9s</span></li>
+          <li><span>build</span><span class="ok">21s</span></li>
+          <li><span>migrate preview db</span><span class="ok">5s</span></li>
+          <li><span>health check</span><span class="ok">3s</span></li>
+        </ol>
+        <footer>Live in <span data-count>38</span>s</footer>
+      </article>
+      <span class="stamp" data-pop>pr-482.shipyard.dev</span>
+    </div>
+  </header>
+
+  <div class="stats" data-load>
+    <div><strong data-count>38</strong><span>seconds, median build to live URL</span></div>
+    <div><strong data-count>12,400</strong><span>previews opened by reviewers last week</span></div>
+    <div><strong data-count>0</strong><span>servers you configure</span></div>
+  </div>
+
+  <section id="how">
+    <h2>Three steps, no YAML.</h2>
+    <ol class="steps">
+      <li data-arrive="left"><b>1</b><h3>Connect the repo</h3><p>Install the GitHub app on one repository or all of them.</p></li>
+      <li data-arrive><b>2</b><h3>Open a pull request</h3><p>Shipyard detects the framework and builds the branch.</p></li>
+      <li data-arrive="right"><b>3</b><h3>Click the link</h3><p>The URL lands in the PR. It sleeps when nobody looks.</p></li>
+    </ol>
+  </section>
+
+  <section id="log">
+    <h2 data-sweep>Changelog</h2>
+    <ul class="log">
+      <li data-arrive><time>Nov 06</time><span>Preview databases seed from a snapshot instead of migrations.</span><span class="tag" data-pop>new</span></li>
+      <li data-arrive><time>Oct 29</time><span>Builds reuse the dependency cache across branches.</span><span class="tag" data-pop>new</span></li>
+      <li data-arrive><time>Oct 21</time><span>Sleeping previews wake in 2s instead of 9s.</span><span class="tag fix" data-pop>fix</span></li>
+      <li data-arrive><time>Oct 14</time><span>Comments on a preview post back to the PR thread.</span><span class="tag" data-pop>new</span></li>
+    </ul>
+  </section>
+
+  <section id="price">
+    <h2>Pricing</h2>
+    <div class="plans">
+      <div class="plan" data-arrive="left">
+        <h3>Hobby</h3><div class="price">$0</div>
+        <ul><li>1 repository</li><li>50 previews a month</li><li>Sleeps after 30 minutes</li></ul>
+        <a class="btn" href="#top">Start free</a>
+      </div>
+      <div class="plan loud" data-arrive="right">
+        <h3>Team</h3><div class="price">$<span data-count>24</span></div>
+        <ul><li>Unlimited repositories</li><li>Preview databases</li><li>SSO and audit log</li></ul>
+        <a class="btn" href="#top">Start a 14-day trial</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site">Shipyard is a fictional product used to show the Neubrutalism preset.</footer>
+</div>
+<script src="motion.js"></script>
+</body>
+</html>

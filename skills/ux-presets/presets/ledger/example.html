@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en" data-recount="off">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Folio — invoices</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400..700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --desk: #F3F1EA;
+    --card: #FCFBF7;
+    --ink: #1C211E;
+    --ink-muted: #5B625D;
+    --green: #1E6B50;
+    --on-green: #F6F4EE;
+    --green-text: #17573F;
+    --paid: #14513A;
+    --paid-soft: #E2EEE7;
+    --overdue: #82251C;
+    --overdue-soft: #F4E3E0;
+    --due: #6A4A08;
+    --due-soft: #F2EAD4;
+    --track: #E4E0D4;
+    --rule: 1.5px solid var(--ink);
+    --hair: 1px solid var(--track);
+    --radius-sm: 3px;
+    --radius-md: 6px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 40px;
+    --sans: "IBM Plex Sans", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --dur-fast: 140ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --m-accent: var(--green);
+    --m-surface: var(--card);
+    --m-rise: 32px;
+    --m-side: 32px;
+    --m-arrive: 700ms;
+    --m-gap: 70ms;
+  }
+  * { box-sizing: border-box; }
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  body { margin: 0; background: var(--desk); color: var(--ink); font: 400 0.9375rem/1.5 var(--sans); }
+  a { color: var(--green-text); }
+  :focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 500; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: var(--space-5); }
+
+  .top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; padding-bottom: var(--space-4); border-bottom: var(--rule); margin-bottom: var(--space-5); }
+  .top h1 { margin: 0; font-size: 1.75rem; font-weight: 700; letter-spacing: -0.015em; }
+  .top p { margin: 0; color: var(--ink-muted); }
+  .btn {
+    display: inline-flex; align-items: center; min-height: 44px; padding: 0 var(--space-5); border: 0; border-radius: var(--radius-md);
+    background: var(--green); color: var(--on-green); font: 600 0.9375rem var(--sans); text-decoration: none; cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out);
+  }
+  .btn:hover { background: var(--ink); }
+
+  .strip { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--card); border: var(--rule); border-radius: var(--radius-md); margin-bottom: var(--space-5); }
+  .strip div { padding: var(--space-4) var(--space-5); }
+  .strip div + div { border-left: var(--rule); }
+  .strip dt { font: 500 0.75rem var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); }
+  .strip dd { margin: var(--space-1) 0 0; font: 600 1.75rem/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+  .strip .bad { color: var(--overdue); }
+
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: var(--space-5); margin-bottom: var(--space-5); }
+  .panel { background: var(--card); border: var(--rule); border-radius: var(--radius-md); padding: var(--space-4) var(--space-5); min-width: 0; }
+  #book { overflow-x: auto; }
+  .panel h2 { margin: 0 0 var(--space-3); font-size: 1rem; font-weight: 700; }
+  .panel h2 span { color: var(--ink-muted); font-weight: 400; }
+
+  .chart svg { display: block; width: 100%; height: 200px; overflow: visible; }
+  .chart path { fill: none; stroke: var(--green); stroke-width: 2.5; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+  .chart line { stroke: var(--track); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .chart [data-axis] { font: 500 0.75rem var(--mono); color: var(--ink-muted); height: 1.6em; }
+  .chart .peak { color: var(--green-text); font-weight: 600; }
+
+  .aging { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-4); }
+  .aging li { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) 5.5rem; gap: var(--space-3); align-items: center; }
+  .aging [data-fill] { height: 10px; border-radius: var(--radius-sm); }
+  .aging li:nth-child(n+3) [data-fill] { --m-tint: var(--overdue); }
+  .aging .num { text-align: right; }
+
+  .tools { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-3); }
+  .tabs { display: flex; gap: var(--space-1); flex-wrap: wrap; }
+  .tabs button { min-height: 40px; min-width: 44px; padding: 0 var(--space-4); border: var(--rule); border-radius: var(--radius-sm); background: var(--card); color: var(--ink); font: 500 0.875rem var(--sans); cursor: pointer; }
+  .tabs button[aria-pressed="true"] { font-weight: 700; color: var(--green-text); }
+  .tools p { margin: 0; color: var(--ink-muted); }
+
+  .book { width: 100%; border-collapse: collapse; }
+  .book th { text-align: left; font: 500 0.75rem var(--mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); padding: var(--space-2) var(--space-3); border-bottom: var(--rule); }
+  .book td { padding: var(--space-3); border-bottom: var(--hair); }
+  .book td.num, .book th.r { text-align: right; }
+  .book td.num:first-child { text-align: left; }
+  .book td.client { min-width: 8rem; }
+  .book .client { font-weight: 600; }
+  .stamp { display: inline-block; font: 700 0.6875rem var(--mono); text-transform: uppercase; letter-spacing: 0.06em; padding: 2px var(--space-2); border-radius: var(--radius-sm); border: 1.5px solid currentColor; }
+  .stamp.paid { color: var(--paid); background: var(--paid-soft); }
+  .stamp.due { color: var(--due); background: var(--due-soft); }
+  .stamp.overdue { color: var(--overdue); background: var(--overdue-soft); transform: rotate(-3deg); }
+
+  @media (max-width: 900px) {
+    .grid2 { grid-template-columns: minmax(0, 1fr); }
+    .strip { grid-template-columns: 1fr 1fr; }
+    .strip div:nth-child(3) { border-left: 0; }
+    .strip div:nth-child(n+3) { border-top: var(--rule); }
+    .book .hide-s { display: none; }
+    .tabs button { min-height: 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<main class="wrap">
+  <header class="top">
+    <div><h1 data-words>Invoices</h1><p data-load>Halvorsen Studio · November</p></div>
+    <a class="btn" href="#book" data-load>New invoice</a>
+  </header>
+
+  <dl class="strip" data-load>
+    <div><dt>Outstanding</dt><dd>$<span data-count>48,250</span></dd></div>
+    <div><dt>Overdue</dt><dd class="bad">$<span data-count>12,400</span></dd></div>
+    <div><dt>Paid this month</dt><dd>$<span data-count>31,900</span></dd></div>
+    <div><dt>Days to pay</dt><dd><span data-count>18</span></dd></div>
+  </dl>
+
+  <div class="grid2">
+    <section class="panel chart" data-load>
+      <h2>Cash in <span>· 12 weeks, $109,200</span></h2>
+      <div data-axis><span class="peak" data-time="12">$13.2k</span></div>
+      <svg data-draw data-start="1" data-end="12" viewBox="0 0 1000 200" preserveAspectRatio="none" role="img" aria-labelledby="cash-title">
+        <title id="cash-title">Cash in per week for 12 weeks, highest in week 12 at 13,200 dollars</title>
+        <line x1="0" x2="1000" y1="200" y2="200"/>
+        <path data-line d="M0.0,120.3 L90.9,95.9 L181.8,130.6 L272.7,74.0 L363.6,107.4 L454.5,52.1 L545.5,111.3 L636.4,86.9 L727.3,40.6 L818.2,83.0 L909.1,63.7 L1000.0,30.3"/>
+      </svg>
+      <div data-axis><span data-time="1">W1</span><span data-time="4">W4</span><span data-time="8">W8</span><span data-time="12">W12</span></div>
+    </section>
+    <section class="panel" data-load>
+      <h2>Ageing</h2>
+      <ol class="aging">
+        <li><span class="num">0–30</span><div data-fill="1"></div><span class="num">$29,350</span></li>
+        <li><span class="num">31–60</span><div data-fill="0.22"></div><span class="num">$6,500</span></li>
+        <li><span class="num">61–90</span><div data-fill="0.31"></div><span class="num">$9,100</span></li>
+        <li><span class="num">90+</span><div data-fill="0.11"></div><span class="num">$3,300</span></li>
+      </ol>
+    </section>
+  </div>
+
+  <section class="panel" id="book" data-arrive>
+    <div class="tools">
+      <fieldset class="tabs" aria-label="Status">
+        <button type="button" data-filter="all" aria-pressed="true">All</button>
+        <button type="button" data-filter="overdue" aria-pressed="false">Overdue</button>
+        <button type="button" data-filter="due" aria-pressed="false">Due</button>
+        <button type="button" data-filter="paid" aria-pressed="false">Paid</button>
+      </fieldset>
+      <p><span data-filter-count>7</span> invoices</p>
+    </div>
+    <table class="book">
+      <thead><tr><th class="hide-s">No.</th><th>Client</th><th class="hide-s">Issued</th><th>Status</th><th class="r">Amount</th></tr></thead>
+      <tbody data-filter-list>
+        <tr data-type="overdue" data-arrive><td class="num hide-s">1047</td><td class="client">Arkade Hotels</td><td class="num hide-s">Aug 28</td><td><span class="stamp overdue" data-pop>Overdue</span></td><td class="num">$3,300</td></tr>
+        <tr data-type="overdue" data-arrive><td class="num hide-s">1052</td><td class="client">Nordlys Ferries</td><td class="num hide-s">Sep 18</td><td><span class="stamp overdue" data-pop>Overdue</span></td><td class="num">$9,100</td></tr>
+        <tr data-type="due" data-arrive><td class="num hide-s">1058</td><td class="client">Brask &amp; Sons</td><td class="num hide-s">Oct 09</td><td><span class="stamp due" data-pop>Due</span></td><td class="num">$6,500</td></tr>
+        <tr data-type="due" data-arrive><td class="num hide-s">1061</td><td class="client">Tidewater Books</td><td class="num hide-s">Oct 24</td><td><span class="stamp due" data-pop>Due</span></td><td class="num">$12,800</td></tr>
+        <tr data-type="due" data-arrive><td class="num hide-s">1063</td><td class="client">Lumen Labs</td><td class="num hide-s">Nov 02</td><td><span class="stamp due" data-pop>Due</span></td><td class="num">$16,550</td></tr>
+        <tr data-type="paid" data-arrive><td class="num hide-s">1059</td><td class="client">Kiln Coffee</td><td class="num hide-s">Oct 12</td><td><span class="stamp paid" data-pop>Paid</span></td><td class="num">$4,200</td></tr>
+        <tr data-type="paid" data-arrive><td class="num hide-s">1060</td><td class="client">Orra Jewellery</td><td class="num hide-s">Oct 20</td><td><span class="stamp paid" data-pop>Paid</span></td><td class="num">$27,700</td></tr>
+      </tbody>
+    </table>
+    <p data-filter-empty hidden>No invoices with this status.</p>
+  </section>
+</main>
+<script src="motion.js"></script>
+</body>
+</html>

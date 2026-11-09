@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harbour Family Clinic — book a visit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400..700&family=Noto+Sans:wght@400;700&display=swap">
+<style>
+  :root {
+    --mist: #F2F6F6;
+    --surface: #FBFDFD;
+    --ink: #14262B;
+    --ink-muted: #4E6166;
+    --teal: #0F6870;
+    --on-teal: #F4FBFB;
+    --teal-soft: #DDEEEE;
+    --teal-ink: #0B5258;
+    --amber: #6E4A00;
+    --amber-soft: #FBF0D9;
+    --line: #D5E2E3;
+    --radius-sm: 10px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    --radius-pill: 999px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 32px;
+    --space-6: 56px;
+    --space-7: 96px;
+    --display: "Lexend", system-ui, sans-serif;
+    --sans: "Noto Sans", system-ui, sans-serif;
+    --dur-fast: 160ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --m-accent: var(--teal);
+    --m-surface: var(--teal-soft);
+    --m-rise: 32px;
+    --m-arrive: 740ms;
+    --m-gap: 80ms;
+    --m-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  * { box-sizing: border-box; }
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  body { margin: 0; background: var(--mist); color: var(--ink); font: 400 1.0625rem/1.6 var(--sans); }
+  a { color: var(--teal); }
+  :focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--space-4); }
+
+  .top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) 0; flex-wrap: wrap; }
+  .logo { font: 600 1.25rem var(--display); color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; }
+  .logo i { width: 22px; height: 22px; border-radius: var(--radius-pill); background: var(--teal); }
+  .phone { font-weight: 700; color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 var(--space-5); border: 0; border-radius: var(--radius-pill);
+    background: var(--teal); color: var(--on-teal); font: 600 1.0625rem var(--display); text-decoration: none; cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+  }
+  .btn:hover { background: var(--ink); }
+  .btn:active { transform: scale(0.98); }
+
+  .hero { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--space-6); align-items: center; padding: var(--space-6) 0; }
+  .hero h1 { margin: 0; font: 600 clamp(2.5rem, 5.5vw, 4.5rem)/1.36 var(--display); letter-spacing: -0.025em; }
+  .hero p { font-size: 1.25rem; color: var(--ink-muted); max-width: 38ch; margin: var(--space-4) 0 var(--space-5); }
+  .soon { background: var(--surface); border-radius: var(--radius-lg); padding: var(--space-5); }
+  .soon h2 { margin: 0 0 var(--space-3); font: 600 1.125rem var(--display); }
+  .week { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-2); }
+  .week li { background: var(--mist); border-radius: var(--radius-sm); padding: var(--space-3) var(--space-2); text-align: center; }
+  .week li.today { background: var(--teal-soft); color: var(--teal-ink); }
+  .week b { display: block; font: 600 1.75rem/1 var(--display); margin: var(--space-1) 0; }
+  .week small { display: block; font-size: 0.875rem; }
+
+  section { padding: var(--space-7) 0 0; }
+  .head { display: flex; justify-content: space-between; align-items: end; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4); }
+  .head h2 { margin: 0; font: 600 clamp(1.75rem, 3.5vw, 2.5rem)/1.36 var(--display); letter-spacing: -0.02em; }
+  .chips { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+  .chips button { min-height: 48px; padding: 0 var(--space-4); border: 2px solid var(--line); border-radius: var(--radius-pill); background: var(--surface); color: var(--ink); font: 700 1rem var(--sans); cursor: pointer; }
+  .chips button[aria-pressed="true"] { border-color: var(--teal); color: var(--teal-ink); }
+
+  .doctors { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+  .doctors li { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto; gap: var(--space-4); align-items: center; background: var(--surface); border-radius: var(--radius-md); padding: var(--space-4); }
+  .doctors h3 { margin: 0; font: 600 1.1875rem var(--display); }
+  .doctors .role { color: var(--ink-muted); }
+  .next { font-weight: 700; }
+  .badge { display: inline-block; font-size: 0.875rem; font-weight: 700; padding: 2px var(--space-3); border-radius: var(--radius-pill); background: var(--teal-soft); color: var(--teal-ink); }
+  .badge.wait { background: var(--amber-soft); color: var(--amber); }
+  .pick { min-height: 48px; padding: 0 var(--space-4); border-radius: var(--radius-pill); border: 2px solid var(--teal); background: var(--surface); color: var(--teal-ink); font: 600 1rem var(--display); cursor: pointer; }
+  .pick:hover { background: var(--teal-soft); }
+
+  .slots { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); }
+  .card { background: var(--surface); border-radius: var(--radius-lg); padding: var(--space-5); }
+  .card h3 { margin: 0 0 var(--space-3); font: 600 1.25rem var(--display); }
+  .times { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+  .times button { min-height: 48px; border: 2px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); font: 700 1rem var(--sans); font-variant-numeric: tabular-nums; cursor: pointer; transition: background-color var(--dur-fast) var(--ease-out); }
+  .times button:hover { background: var(--mist); }
+  .times button[aria-pressed="true"] { background: var(--teal); border-color: var(--teal); color: var(--on-teal); }
+  .waits { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-4); }
+  .waits div { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: var(--space-2); }
+  .waits [data-fill] { height: 10px; border-radius: var(--radius-pill); }
+  footer.site { padding: var(--space-6) 0; color: var(--ink-muted); }
+
+  @media (max-width: 900px) {
+    .hero, .slots { grid-template-columns: minmax(0, 1fr); }
+    .doctors li { grid-template-columns: minmax(0, 1fr) auto; }
+    .doctors .role, .doctors .langs { grid-column: 1; }
+    .times { grid-template-columns: repeat(3, 1fr); }
+    .week { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<div class="wrap">
+  <header class="top">
+    <a class="logo" href="#top"><i></i>Harbour Family Clinic</a>
+    <a class="phone" href="tel:+4723000000">Call 23 00 00 00</a>
+  </header>
+
+  <div class="hero">
+    <div>
+      <h1 data-words>See a doctor this week, not next month.</h1>
+      <p data-load>Choose who you see and when. Appointments are 20 minutes, and children under 16 are seen the same day.</p>
+      <div data-load><a class="btn" href="#doctors">Book a visit</a></div>
+    </div>
+    <div class="soon" data-load>
+      <h2>Free times this week</h2>
+      <ol class="week">
+        <li class="today"><small>Mon</small><b data-count>6</b><small>times</small></li>
+        <li><small>Tue</small><b data-count>11</b><small>times</small></li>
+        <li><small>Wed</small><b data-count>9</b><small>times</small></li>
+        <li><small>Thu</small><b data-count>14</b><small>times</small></li>
+        <li><small>Fri</small><b data-count>4</b><small>times</small></li>
+      </ol>
+    </div>
+  </div>
+
+  <section id="doctors">
+    <div class="head">
+      <h2 data-sweep>Choose a doctor</h2>
+      <fieldset class="chips" aria-label="Kind of care">
+        <button type="button" data-filter="all" aria-pressed="true">Everyone</button>
+        <button type="button" data-filter="gp" aria-pressed="false">Family doctor</button>
+        <button type="button" data-filter="child" aria-pressed="false">Children</button>
+        <button type="button" data-filter="skin" aria-pressed="false">Skin</button>
+      </fieldset>
+    </div>
+    <ul class="doctors" data-filter-list>
+      <li data-type="gp" data-arrive><div><h3>Dr Kari Nilsen</h3><span class="role">Family doctor</span></div><span class="langs">Norwegian, English</span><span class="next">Today 15:40 <span class="badge" data-pop>soonest</span></span><button type="button" class="pick">Choose</button></li>
+      <li data-type="child" data-arrive><div><h3>Dr Amir Haddad</h3><span class="role">Children's doctor</span></div><span class="langs">Norwegian, Arabic</span><span class="next">Tue 09:00</span><button type="button" class="pick">Choose</button></li>
+      <li data-type="gp" data-arrive><div><h3>Dr Linh Vo</h3><span class="role">Family doctor</span></div><span class="langs">Norwegian, Vietnamese</span><span class="next">Tue 13:20</span><button type="button" class="pick">Choose</button></li>
+      <li data-type="skin" data-arrive><div><h3>Dr Petra Lund</h3><span class="role">Skin specialist</span></div><span class="langs">Norwegian, German</span><span class="next">Thu 10:40 <span class="badge wait" data-pop>referral</span></span><button type="button" class="pick">Choose</button></li>
+      <li data-type="child" data-arrive><div><h3>Dr Jonas Berg</h3><span class="role">Children's doctor</span></div><span class="langs">Norwegian, English</span><span class="next">Wed 08:20</span><button type="button" class="pick">Choose</button></li>
+    </ul>
+    <p data-filter-empty hidden>No doctor of this kind has times this week.</p>
+  </section>
+
+  <section>
+    <div class="slots">
+      <div class="card" data-arrive="left">
+        <h3>Dr Kari Nilsen, Monday</h3>
+        <fieldset class="times" aria-label="Time">
+          <button type="button" data-pop aria-pressed="false">13:00</button><button type="button" data-pop aria-pressed="false">13:20</button><button type="button" data-pop disabled>13:40</button><button type="button" data-pop aria-pressed="false">14:20</button>
+          <button type="button" data-pop aria-pressed="false">15:00</button><button type="button" data-pop aria-pressed="true">15:40</button><button type="button" data-pop disabled>16:00</button><button type="button" data-pop aria-pressed="false">16:20</button>
+        </fieldset>
+      </div>
+      <div class="card" data-arrive="right">
+        <h3>Wait in the clinic today</h3>
+        <ul class="waits">
+          <li data-arrive><div><span>Family doctors</span><span>8 min</span></div><span data-fill="0.27"></span></li>
+          <li data-arrive><div><span>Children</span><span>4 min</span></div><span data-fill="0.13"></span></li>
+          <li data-arrive><div><span>Blood tests, walk-in</span><span>30 min</span></div><span data-fill="1"></span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+  <footer class="site">Harbour Family Clinic is a fictional clinic used to show the Care preset.</footer>
+</div>
+<script src="motion.js"></script>
+</body>
+</html>

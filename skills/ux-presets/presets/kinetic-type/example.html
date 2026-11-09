@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Low Tide 2027 — three days on the harbour</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400..800&display=swap">
+<style>
+  :root {
+    --ultra: #2B2FC9;
+    --deep: #1A1C7A;
+    --cream: #F6F1E4;
+    --cream-muted: #C9CBF5;
+    --yellow: #FFD84A;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 32px;
+    --space-6: 56px;
+    --space-7: 120px;
+    --radius-pill: 999px;
+    --display: "Anton", "Arial Narrow", Arial, sans-serif;
+    --sans: "Manrope", system-ui, sans-serif;
+    --dur-fast: 150ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --m-accent: var(--yellow);
+    --m-surface: var(--deep);
+    --m-rise: 32px;
+    --m-side: 32px;
+    --m-arrive: 760ms;
+    --m-gap: 75ms;
+  }
+  * { box-sizing: border-box; }
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  body { margin: 0; background: var(--ultra); color: var(--cream); font: 500 1.0625rem/1.55 var(--sans); }
+  a { color: inherit; text-underline-offset: 4px; }
+  :focus-visible { outline: 3px solid var(--yellow); outline-offset: 3px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 0 var(--space-4); }
+
+  .top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) 0; }
+  .logo { font: 400 1.5rem var(--display); text-transform: uppercase; text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; letter-spacing: 0.01em; }
+  .btn {
+    display: inline-flex; align-items: center; min-height: 48px; padding: 0 var(--space-5); border-radius: var(--radius-pill); border: 0;
+    background: var(--yellow); color: var(--deep); font: 800 1rem var(--sans); text-decoration: none; cursor: pointer;
+    transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+  }
+  .btn:hover { background: var(--cream); }
+  .btn:active { transform: scale(0.97); }
+
+  /* signature: the poster. Type is the image, the word behind it drifts against the scroll */
+  .hero { position: relative; padding: var(--space-6) 0 clamp(10rem, 24vw, 22rem); }
+  .deco { position: absolute; inset: 0; margin: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+  .ghost { position: absolute; right: -3vw; bottom: -0.2em; margin: 0; font: 400 clamp(14rem, 38vw, 34rem)/0.8 var(--display); color: var(--deep); text-transform: uppercase; white-space: nowrap; }
+  .hero .wrap { position: relative; z-index: 1; }
+  .hero h1 { margin: 0; font: 400 clamp(4.5rem, 15vw, 15rem)/1.41 var(--display); text-transform: uppercase; letter-spacing: -0.01em; }
+  .hero h1 .y { color: var(--yellow); }
+  .meta { display: flex; flex-wrap: wrap; gap: var(--space-5); align-items: end; margin-top: var(--space-5); }
+  .meta p { margin: 0; font-size: 1.25rem; font-weight: 700; max-width: 26ch; }
+  .meta span { display: block; color: var(--cream-muted); font-weight: 500; font-size: 1rem; }
+
+  section { padding: var(--space-7) 0 0; }
+  h2 { font: 400 clamp(2.5rem, 6vw, 5rem)/1.41 var(--display); text-transform: uppercase; margin: 0 0 var(--space-5); }
+  .days { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); }
+  .days button {
+    min-height: 48px; padding: 0 var(--space-5); border-radius: var(--radius-pill); border: 2px solid var(--cream);
+    background: transparent; color: var(--cream); font: 700 1rem var(--sans); cursor: pointer;
+  }
+  .days button[aria-pressed="true"] { color: var(--cream); border-color: var(--yellow); }
+
+  .lineup { list-style: none; margin: 0; padding: 0; }
+  .lineup li { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); padding: var(--space-3) 0; box-shadow: 0 -2px 0 var(--deep); flex-wrap: wrap; }
+  .lineup li:nth-child(even) { flex-direction: row-reverse; }
+  .lineup strong { font: 400 clamp(2.75rem, 7.5vw, 7rem)/1.1 var(--display); text-transform: uppercase; }
+  .lineup li.head strong { color: var(--yellow); font-size: clamp(3.5rem, 10vw, 9.5rem); }
+  .lineup span { color: var(--cream-muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .empty { color: var(--cream-muted); }
+
+  .band { background: var(--deep); margin-top: var(--space-7); padding: var(--space-7) 0; }
+  .tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); }
+  .tier { position: relative; padding-top: var(--space-4); box-shadow: 0 -3px 0 var(--cream); }
+  .tier.hot { box-shadow: 0 -3px 0 var(--yellow); }
+  .tier h3 { margin: 0; font: 800 1.25rem var(--sans); }
+  .tier .price { font: 400 clamp(3.5rem, 6vw, 5.5rem)/1 var(--display); margin: var(--space-3) 0; }
+  .tier.hot .price { color: var(--yellow); }
+  .tier p { margin: 0 0 var(--space-4); color: var(--cream-muted); }
+  .left { position: absolute; right: 0; top: var(--space-4); padding: var(--space-1) var(--space-3); border-radius: var(--radius-pill); background: var(--yellow); color: var(--deep); font-weight: 800; font-size: 0.875rem; }
+  footer.site { padding: var(--space-5) 0 var(--space-6); color: var(--cream); background: var(--deep); }
+
+  @media (max-width: 760px) {
+    .tiers { grid-template-columns: 1fr; }
+    .lineup li, .lineup li:nth-child(even) { flex-direction: column; gap: var(--space-1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<div class="wrap">
+  <header class="top">
+    <a class="logo" href="#top">Low Tide</a>
+    <a class="btn" href="#tickets">Tickets</a>
+  </header>
+</div>
+
+<div class="hero">
+  <figure class="deco" aria-hidden="true"><span class="ghost" data-parallax="0.25">Tide</span></figure>
+  <div class="wrap">
+    <h1 data-words>Low Tide <span class="y">2027</span></h1>
+    <div class="meta" data-load>
+      <p>3 days, 4 stages, 41 acts<span>Harbour of Aarhus, 9 to 11 July</span></p>
+      <a class="btn" href="#tickets">Get a weekend pass</a>
+    </div>
+  </div>
+</div>
+
+<section>
+  <div class="wrap">
+    <h2 data-sweep>Lineup</h2>
+    <fieldset class="days" aria-label="Day">
+      <button type="button" data-filter="all" aria-pressed="true">All days</button>
+      <button type="button" data-filter="fri" aria-pressed="false">Friday</button>
+      <button type="button" data-filter="sat" aria-pressed="false">Saturday</button>
+      <button type="button" data-filter="sun" aria-pressed="false">Sunday</button>
+    </fieldset>
+    <ol class="lineup" data-filter-list>
+      <li class="head" data-type="fri" data-arrive="left"><strong>Harbour Lights</strong><span>Fri · 23:00 · Main</span></li>
+      <li data-type="fri" data-arrive="right"><strong>Mira Sol</strong><span>Fri · 21:15 · Main</span></li>
+      <li data-type="sat" data-arrive="left"><strong>The Saltworks</strong><span>Sat · 22:30 · Main</span></li>
+      <li data-type="sat" data-arrive="right"><strong>Okonkwo Brass</strong><span>Sat · 19:00 · Pier</span></li>
+      <li data-type="sat" data-arrive="left"><strong>Fjord Radio</strong><span>Sat · 17:30 · Dock</span></li>
+      <li data-type="sun" data-arrive="right"><strong>Ines &amp; the Undertow</strong><span>Sun · 20:45 · Main</span></li>
+      <li data-type="sun" data-arrive="left"><strong>Kelp</strong><span>Sun · 18:00 · Pier</span></li>
+    </ol>
+    <p class="empty" data-filter-empty hidden>Nobody on that day yet.</p>
+  </div>
+</section>
+
+<div class="band" id="tickets">
+  <div class="wrap">
+    <h2 data-sweep>Tickets</h2>
+    <div class="tiers">
+      <div class="tier" data-arrive><h3>Day pass</h3><div class="price">€<span data-count>79</span></div><p>Any one day, all stages.</p><a class="btn" href="#top">Choose a day</a></div>
+      <div class="tier hot" data-arrive><h3>Weekend</h3><span class="left" data-pop>1,240 left</span><div class="price">€<span data-count>189</span></div><p>All three days, all stages.</p><a class="btn" href="#top">Get a weekend pass</a></div>
+      <div class="tier" data-arrive><h3>Weekend + camping</h3><div class="price">€<span data-count>249</span></div><p>A pitch on the north quay.</p><a class="btn" href="#top">Add camping</a></div>
+    </div>
+  </div>
+</div>
+<footer class="site"><div class="wrap">Low Tide is a fictional festival used to show the Kinetic type preset.</div></footer>
+<script src="motion.js"></script>
+</body>
+</html>
