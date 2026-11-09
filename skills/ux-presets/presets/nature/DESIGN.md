@@ -15,9 +15,9 @@ colors:
   forest: "#24331F"
   forest-text: "#E8EDDF"
 typography:
-  display: { fontFamily: Young Serif, fontWeight: 400, lineHeight: 1.02 }
-  body: { fontFamily: Figtree, fontSize: 1.0625rem, lineHeight: 1.6 }
-  label: { fontFamily: Figtree, fontWeight: 700, fontSize: 0.8125rem }
+  display: { fontFamily: Vollkorn, fontWeight: 400, lineHeight: 1.02 }
+  body: { fontFamily: Nunito Sans, fontSize: 1.0625rem, lineHeight: 1.6 }
+  label: { fontFamily: Nunito Sans, fontWeight: 700, fontSize: 0.8125rem }
 rounded: { sm: 12px, md: 20px, lg: 32px, pill: 999px }
 spacing: { 1: 4px, 2: 8px, 3: 16px, 4: 24px, 5: 32px, 6: 56px, 7: 112px }
 components:
@@ -59,7 +59,7 @@ Not for: developer tools, dense data, anything urgent.
 
 ## Typography
 
-Young Serif for headings, 400 only, sizes 1.25–5.75rem. Figtree for body and
+Vollkorn for headings, 400 only, sizes 1.25–5.75rem. Nunito Sans for body and
 labels. Quantities take `tabular-nums`.
 
 ## Layout

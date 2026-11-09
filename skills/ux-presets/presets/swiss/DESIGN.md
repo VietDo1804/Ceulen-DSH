@@ -8,9 +8,9 @@ colors:
   red: "#BE2219"
   red-text: "#A51C14"
 typography:
-  display: { fontFamily: Schibsted Grotesk, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 0.95 }
-  numeral: { fontFamily: Schibsted Grotesk, fontWeight: 900, letterSpacing: "-0.06em" }
-  body: { fontFamily: Schibsted Grotesk, fontSize: 1.0625rem, lineHeight: 1.5 }
+  display: { fontFamily: Inter Tight, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1.05 }
+  numeral: { fontFamily: Inter Tight, fontWeight: 900, letterSpacing: "-0.06em" }
+  body: { fontFamily: Inter Tight, fontSize: 1.0625rem, lineHeight: 1.5 }
 rounded: { all: 0px }
 spacing: { 1: 4px, 2: 8px, 3: 16px, 4: 24px, 5: 32px, 6: 48px, 7: 112px }
 rules: { structural: "2px solid {colors.ink}", hairline: "1px solid {colors.ink}" }
@@ -47,10 +47,9 @@ Not for: playful consumer brands, children, anything that wants warmth.
 
 ## Typography
 
-One family, Schibsted Grotesk, 400 to 900. Display 800 at −0.04em. Use
-`tabular-nums` only on counts and indexes. In this face tabular figures also
-space out colons, commas and full stops, so leave times (09:30) and running
-text proportional, and never set it on `body`.
+One family, Inter Tight, 400 to 900. Display 800 at −0.04em. Use
+`tabular-nums` only on counts and indexes. Leave times (09:30) and running text
+proportional, and never set it on `body`.
 
 ## Layout
 

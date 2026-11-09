@@ -30,7 +30,8 @@ body { overflow-x: clip; }
 .m-wait.m-in, .m-load { animation: m-rise var(--m-arrive) var(--m-out) backwards; animation-delay: calc(var(--m-n, 0) * var(--m-gap)); }
 
 /* headline, word by word */
-.m-word { display: inline-block; overflow: hidden; padding-bottom: 0.14em; margin-bottom: -0.14em; vertical-align: top; }
+/* The top pad keeps Vietnamese stacked marks (Ấ, Ổ, Ở) inside the clip; only the bottom hides the rising word. */
+.m-word { display: inline-block; overflow: hidden; padding: 0.42em 0 0.14em; margin: -0.42em 0 -0.14em; vertical-align: top; }
 .m-word > span { display: inline-block; animation: m-word 820ms var(--m-out) backwards; animation-delay: calc(120ms + var(--m-w, 0) * 80ms); }
 @keyframes m-word { from { transform: translateY(112%); filter: blur(6px); } }
 

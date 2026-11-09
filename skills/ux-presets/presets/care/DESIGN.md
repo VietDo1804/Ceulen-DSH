@@ -15,8 +15,8 @@ colors:
   line: "#D5E2E3"
 typography:
   display: { fontFamily: Lexend, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.05 }
-  body: { fontFamily: Atkinson Hyperlegible, fontSize: 1.0625rem, lineHeight: 1.6 }
-  label: { fontFamily: Atkinson Hyperlegible, fontWeight: 700 }
+  body: { fontFamily: Noto Sans, fontSize: 1.0625rem, lineHeight: 1.6 }
+  label: { fontFamily: Noto Sans, fontWeight: 700 }
 rounded: { sm: 10px, md: 16px, lg: 24px, pill: 999px }
 spacing: { 1: 4px, 2: 8px, 3: 16px, 4: 24px, 5: 32px, 6: 56px, 7: 96px }
 components:
@@ -57,8 +57,8 @@ Not for: entertainment, fashion, anything that wants drama.
 
 ## Typography
 
-Lexend 600 for headings and buttons, Atkinson Hyperlegible for everything
-read, body 17px. Its slashed zero is deliberate: it tells 0 from O.
+Lexend 600 for headings and buttons, Noto Sans for everything
+read, body 17px. Both draw Vietnamese marks clearly at small sizes.
 
 ## Layout
 

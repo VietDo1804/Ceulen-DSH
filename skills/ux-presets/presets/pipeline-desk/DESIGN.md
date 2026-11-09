@@ -18,10 +18,10 @@ colors:
   risk-soft: "#F6ECD6"
   rule: "#DCE1E8"
 typography:
-  display: { fontFamily: Instrument Sans, fontWeight: 700, fontSize: 1.75rem, letterSpacing: "-0.02em" }
-  body: { fontFamily: Instrument Sans, fontSize: 0.9375rem, lineHeight: 1.45 }
-  number: { fontFamily: Instrument Sans, fontWeight: 600, fontVariantNumeric: tabular-nums }
-  time: { fontFamily: Red Hat Mono, fontWeight: 500, fontSize: 0.8125rem }
+  display: { fontFamily: Inter, fontWeight: 700, fontSize: 1.75rem, letterSpacing: "-0.02em" }
+  body: { fontFamily: Inter, fontSize: 0.9375rem, lineHeight: 1.45 }
+  number: { fontFamily: Inter, fontWeight: 600, fontVariantNumeric: tabular-nums }
+  time: { fontFamily: Roboto Mono, fontWeight: 500, fontSize: 0.8125rem }
 rounded: { sm: 6px, md: 10px, pill: 999px }
 spacing: { 1: 4px, 2: 8px, 3: 12px, 4: 16px, 5: 24px, 6: 32px }
 components:
@@ -63,8 +63,8 @@ Not for: marketing pages, or screens that must look like a brand.
 
 ## Typography
 
-Instrument Sans everywhere. Every number that lines up (money, counts, percents)
-takes `tabular-nums` in the same face. Red Hat Mono only for timestamps.
+Inter everywhere. Every number that lines up (money, counts, percents)
+takes `tabular-nums` in the same face. Roboto Mono only for timestamps.
 Body 15px; table headers 13px muted.
 
 ## Layout

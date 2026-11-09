@@ -9,9 +9,9 @@ colors:
   red: "#931D13"
   on-red: "#F7F1E6"
 typography:
-  display: { fontFamily: Alfa Slab One, fontWeight: 400, lineHeight: 0.95, letterSpacing: "-0.01em" }
+  display: { fontFamily: Alfa Slab One, fontWeight: 400, lineHeight: 1.08, letterSpacing: "-0.01em" }
   body: { fontFamily: Work Sans, fontSize: 1.0625rem, lineHeight: 1.6 }
-  label: { fontFamily: Courier Prime, fontWeight: 700 }
+  label: { fontFamily: Space Mono, fontWeight: 700 }
 rounded: { sm: 4px, frame: 10px }
 spacing: { 1: 4px, 2: 8px, 3: 16px, 4: 24px, 5: 32px, 6: 56px, 7: 104px }
 components:
@@ -50,7 +50,7 @@ Not for: tech products, finance, health.
 ## Typography
 
 Alfa Slab One for the headline, section heads and frame titles. Work Sans for
-reading. Courier Prime 700 for navigation, buttons, prices, frame numbers and
+reading. Space Mono 700 for navigation, buttons, prices, frame numbers and
 small labels.
 
 ## Layout
@@ -74,7 +74,7 @@ roast-day rail draws.
 
 ## Do / Don't
 
-- DO put prices in Courier Prime, right-aligned.
+- DO put prices in Space Mono, right-aligned.
 - DO alternate yellow and red frames, never two of a colour side by side.
 - DON'T add grain, sepia filters, or terracotta.
 - DON'T use the slab for body text or anything under 24px.

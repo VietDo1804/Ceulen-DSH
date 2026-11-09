@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>School of Form — Open Studio Day</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400..800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400..800&display=swap">
 <style>
   :root {
     --paper: #EFEEE9;
@@ -25,7 +25,7 @@
     --space-5: 32px;
     --space-6: 48px;
     --space-7: 104px;
-    --sans: "Jost", "Futura", "Century Gothic", sans-serif;
+    --sans: "Montserrat", "Futura", "Century Gothic", sans-serif;
     --dur-fast: 150ms;
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     --m-accent: var(--red);
@@ -59,7 +59,7 @@
   .btn:active { transform: translate(6px, 6px); box-shadow: 0 0 0 var(--ink); }
 
   .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: var(--space-6); align-items: center; padding: var(--space-6) 0 var(--space-7); }
-  .hero h1 { margin: 0; font-weight: 800; font-size: clamp(3rem, 7.5vw, 7.25rem); line-height: 0.92; text-transform: uppercase; letter-spacing: -0.02em; }
+  .hero h1 { margin: 0; font-weight: 800; font-size: clamp(3rem, 7.5vw, 7.25rem); line-height: 1.1; text-transform: uppercase; letter-spacing: -0.02em; }
   .hero h1 .r { color: var(--red); }
   .hero p { font-size: 1.25rem; max-width: 38ch; color: var(--ink-muted); margin: var(--space-4) 0 var(--space-5); }
   .when { display: flex; gap: var(--space-5); margin-bottom: var(--space-5); font-weight: 600; }
@@ -85,7 +85,7 @@
   .dept p { margin: 0; font-size: 1.125rem; font-weight: 500; }
 
   section { padding: var(--space-7) 0 0; }
-  h2 { font-size: clamp(2.25rem, 5vw, 4rem); font-weight: 800; text-transform: uppercase; line-height: 1; margin: 0 0 var(--space-5); letter-spacing: -0.01em; }
+  h2 { font-size: clamp(2.25rem, 5vw, 4rem); font-weight: 800; text-transform: uppercase; line-height: 1.12; margin: 0 0 var(--space-5); letter-spacing: -0.01em; }
   .filters { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-4); }
   .filters button {
     min-height: 44px; padding: 0 var(--space-4); border: var(--border); background: var(--light); color: var(--ink);
@@ -104,7 +104,7 @@
 
   .band { margin-top: var(--space-7); background: var(--blue); color: var(--light); padding: var(--space-7) 0; }
   .band .wrap { display: grid; grid-template-columns: 1fr auto; gap: var(--space-5); align-items: end; }
-  .band p { margin: 0; font-size: clamp(2rem, 5vw, 4.5rem); font-weight: 800; line-height: 1; text-transform: uppercase; }
+  .band p { margin: 0; font-size: clamp(2rem, 5vw, 4.5rem); font-weight: 800; line-height: 1.12; text-transform: uppercase; }
   footer.site { padding: var(--space-4) 0 var(--space-6); color: var(--ink-muted); }
 
   @media (max-width: 880px) {

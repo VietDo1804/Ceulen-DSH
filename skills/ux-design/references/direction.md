@@ -14,15 +14,19 @@ display, second = body):
 |---|---|---|
 | Editorial / literary / journal | **Newsreader** + **Source Sans 3** | serif display at 500–600, tight leading; body stays quiet |
 | Expedition / outdoors / heritage | **Bricolage Grotesque 800** + **Newsreader** | heavy grotesque display over a serif body reads "printed field guide" |
-| Financial / ledger / legal | **Spline Sans** + **Spline Sans Mono** | mono for every numeral, `tabular-nums`; ruled borders do the branding |
+| Financial / ledger / legal | **IBM Plex Sans** + **IBM Plex Mono** | mono for every numeral, `tabular-nums`; ruled borders do the branding |
 | Technical / infra / dev tool | **IBM Plex Sans** + **IBM Plex Mono** | personality from weight contrast + hairline rules, not decoration |
-| Warm consumer / food / home | **DM Sans** 700–800 display + body | geometric warmth; personality from color + radius + scale |
-| Dense data / dashboard | Spline Sans pair or IBM Plex pair | personality from rhythm and status-color discipline |
+| Warm consumer / food / home | **Be Vietnam Pro** 700–800 display + body | geometric warmth; personality from color + radius + scale |
+| Dense data / dashboard | Inter + Roboto Mono, or the IBM Plex pair | personality from rhythm and status-color discipline |
 
 Cautions: the cream+Fraunces+terracotta and Space-Grotesk-on-dark looks are
 named cliché clusters (see `banned.md`). Off-table picks that still carry voice:
-Archivo, Schibsted Grotesk, Libre Caslon Text, Spectral (displays); Public Sans,
-Instrument Sans, Work Sans, Outfit (bodies).
+Archivo, Inter Tight, Playfair Display, Spectral (displays); Public Sans,
+Onest, Work Sans, Noto Sans (bodies).
+
+Vietnamese copy needs a family with the Google Fonts `vietnamese` subset; every
+family named here has it. Without it, marks break apart (ế renders as ê plus a
+loose accent). Give Vietnamese headlines a line height of at least 1.05.
 
 Numbers that make type feel designed: marketing h1 ≥
 `clamp(2.75rem, 7vw, 6.75rem)` (≈96–108px at 1440 — the hero must dominate at
@@ -76,7 +80,7 @@ with role labels and one real credential line.
 ## Default vs directed
 
 - *Default:* `Inter`, `#111` on `#fff`, `h1{font-size:2.5rem}`, blue button, three equal cards.
-- *Directed (same brief, "ledger" concept):* Spline Sans + mono `tabular-nums`, desk `#F3F1EA`, ruled table borders, one rotated `OVERDUE` stamp badge, forest accent `#1E6B50`.
+- *Directed (same brief, "ledger" concept):* IBM Plex Sans + mono `tabular-nums`, desk `#F3F1EA`, ruled table borders, one rotated `OVERDUE` stamp badge, forest accent `#1E6B50`.
 
 Same effort. One is a page; the other is a template.
 

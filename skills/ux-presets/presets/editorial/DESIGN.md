@@ -8,7 +8,7 @@ colors:
   ink-muted: "#55544F"
   teal: "#0E5C63"
 typography:
-  display: { fontFamily: Instrument Serif, fontWeight: 400, lineHeight: 0.95, letterSpacing: "-0.02em" }
+  display: { fontFamily: Playfair Display, fontWeight: 400, lineHeight: 1.05, letterSpacing: "-0.02em" }
   body: { fontFamily: Source Serif 4, fontSize: 1.1875rem, lineHeight: 1.65 }
   label: { fontFamily: Public Sans, fontWeight: 700, fontSize: 0.9375rem }
 rounded: { all: 0px }
@@ -48,7 +48,7 @@ Not for: apps, dashboards, forms.
 
 ## Typography
 
-Three roles: Instrument Serif for headline, chapter heads, pull quotes and big
+Three roles: Playfair Display for headline, chapter heads, pull quotes and big
 numbers; Source Serif 4 at 19px for body; Public Sans for kickers, bylines,
 navigation and captions. Body measure 40rem.
 

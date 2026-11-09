@@ -13,9 +13,9 @@ colors:
   sale: "#9B1C14"
   sale-soft: "#FCE7E4"
 typography:
-  display: { fontFamily: Bricolage Grotesque, fontWeight: 800, letterSpacing: "-0.035em", lineHeight: 0.98 }
-  body: { fontFamily: Albert Sans, fontSize: 1rem, lineHeight: 1.55 }
-  price: { fontFamily: Albert Sans, fontWeight: 700, fontSize: 1.125rem }
+  display: { fontFamily: Bricolage Grotesque, fontWeight: 800, letterSpacing: "-0.035em", lineHeight: 1.06 }
+  body: { fontFamily: Onest, fontSize: 1rem, lineHeight: 1.55 }
+  price: { fontFamily: Onest, fontWeight: 700, fontSize: 1.125rem }
 rounded: { sm: 8px, md: 14px, pill: 999px }
 spacing: { 1: 4px, 2: 8px, 3: 16px, 4: 24px, 5: 32px, 6: 56px, 7: 96px }
 components:
@@ -54,7 +54,7 @@ Not for: dashboards, long articles.
 ## Typography
 
 Bricolage Grotesque 800 for the hero, section heads and big numbers, tight
-tracking. Albert Sans for everything else. Prices use `tabular-nums`.
+tracking. Onest for everything else. Prices use `tabular-nums`.
 
 ## Layout
 

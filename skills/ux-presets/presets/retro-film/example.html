@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Darkroom Coffee — roastery and café</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Work+Sans:wght@400..700&family=Courier+Prime:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Work+Sans:wght@400..700&family=Space+Mono:wght@400;700&display=swap">
 <style>
   :root {
     --paper: #F1ECE2;
@@ -25,7 +25,7 @@
     --radius-frame: 10px;
     --display: "Alfa Slab One", Rockwell, serif;
     --sans: "Work Sans", system-ui, sans-serif;
-    --mono: "Courier Prime", "Courier New", monospace;
+    --mono: "Space Mono", "Courier New", monospace;
     --dur-fast: 150ms;
     --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     --m-accent: var(--red);
@@ -58,7 +58,7 @@
   .btn.alt:hover { background: var(--paper); }
 
   .hero { padding: var(--space-6) 0 var(--space-6); }
-  .hero h1 { margin: 0; font: 400 clamp(3.25rem, 9vw, 8rem)/0.95 var(--display); letter-spacing: -0.01em; max-width: 12ch; }
+  .hero h1 { margin: 0; font: 400 clamp(3.25rem, 9vw, 8rem)/1.08 var(--display); letter-spacing: -0.01em; max-width: 12ch; }
   .hero h1 span { color: var(--red); }
   .hero p { font-size: 1.25rem; max-width: 40ch; color: var(--brown-muted); margin: var(--space-4) 0 var(--space-5); }
   .actions { display: flex; gap: var(--space-3); flex-wrap: wrap; }
@@ -72,12 +72,12 @@
   .frame:nth-child(even) { background: var(--red); color: var(--on-red); }
   .frame svg { width: 72px; height: 72px; }
   .frame svg circle, .frame svg path { fill: none; stroke: currentColor; stroke-width: 6; stroke-linecap: round; }
-  .frame h3 { margin: 0; font: 400 1.75rem/1.05 var(--display); }
+  .frame h3 { margin: 0; font: 400 1.75rem/1.1 var(--display); }
   .frame small { font: 700 0.9375rem var(--mono); }
   .num-row { display: flex; justify-content: space-between; font: 700 0.875rem var(--mono); color: var(--yellow); padding: 0 var(--space-3); }
 
   section { padding: var(--space-7) 0 0; }
-  h2 { margin: 0 0 var(--space-4); font: 400 clamp(2.25rem, 5vw, 3.75rem)/1 var(--display); }
+  h2 { margin: 0 0 var(--space-4); font: 400 clamp(2.25rem, 5vw, 3.75rem)/1.1 var(--display); }
   .grid2 { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
   .tabs { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-4); }
   .tabs button { min-height: 44px; padding: 0 var(--space-4); border: 2px solid var(--brown); border-radius: var(--radius-sm); background: var(--paper); color: var(--brown); font: 700 0.9375rem var(--mono); cursor: pointer; }

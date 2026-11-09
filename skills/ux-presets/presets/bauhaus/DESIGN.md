@@ -10,9 +10,9 @@ colors:
   blue: "#1C46A8"
   yellow: "#F5CB45"
 typography:
-  display: { fontFamily: Jost, fontWeight: 800, textTransform: uppercase, letterSpacing: "-0.02em", lineHeight: 0.92 }
-  label: { fontFamily: Jost, fontWeight: 700, textTransform: uppercase, letterSpacing: "0.04em", fontSize: 0.9375rem }
-  body: { fontFamily: Jost, fontSize: 1.0625rem, lineHeight: 1.55 }
+  display: { fontFamily: Montserrat, fontWeight: 800, textTransform: uppercase, letterSpacing: "-0.02em", lineHeight: 1.1 }
+  label: { fontFamily: Montserrat, fontWeight: 700, textTransform: uppercase, letterSpacing: "0.04em", fontSize: 0.9375rem }
+  body: { fontFamily: Montserrat, fontSize: 1.0625rem, lineHeight: 1.55 }
 rounded: { square: 0px, circle: 9999px }
 spacing: { 1: 4px, 2: 8px, 3: 16px, 4: 24px, 5: 32px, 6: 48px, 7: 104px }
 elevation: { hard: "6px 6px 0 {colors.ink}" }
@@ -52,7 +52,7 @@ Not for: finance, dense data, long reading.
 
 ## Typography
 
-Jost, the open Futura. Display and labels in capitals at 700–800; body in
+Montserrat, a geometric sans in the Futura line with full Vietnamese. Display and labels in capitals at 700–800; body in
 sentence case at 400–500. Times and counts take `tabular-nums`.
 
 ## Layout

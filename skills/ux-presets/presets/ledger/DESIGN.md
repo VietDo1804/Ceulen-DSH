@@ -17,10 +17,10 @@ colors:
   due-soft: "#F2EAD4"
   track: "#E4E0D4"
 typography:
-  display: { fontFamily: Spline Sans, fontWeight: 700, fontSize: 1.75rem, letterSpacing: "-0.015em" }
-  body: { fontFamily: Spline Sans, fontSize: 0.9375rem, lineHeight: 1.5 }
-  data: { fontFamily: Spline Sans Mono, fontWeight: 500 }
-  label: { fontFamily: Spline Sans Mono, fontWeight: 500, fontSize: 0.75rem, letterSpacing: "0.06em" }
+  display: { fontFamily: IBM Plex Sans, fontWeight: 700, fontSize: 1.75rem, letterSpacing: "-0.015em" }
+  body: { fontFamily: IBM Plex Sans, fontSize: 0.9375rem, lineHeight: 1.5 }
+  data: { fontFamily: IBM Plex Mono, fontWeight: 500 }
+  label: { fontFamily: IBM Plex Mono, fontWeight: 500, fontSize: 0.75rem, letterSpacing: "0.06em" }
 rounded: { sm: 3px, md: 6px }
 spacing: { 1: 4px, 2: 8px, 3: 12px, 4: 16px, 5: 24px, 6: 40px }
 components:
@@ -60,7 +60,7 @@ Not for: marketing pages, playful consumer apps.
 
 ## Typography
 
-Spline Sans for words, Spline Sans Mono for every number, date and invoice
+IBM Plex Sans for words, IBM Plex Mono for every number, date and invoice
 number, always with `tabular-nums`. Column labels are mono capitals at 0.75rem
 with 0.06em tracking.
 
