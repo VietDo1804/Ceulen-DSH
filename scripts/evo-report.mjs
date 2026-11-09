@@ -215,9 +215,42 @@ export function fixOutcomes(entries, fixes, now = new Date()) {
 }
 
 /**
+ * Signatures that share one place to fix. A group is one piece of work: three
+ * wordings of "the edit did not match" are one fix, not three. First match
+ * wins, so the narrow tests come before the broad ones. A signature no test
+ * claims becomes a group of its own, which is the cue to add a row here.
+ */
+export const FIX_GROUPS = [
+  { id: 'edit-freshness', title: 'Edits refused: file not read, or changed since the read', vi: 'Sửa file khi chưa đọc hoặc file đã đổi', where: 'src/modules/repair', test: /file has not been read|file changed since it was read/ },
+  { id: 'edit-match', title: 'Edits that do not match the file', vi: 'Đoạn sửa không khớp nội dung file', where: 'src/modules/repair', test: /hunk is ambiguous|hunk does not match|old_string was not found/ },
+  { id: 'web', title: 'Web tools: step shape, capture scope, crashes', vi: 'Tool web: dạng step, phạm vi chụp, crash', where: 'src/modules/web', test: /\bweb_\w+|capture must stay inside/ },
+  { id: 'classify', title: 'Classify gate refusals', vi: 'Classify gate từ chối lệnh', where: 'src/modules/classifier', note: 'A refusal of a destructive command is the gate working; only "gate unavailable" is a defect.', noteVi: 'Từ chối một lệnh phá huỷ là cổng an toàn chạy đúng; chỉ trường hợp gate không gọi được model mới là lỗi cần sửa.', test: /classify gate/ },
+  { id: 'codemode', title: 'codemode scripts: result shape and return value', vi: 'Script codemode: dạng kết quả và giá trị trả về', where: 'src/modules/codemode/script.ts', test: /is not a function|lossless json|script error|cannot read properties of/ },
+  { id: 'arguments', title: 'Tool calls with wrong or missing arguments', vi: 'Gọi tool sai hoặc thiếu tham số', where: 'src/core/toolguard.ts', test: /invalid arguments|missing required|unknown tool|pass a stylesheet/ },
+  { id: 'paths', title: 'Paths and write access', vi: 'Đường dẫn và quyền ghi', where: 'DSH fs/sandbox (upstream); the error text is in src/modules/repair', test: /: not found$|file access denied|outside the workspace/ },
+]
+
+/** Work-list rows -> fix groups, the group with the most occurrences this week first. */
+export function fixGroups(rows) {
+  const groups = new Map()
+  for (const row of rows) {
+    const known = FIX_GROUPS.find(group => group.test.test(row.signature))
+    const label = row.signature.slice(0, 70)
+    const { id, title, vi, where, note, noteVi } = known ?? { id: `ungrouped:${row.signature}`, title: `Ungrouped: ${label}`, vi: `Chưa phân nhóm: ${label}`, where: '' }
+    const group = groups.get(id) ?? { id, title, vi, where, ...(note === undefined ? {} : { note, noteVi }), week: 0, previous: 0, count: 0, items: [] }
+    group.week += row.week
+    group.previous += row.previous
+    group.count += row.count
+    group.items.push(row)
+    groups.set(id, group)
+  }
+  return [...groups.values()].sort((a, b) => b.week - a.week || b.count - a.count)
+}
+
+/**
  * Split the eligible signatures into what is worth working on now.
  * `work`: still occurring this week and raised inside this repo, most frequent
- * this week first. `quiet`: nothing this week (or nothing since its fix).
+ * this week first; `groups` is the same rows gathered by where they are fixed. `quiet`: nothing this week (or nothing since its fix).
  * `external`: provider incidents. The cumulative threshold alone would keep a
  * long-dead signature at the top of the list forever.
  */
@@ -237,8 +270,10 @@ export function triage(data, outcomes = []) {
     }
   })
   const byWeek = (a, b) => b.week - a.week || b.count - a.count
+  const work = rows.filter(row => row.kind === 'repo' && row.week > 0).sort(byWeek)
   return {
-    work: rows.filter(row => row.kind === 'repo' && row.week > 0).sort(byWeek),
+    work,
+    groups: fixGroups(work),
     quiet: rows.filter(row => row.kind === 'repo' && row.week === 0),
     external: rows.filter(row => row.kind === 'external').sort(byWeek),
   }
@@ -250,19 +285,25 @@ export function reportText(agg, min = 5, lists) {
   const pct = n => (agg.sessions === 0 ? '0' : ((n / agg.sessions) * 100).toFixed(0))
   const candidates = eligibleCandidates(agg, min)
   const cell = text => `\`${text.replace(/\|/g, '\\|')}\``
+  const groups = lists?.groups ?? (lists === undefined ? [] : fixGroups(lists.work))
   const work = lists === undefined
     ? []
     : [
-        `## work list (${lists.work.length} live this week, raised inside this repo)`,
+        `## fix groups (${groups.length} groups, ${lists.work.length} signatures live this week, raised inside this repo)`,
         '',
-        ...(lists.work.length > 0
-          ? [
+        ...(groups.length > 0
+          ? groups.flatMap((group, index) => [
+              `### ${index + 1}. ${group.title}`,
+              '',
+              `${group.week} this week · ${group.previous} the week before · ${group.count} total${group.where === '' ? '' : ` · fix in ${group.where}`}`,
+              ...(group.note === undefined ? [] : [group.note]),
+              '',
               '| this week | week before | total | sessions | signature |',
               '|---|---|---|---|---|',
-              ...lists.work.map(item => `| ${item.week} | ${item.previous} | ${item.count} | ${item.sessions} | ${cell(item.signature)} |`),
-            ]
-          : ['- nothing live: every eligible signature is quiet this week or is a provider incident.']),
-        '',
+              ...group.items.map(item => `| ${item.week} | ${item.previous} | ${item.count} | ${item.sessions} | ${cell(item.signature)} |`),
+              '',
+            ])
+          : ['- nothing live: every eligible signature is quiet this week or is a provider incident.', '']),
         `Left out: ${lists.quiet.length} quiet this week, ${lists.external.length} provider incidents.`,
         '',
       ]
@@ -294,26 +335,36 @@ export function reportText(agg, min = 5, lists) {
   ].join('\n')
 }
 
-const PACKET_ITEMS = 8
+const PACKET_GROUPS = 6
+const PACKET_SIGNATURES = 4
 
 /**
  * Pure: aggregate -> promotion packet for the model to turn into rules.
- * With `lists` (see `triage`) the packet carries only the work list: a model
+ * With `lists` (see `triage`) the packet carries only the fix groups: a model
  * shown provider outages and long-dead signatures drafts rules for them.
  */
 export function promotionText(agg, min = 5, lists) {
   min = Math.max(5, min)
   const candidates = eligibleCandidates(agg, min)
-  const items = lists === undefined ? candidates : lists.work.slice(0, PACKET_ITEMS)
+  const evidence = item => [`signature: \`${item.signature}\``, `first seen: ${item.first.slice(0, 10)}  last seen: ${item.last.slice(0, 10)}`, `example: ${item.example}`, '']
+  const groups = lists === undefined ? [] : (lists.groups ?? fixGroups(lists.work)).slice(0, PACKET_GROUPS)
+  const body = lists === undefined
+    ? candidates.flatMap((item, index) => [`## ${index + 1}. ${item.count}× across ${item.sessions} sessions`, '', ...evidence(item)])
+    : groups.flatMap((group, index) => [
+        `## ${index + 1}. ${group.title} — ${group.week}× this week${group.where === '' ? '' : ` · fix in ${group.where}`}`,
+        '',
+        ...(group.note === undefined ? [] : [group.note, '']),
+        ...group.items.slice(0, PACKET_SIGNATURES).flatMap(item => [`${item.week}× this week · ${item.count}× across ${item.sessions} sessions`, ...evidence(item)]),
+      ])
   return [
     `# evo promotion packet — ${stamp()}`,
     '',
     `Evidence window: ${agg.first || '?'} → ${agg.last || '?'} (${agg.sessions} sessions, ${agg.failures} failures).`,
     `Qualified candidates: ${candidates.length}`,
-    ...(lists === undefined ? [] : [`Work list: ${lists.work.length} live this week and raised inside this repo (${items.length} shown; ${lists.quiet.length} quiet and ${lists.external.length} provider incidents left out).`]),
+    ...(lists === undefined ? [] : [`Work list: ${lists.work.length} live this week and raised inside this repo, in ${(lists.groups ?? fixGroups(lists.work)).length} fix groups (${groups.length} shown; ${lists.quiet.length} quiet and ${lists.external.length} provider incidents left out).`]),
     'Rule: >= 5 occurrences across >= 3 distinct sessions. Audit and propose only; never apply automatically. A proposed rule requires a passing probe and valid scope before application.',
     '',
-    'For each item write ONE of: a sticky rule line for `$DSH_HOME/ceulen/RULES.md` (`## Learnings (auto)` section),',
+    `For each ${lists === undefined ? 'item' : 'group'} write ONE of: a sticky rule line for \`$DSH_HOME/ceulen/RULES.md\` (\`## Learnings (auto)\` section),`,
     'a skill, or a script fix. If it is not fixable by a rule, say so and drop it. Prefer a script fix when the tool itself raises the error.',
     '',
     'Every proposed line under `## Add to RULES.md` MUST carry a scope tag:',
@@ -321,15 +372,8 @@ export function promotionText(agg, min = 5, lists) {
     '- `- scope: domain — <rule naming this repo>` lands in `<repo>/.dsh/RULES.md` and applies here only.',
     'An invariant line may not contain an absolute path, a repo file name, or an import from this repo.',
     '',
-    ...items.flatMap((item, index) => [
-      `## ${index + 1}. ${item.week === undefined ? '' : `${item.week}× this week · `}${item.count}× across ${item.sessions} sessions`,
-      '',
-      `signature: \`${item.signature}\``,
-      `first seen: ${item.first.slice(0, 10)}  last seen: ${item.last.slice(0, 10)}`,
-      `example: ${item.example}`,
-      '',
-    ]),
-    items.length === 0 ? (lists === undefined ? 'No candidate crossed the threshold.\n' : 'Nothing live to draft this week.\n') : '',
+    ...body,
+    body.length === 0 ? (lists === undefined ? 'No candidate crossed the threshold.\n' : 'Nothing live to draft this week.\n') : '',
   ].join('\n')
 }
 

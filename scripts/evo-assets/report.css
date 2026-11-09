@@ -114,6 +114,11 @@ dd { margin: 0; font-size: var(--text-xl); font-weight: 700; }
 .signatures li { padding-block: var(--space-4); border-top: 1px solid var(--rule); }
 .message, .draft, code, .archives a { overflow-wrap: anywhere; }
 .evidence { margin-bottom: var(--space-2); }
+/* One fix group: a heavier rule above, its signatures listed beneath. */
+.group { border-top: var(--space-1) solid var(--rule-strong); margin-block: var(--space-6) 0; }
+.group h3 { margin-block: var(--space-4) var(--space-2); }
+.group .index { color: var(--accent-ink); margin-inline-end: var(--space-2); }
+.group .signatures { margin-inline-start: var(--space-5); }
 /* Week-over-week numbers: the label wraps, the figures stay on one line. */
 .metrics { width: 100%; border-collapse: collapse; margin-block: 0 var(--space-5); }
 .metrics th, .metrics td { padding: var(--space-3) var(--space-4) var(--space-3) 0; border-top: 1px solid var(--rule); text-align: start; vertical-align: top; font-weight: 400; }
