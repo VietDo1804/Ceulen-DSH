@@ -52,7 +52,7 @@ Not for: finance, dense data, long reading.
 
 ## Typography
 
-Montserrat, a geometric sans in the Futura line with full Vietnamese. Display and labels in capitals at 700–800; body in
+Montserrat, a geometric sans in the Futura line with full Vietnamese. Fall back to system-ui and Arial, never Futura or Century Gothic: they have no Vietnamese. Display and labels in capitals at 700–800; body in
 sentence case at 400–500. Times and counts take `tabular-nums`.
 
 ## Layout

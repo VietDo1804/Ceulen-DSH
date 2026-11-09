@@ -26,7 +26,10 @@ Onest, Work Sans, Noto Sans (bodies).
 
 Vietnamese copy needs a family with the Google Fonts `vietnamese` subset; every
 family named here has it. Without it, marks break apart (ế renders as ê plus a
-loose accent). Vietnamese marks stacked on a capital reach 1.0–1.2em above the baseline, so a
+loose accent). The fallbacks need it too, because they show while the web font
+loads: "Times New Roman" for serif, system-ui or Arial for sans, "Courier New"
+for mono, never Georgia, Futura, Didot or Rockwell. One family per role: never
+combine two fonts with `unicode-range` so one word mixes two designs. Vietnamese marks stacked on a capital reach 1.0–1.2em above the baseline, so a
 headline's line height must be above that for its font: about 1.2 for Playfair
 Display or a heavy slab, 1.1 for most grotesques.
 

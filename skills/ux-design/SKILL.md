@@ -58,10 +58,12 @@ elevations, and the state contract before any screen is written.
 Scale to the task: internal single-file tool → one-line brief; user-facing
 product UI → full brief. The gates are the same either way.
 
-Write the page's copy in English unless the request asks for another language
-("in Vietnamese", "bằng tiếng Việt"). The language the request is written in
-is not such a request. For a Vietnamese page, `ux_audit` checks that every font
-has Vietnamese glyphs and that headlines leave room for the marks.
+Write the page's copy in English unless the request names another language:
+"in Vietnamese", "bằng tiếng Việt", "viết tiếng Việt". Nothing else counts. A
+request written in Vietnamese, a business in Vietnam, Vietnamese customers or
+Vietnamese names do not: English is this module's default even for a page whose
+readers are Vietnamese. Keep proper names as they are ("Ba Râu", "Hàng Đồng"). For a Vietnamese
+page, `ux_audit` checks its fonts, fallbacks and headline line heights.
 
 ### Step 1.5 — Derive a direction (before any markup)
 

@@ -14,7 +14,7 @@ colors:
   error: "#A4271D"
   focus: "#FFDD00"
 typography:
-  display: { fontFamily: Public Sans, fontWeight: 800, letterSpacing: "-0.01em", lineHeight: 1.12 }
+  display: { fontFamily: Public Sans, fontWeight: 800, letterSpacing: "-0.01em", lineHeight: 1.16 }
   body: { fontFamily: Public Sans, fontSize: 1.1875rem, lineHeight: 1.5 }
   label: { fontFamily: Public Sans, fontWeight: 700, fontSize: 1.1875rem }
 rounded: { all: 0px }

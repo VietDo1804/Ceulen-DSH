@@ -74,8 +74,9 @@ markup working together. Build your own page in that shape:
 - Write your own content. The signature element comes from your subject, in the
   form the preset's Signature section describes.
 - Add your `Direction:` line under the frontmatter of `DESIGN.md`.
-- Keep the preset's fonts. Each one has Vietnamese glyphs; a font from outside
-  the preset may not, and then marks like ế break apart.
+- Keep the preset's fonts and their fallbacks. Each one has Vietnamese glyphs; a
+  font from outside the preset may not, and then marks like ế break apart.
+  Georgia, Futura, Didot and Rockwell have none, so never put them in a stack.
 - Keep the preset's headline line height or raise it, never lower it. It is set
   so marks stacked on a capital (Ổ, Ấ) stay clear of the line above.
 

@@ -311,9 +311,13 @@ export function pageChecks(): RuntimeFinding[] {
  *   `unicode-range` says what it covers (Google Fonts serves a `vietnamese`
  *   subset only for families that have one); any other font is compared
  *   against two different fallbacks, which agree only when it drew the letter.
- * - `vi-line-height`: a wrapped headline whose line height is below the
- *   height of the marks on its later lines, so Ổ on line two touches line one
- *   and Ấn reads as Ận.
+ * - `vi-fallback`: a fallback font with no Vietnamese (Georgia, Futura…): while
+ *   the web font loads, or if it fails, ầ shows as "â`".
+ * - `vi-mixed-font`: one family drawn by two typefaces, Vietnamese letters from
+ *   one and the rest from another, so a word mixes designs.
+ * - `vi-line-height`: a wrapped headline where a mark reaches past the
+ *   baseline of the letter above it, into its body, so Ấn reads as Ận.
+ *   Touching a descender, dot below or comma is accepted display setting.
  */
 // Runs in Chrome via toString(), so Node coverage cannot see it; the runtime
 // tests in test/ux-review.test.ts drive every branch that matters.
@@ -339,7 +343,7 @@ export async function vietnameseChecks(): Promise<RuntimeFinding[]> {
   const name = (el: Element): string => el.tagName.toLowerCase() + (typeof el.className === 'string' && el.className.trim() !== '' ? `.${el.className.trim().split(/\s+/)[0]}` : '')
 
   // Letters outside ASCII, per first-choice font, with the generic family the stack falls to.
-  const groups = new Map<string, { family: string; font: string; generic: string; chars: Set<string> }>()
+  const groups = new Map<string, { family: string; font: string; full: string; fallbacks: string[]; generic: string; chars: Set<string> }>()
   const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT)
   for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
     const parent = node.parentElement
@@ -354,7 +358,8 @@ export async function vietnameseChecks(): Promise<RuntimeFinding[]> {
     const key = `${family}|${style.fontWeight}|${style.fontStyle}`
     let group = groups.get(key)
     if (group === undefined) {
-      group = { family, font: `${style.fontStyle} ${style.fontWeight} 48px "${family}"`, generic, chars: new Set() }
+      const fallbacks = stack.slice(1).filter((part) => part !== '' && !GENERIC.test(part))
+      group = { family, font: `${style.fontStyle} ${style.fontWeight} 48px "${family}"`, full: `${style.fontStyle} ${style.fontWeight} 48px ${style.fontFamily}`, fallbacks, generic, chars: new Set() }
       groups.set(key, group)
     }
     for (const ch of text) if (/[\u0080-\uFFFF]/.test(ch) && /\p{L}/u.test(ch)) group.chars.add(shown(parent, ch))
@@ -413,44 +418,110 @@ export async function vietnameseChecks(): Promise<RuntimeFinding[]> {
     add('high', 'vi-glyphs', `Vietnamese letters fall back to another font: ${families.map((family) => `"${family}"`).join(', ')} ${families.length === 1 ? 'has' : 'have'} no Vietnamese glyphs`, `${detail}. Load the family with its vietnamese subset, change the font name in DESIGN.md to match, then audit again`)
   }
 
-  // Headlines that wrap: the marks on line two and later must stay below line one.
+  // A stack whose fallback has no Vietnamese shows "â`" for ầ while the web
+  // font loads (display=swap), or for good if it never arrives. Desktop
+  // system fonts the audit machine may not have, so judged by name.
+  const NO_VIETNAMESE = new Set(['georgia', 'didot', 'futura', 'century gothic', 'rockwell', 'bodoni 72', 'baskerville', 'optima', 'hoefler text', 'american typewriter', 'big caslon'])
+  const weakFallbacks = new Set<string>()
+  for (const group of groups.values()) {
+    if (![...group.chars].some((ch) => VIET.test(ch))) continue
+    for (const part of group.fallbacks) if (NO_VIETNAMESE.has(part.toLowerCase())) weakFallbacks.add(part)
+  }
+  if (weakFallbacks.size > 0) {
+    const names = [...weakFallbacks].map((part) => `"${part}"`).join(', ')
+    add('medium', 'vi-fallback', `The font stack falls back to ${names}, which has no Vietnamese letters: until the web font loads, or if it fails, ầ shows as "â\`"`, 'Put a fallback with Vietnamese in its place: "Times New Roman" for serif, Arial or system-ui for sans, "Courier New" for mono. Change the CSS and DESIGN.md')
+  }
+
+  // One family drawn by two typefaces: Vietnamese letters from one font, the
+  // rest from another (a unicode-range composite, or a fallback per letter).
+  // A dot below changes neither the top of a letter nor its width, so ạ and a
+  // measure alike in one design and apart across two.
+  const PAIRS = ['aạ', 'eẹ', 'oọ', 'uụ', 'yỵ', 'AẠ', 'EẸ', 'OỌ', 'UỤ']
+  const mixed: string[] = []
+  for (const group of groups.values()) {
+    if (canvas === null || missingBy.has(group.family) || ![...group.chars].some((ch) => VIET.test(ch)) || mixed.some((line) => line.startsWith(`"${group.family}"`))) continue
+    try {
+      await Promise.race([document.fonts.load(group.full, PAIRS.join('')), new Promise((done) => setTimeout(done, 3000))])
+    } catch {
+      // Measured as it renders.
+    }
+    canvas.font = group.full
+    let apart = 0
+    let sample = ''
+    for (const pair of PAIRS) {
+      const [plain, dotted] = [...pair]
+      const a = canvas.measureText(plain ?? '')
+      const b = canvas.measureText(dotted ?? '')
+      if (Math.abs(a.actualBoundingBoxAscent - b.actualBoundingBoxAscent) > 1 || Math.abs(a.width - b.width) > 1) {
+        apart++
+        if (sample === '') sample = `${dotted} is ${Math.round(b.actualBoundingBoxAscent)}px tall and ${Math.round(b.width)}px wide, ${plain} ${Math.round(a.actualBoundingBoxAscent)}px and ${Math.round(a.width)}px at 48px`
+      }
+    }
+    if (apart >= 2) mixed.push(`"${group.family}": ${sample}`)
+  }
+  if (mixed.length > 0) {
+    add('high', 'vi-mixed-font', `Vietnamese letters are drawn by a different typeface than the letters around them in ${mixed.length} font(s), so one word mixes two designs`, `${mixed.slice(0, 2).join(' | ')}. Use one family that has Vietnamese for this text; never assemble one from two fonts with unicode-range. If the request named a font without Vietnamese, use the closest family that has it and say why in your report`)
+  }
+
+  // Wrapped headlines: a mark on one line must stay below the baseline of the
+  // letter above it, or it runs into that letter's body and Ấn reads as Ận.
+  // Meeting a descender, a dot below or a comma is ordinary Vietnamese display
+  // setting and passes. Each letter is measured in its own font, so an italic
+  // run is judged as italic, and only letters that sit over each other count.
   const crowded: string[] = []
-  for (const el of Array.from(document.querySelectorAll('h1, h2, h3, [data-words]'))) {
-    if (!visible(el) || !VIET.test(el.textContent ?? '')) continue
+  for (const el of Array.from(document.querySelectorAll('h1, h2, h3, h4, [data-words]'))) {
+    if (canvas === null || !visible(el) || !VIET.test(el.textContent ?? '')) continue
     const style = getComputedStyle(el)
     const size = parseFloat(style.fontSize)
     const lineHeight = parseFloat(style.lineHeight)
     if (!Number.isFinite(lineHeight) || size < 20) continue
-    const box = el.getBoundingClientRect()
-    if (box.height < lineHeight * 1.6) continue
-    const later = new Set<string>()
+    const inks: Array<{ baseline: number; left: number; right: number; top: number; ch: string }> = []
     const range = document.createRange()
     const texts = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
-    let budget = 400
+    let budget = 600
     for (let node = texts.nextNode(); node !== null && budget > 0; node = texts.nextNode()) {
+      const parent = node.parentElement
+      if (parent === null) continue
+      const own = getComputedStyle(parent)
+      canvas.font = `${own.fontStyle} ${own.fontWeight} ${own.fontSize} ${own.fontFamily}`
+      const ascent = canvas.measureText('H').fontBoundingBoxAscent
       const value = node.nodeValue ?? ''
       for (let i = 0; i < value.length && budget > 0; i++, budget--) {
-        const ch = value[i] ?? ''
-        if (!/\p{L}/u.test(ch)) continue
+        const raw = value[i] ?? ''
+        if (/\s/.test(raw)) continue
         range.setStart(node, i)
         range.setEnd(node, i + 1)
         const rect = range.getBoundingClientRect()
-        if (rect.height > 0 && rect.top > box.top + lineHeight * 0.6 && node.parentElement !== null) later.add(shown(node.parentElement, ch))
+        if (rect.width === 0 && rect.height === 0) continue
+        const ch = shown(parent, raw)
+        const m = canvas.measureText(ch)
+        const baseline = rect.top + ascent
+        inks.push({ baseline, left: rect.left - m.actualBoundingBoxLeft, right: rect.left + m.actualBoundingBoxRight, top: baseline - m.actualBoundingBoxAscent, ch })
       }
     }
-    if (later.size === 0 || canvas === null) continue
-    canvas.font = `${style.fontStyle} ${style.fontWeight} 100px ${style.fontFamily}`
-    let top = 0
-    let tallest = ''
-    for (const ch of later) {
-      const ascent = canvas.measureText(ch).actualBoundingBoxAscent / 100
-      if (ascent > top) {
-        top = ascent
-        tallest = ch
+    const baselines: number[] = []
+    for (const ink of [...inks].sort((x, y) => x.baseline - y.baseline)) {
+      if (baselines.length === 0 || ink.baseline - (baselines.at(-1) ?? 0) > size * 0.5) baselines.push(ink.baseline)
+    }
+    if (baselines.length < 2) continue
+    const lineOf = (ink: { baseline: number }): number => baselines.findIndex((value) => Math.abs(value - ink.baseline) <= size * 0.5)
+    let worst = 0
+    let pair = ''
+    for (const lower of inks) {
+      const row = lineOf(lower)
+      if (row <= 0) continue
+      for (const upper of inks) {
+        if (lineOf(upper) !== row - 1 || upper.right - 0.5 <= lower.left || lower.right - 0.5 <= upper.left) continue
+        const overlap = upper.baseline + size * 0.02 - lower.top
+        if (overlap > worst) {
+          worst = overlap
+          pair = `"${lower.ch}" reaches into "${upper.ch}" above`
+        }
       }
     }
-    const need = Math.ceil((top + 0.03) * 100) / 100
-    if (lineHeight / size < need - 0.005) crowded.push(`${name(el)}: line-height ${(lineHeight / size).toFixed(2)}, "${tallest}" needs ${need.toFixed(2)}`)
+    if (worst <= 0) continue
+    const need = Math.ceil(((lineHeight + worst) / size) * 100) / 100
+    crowded.push(`${name(el)}: line-height ${(lineHeight / size).toFixed(2)}, ${pair}; needs ${need.toFixed(2)}`)
   }
   if (crowded.length > 0) add('medium', 'vi-line-height', `${crowded.length} headline(s) set Vietnamese marks into the line above`, `${crowded.slice(0, 3).join(' | ')}. Raise line-height to the value given, here and in DESIGN.md`)
 

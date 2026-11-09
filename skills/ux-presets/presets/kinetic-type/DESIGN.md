@@ -8,7 +8,7 @@ colors:
   cream-muted: "#C9CBF5"
   yellow: "#FFD84A"
 typography:
-  display: { fontFamily: Anton, textTransform: uppercase, lineHeight: 1.2, sizes: "4.5–15rem hero, 2.75–7rem rows" }
+  display: { fontFamily: Anton, textTransform: uppercase, lineHeight: 1.24, sizes: "4.5–15rem hero, 2.75–7rem rows" }
   body: { fontFamily: Manrope, fontWeight: 500, fontSize: 1.0625rem, lineHeight: 1.55 }
   label: { fontFamily: Manrope, fontWeight: 700 }
 rounded: { pill: 999px, else: 0px }
