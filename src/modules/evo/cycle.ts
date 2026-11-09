@@ -27,8 +27,16 @@ export function routesFor(agent: AgentLike | undefined): LlmRoute[] {
     : agent?.options.provider !== undefined && agent.options.model !== undefined
       ? { provider: agent.options.provider, model: agent.options.model }
       : undefined
+  // A fallback equal to the primary would only repeat the same failure.
+  const seen = new Set<string>()
   return [primary, ...settings.evo.fallbacks.map(parseRoute)]
     .filter((route): route is LlmRoute => route !== undefined)
+    .filter(route => {
+      const key = `${route.provider}/${route.model}:${route.reasoningEffort ?? ''}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
     .map(withSession)
 }
 
@@ -49,9 +57,9 @@ function cycleTask(reportFile: string): string {
     'You are the evo cycle worker. Turn this week of session evidence into shipped fixes.',
     '',
     `Evidence: ${reportFile}`,
-    'Read it, then work the "top signatures" table.',
+    'Read it, then work the "work list" table: signatures past the threshold (count >= 5 AND sessions >= 3) that still occurred this week and are raised inside this repo.',
     '',
-    '1. Pick up to 3 signatures with count >= 5 AND sessions >= 3. Skip incident-specific ones (one provider outage, one broken checkout, a single session) — they are not fixable.',
+    '1. Pick up to 3 from the work list, highest "this week" first. Skip a row that is a safety gate doing its job or is incident-specific (one broken checkout, a single session) — those are not fixable. An empty work list means there is nothing to fix: say so and stop.',
     '2. For each: find the root cause in this repo (the tool that raises the message), fix it where ALL callers route through, and leave ONE runnable check (a vitest case or an assert-based self-check). Fix the cause, not the message.',
     '3. Run `npm run check` (tsc + vitest + bundle check). If a fix leaves it red, revert that fix — never leave the tree broken.',
     '4. Store verified durable lessons in Munin (the primary memory): `munin_search` for a near-duplicate first, then `munin_store` once. Never a second copy through `agentmem_store` — that is the Pi replica, refreshed from the cloud. Tags `type:bug-fix,domain:<area>`. No session summaries, no TODOs, no unverified guesses.',
@@ -79,17 +87,45 @@ const EVO_SYSTEM = [
   'An invariant line must not name an absolute path, a repo file, or a repo import.',
 ].join('\n')
 
-export async function askEvo(ctx: PluginContext, routes: readonly LlmRoute[], packet: string, signal: AbortSignal): Promise<string> {
+/** Reasoning is billed against the same budget as the reply, so the cap must leave room for both. */
+const EVO_MAX_TOKENS = 8_000
+
+export interface EvoDraft {
+  text: string
+  /** The reply hit the token cap: its unfinished last line was dropped. */
+  truncated: boolean
+  route: LlmRoute
+}
+
+/**
+ * Ask each route in turn for the draft. A reply cut at the token cap is kept
+ * without its unfinished last line and flagged; a route that spent the whole
+ * budget thinking is asked once more without a reasoning effort.
+ */
+export async function askEvo(ctx: PluginContext, routes: readonly LlmRoute[], packet: string, signal: AbortSignal): Promise<EvoDraft> {
   const failures: string[] = []
+  const label = (route: LlmRoute): string => `${route.provider}/${route.model}${route.reasoningEffort === undefined ? '' : `:${route.reasoningEffort}`}`
+  const plain = (route: LlmRoute): LlmRoute => {
+    const { reasoningEffort: _effort, ...rest } = route
+    return rest
+  }
   for (const route of routes) {
-    try {
-      const { text } = await streamTextDetailed(ctx, route, EVO_SYSTEM, clampText(packet, 12_000), signal, 1_400)
-      if (text !== '') return text
-      failures.push(`${route.provider}/${route.model}: empty reply`)
-    } catch (error) {
-      failures.push(`${route.provider}/${route.model}: ${error instanceof Error ? error.message : String(error)}`)
-      if (signal.aborted) break
+    for (const attempt of route.reasoningEffort === undefined ? [route] : [route, plain(route)]) {
+      try {
+        const { text, finish } = await streamTextDetailed(ctx, attempt, EVO_SYSTEM, clampText(packet, 12_000), signal, EVO_MAX_TOKENS)
+        const cut = finish === 'max-tokens'
+        if (text !== '') {
+          const whole = cut && text.includes('\n') ? text.slice(0, text.lastIndexOf('\n')) : text
+          return { text: whole, truncated: cut, route: attempt }
+        }
+        failures.push(`${label(attempt)}: ${cut ? `no text within ${EVO_MAX_TOKENS} tokens (the budget went to reasoning)` : 'empty reply'}`)
+        if (!cut) break
+      } catch (error) {
+        failures.push(`${label(attempt)}: ${error instanceof Error ? error.message : String(error)}`)
+        break
+      }
     }
+    if (signal.aborted) break
   }
   throw new Error(`evo route failed: ${failures.join('; ')}`)
 }

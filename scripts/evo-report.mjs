@@ -10,10 +10,12 @@
  *   node scripts/evo-report.mjs --promote   # candidates above --min
  *   node scripts/evo-report.mjs --json      # machine-readable aggregate
  *   node scripts/evo-report.mjs --validate <proposal.md>  # scope check (M1-2)
+ *   node scripts/evo-report.mjs --fixed "<signature text>" --note "<commit or what changed>"
+ *                                           # record a landed fix; later reports compare before/after
  *
- * Options: --dir <self-evo dir>  --min <count>  --dry
+ * Options: --dir <self-evo dir>  --min <count>  --dry  --at <ISO time of the fix>
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, join } from 'node:path'
 import { redact } from './evo-redact.mjs'
@@ -23,6 +25,7 @@ const queueDir = base => join(base, 'queue')
 const doneDir = base => join(base, 'queue', 'done')
 const reportsDir = base => join(base, 'reports')
 const stamp = (date = new Date()) => date.toISOString().slice(0, 10)
+const DAY = 86_400_000
 
 const section = (text, name) => {
   const heading = new RegExp(`^## ${name}(?:[ \\t].*)?$`, 'm').exec(text)
@@ -72,7 +75,12 @@ export function digestToEntry(text, file = '') {
 // timings, stack tail, paths, ids, numbers, and the local variable an error
 // happened to name. Without the last one the same bug logs as `r.stdout.slice`,
 // `tree.stdout.slice` and `rule.value.stdout.slice` and never crosses a gate.
-const normalize = text => String(text)
+// Our own tools append advice to an error ("Call as: …", "Current region: …",
+// "— read the file, then retry"). The advice changes whenever a message is
+// reworded, so it is cut before grouping: otherwise every rewording restarts
+// the count at zero and one bug shows up as two half-sized signatures.
+const HINT_TAIL = / (?:call as|current region|candidates|calls before|did you mean|closest tool)\b[\s\S]*$| — [\s\S]*$| at <anonymous>[\s\S]*$/
+export const normalize = text => String(text)
   .toLowerCase()
   .replace(/^tool [^:]+: /, '')
   .replace(/script failed \([^)]*\)\s*/g, '')
@@ -80,10 +88,11 @@ const normalize = text => String(text)
   .replace(/at eval[\s\S]*$/, '')
   .replace(/ at [\w$.]+ \(eval at runprogram[\s\S]*$/, '')
   .replace(/\(+intermediate value\)+\(?/g, '')
-  .replace(/\/[^\s"',)]+/g, '<path>')
+  .replace(/[\w.@~-]*\/[^\s"',)]+/g, '<path>')
   .replace(/[0-9a-f]{8,}/g, '<id>')
   .replace(/\d+(\.\d+)?/g, '<n>')
-  .replace(/([a-z_$][\w.$[\]()|'" ]{0,32})\.(slice|trim|split|map|filter|find|some|length)\b/g, '<expr>.$2')
+  .replace(/\(*([a-z_$][\w.$[\]()|'" ]{0,32})\.(slice|trim|split|map|filter|find|some|length)\b/g, '<expr>.$2')
+  .replace(HINT_TAIL, '')
   .replace(/\s+/g, ' ')
   .trim()
   .slice(0, 140)
@@ -156,17 +165,114 @@ export function aggregate(entries, { since, until } = {}) {
 
 export const eligibleCandidates = (agg, min = 5) => agg.signatures.filter(item => item.count >= Math.max(5, min) && item.sessions >= 3)
 
+/** A provider retry is an outage this repo cannot fix, unless the provider refused a malformed tool call. */
+export const signatureKind = signature => (/^provider \S+ retry/.test(signature) && !signature.includes('tool call "') ? 'external' : 'repo')
+
+/** The last 7 days, the 7 days before, and everything. */
+export function windows(entries, now = new Date()) {
+  const until = now.toISOString()
+  const since = new Date(now.getTime() - 7 * DAY).toISOString()
+  return {
+    since,
+    until,
+    week: aggregate(entries, { since, until }),
+    previous: aggregate(entries, { since: new Date(now.getTime() - 14 * DAY).toISOString(), until: since }),
+    history: aggregate(entries),
+  }
+}
+
+/** Fixes recorded with `--fixed`: one `{ at, signature, example, note }` per line. */
+export function loadFixes(base) {
+  const file = join(base, 'fixes.jsonl')
+  if (!existsSync(file)) return []
+  return readFileSync(file, 'utf8')
+    .split('\n')
+    .filter(Boolean)
+    .flatMap(line => {
+      try {
+        const fix = JSON.parse(line)
+        return typeof fix?.signature === 'string' && Number.isFinite(Date.parse(fix?.at)) ? [fix] : []
+      } catch {
+        return []
+      }
+    })
+}
+
+/**
+ * Did a recorded fix hold? Counts the signature in the 14 days before the fix
+ * and from the fix until now, each with the sessions active in that window, so
+ * a quiet week is not mistaken for a working fix.
+ */
+export function fixOutcomes(entries, fixes, now = new Date()) {
+  return fixes.map(fix => {
+    const keys = new Set([fix.signature, normalize(fix.signature), normalize(fix.example ?? fix.signature)])
+    const pick = agg => ({ count: agg.signatures.filter(row => keys.has(row.signature)).reduce((sum, row) => sum + row.count, 0), sessions: agg.sessions })
+    const at = new Date(fix.at)
+    const before = pick(aggregate(entries, { since: new Date(at.getTime() - 14 * DAY).toISOString(), until: at.toISOString() }))
+    const after = at.getTime() < now.getTime() ? pick(aggregate(entries, { since: at.toISOString(), until: now.toISOString() })) : { count: 0, sessions: 0 }
+    return { signature: normalize(fix.signature), example: redact(fix.example ?? fix.signature), note: redact(fix.note ?? ''), at: at.toISOString(), before, after }
+  })
+}
+
+/**
+ * Split the eligible signatures into what is worth working on now.
+ * `work`: still occurring this week and raised inside this repo, most frequent
+ * this week first. `quiet`: nothing this week (or nothing since its fix).
+ * `external`: provider incidents. The cumulative threshold alone would keep a
+ * long-dead signature at the top of the list forever.
+ */
+export function triage(data, outcomes = []) {
+  const fixed = new Map(outcomes.map(outcome => [outcome.signature, outcome]))
+  const count = (agg, signature) => agg.signatures.find(row => row.signature === signature)?.count ?? 0
+  const rows = eligibleCandidates(data.history).map(item => {
+    const outcome = fixed.get(item.signature)
+    const week = count(data.week, item.signature)
+    return {
+      ...item,
+      kind: signatureKind(item.signature),
+      // A fix that landed inside the window resets the count to what came after it.
+      week: outcome !== undefined && outcome.at >= data.since ? Math.min(week, outcome.after.count) : week,
+      previous: count(data.previous, item.signature),
+      ...(outcome === undefined ? {} : { fixedAt: outcome.at }),
+    }
+  })
+  const byWeek = (a, b) => b.week - a.week || b.count - a.count
+  return {
+    work: rows.filter(row => row.kind === 'repo' && row.week > 0).sort(byWeek),
+    quiet: rows.filter(row => row.kind === 'repo' && row.week === 0),
+    external: rows.filter(row => row.kind === 'external').sort(byWeek),
+  }
+}
+
 /** Pure: aggregate -> markdown report. */
-export function reportText(agg, min = 5) {
+export function reportText(agg, min = 5, lists) {
   min = Math.max(5, min)
   const pct = n => (agg.sessions === 0 ? '0' : ((n / agg.sessions) * 100).toFixed(0))
   const candidates = eligibleCandidates(agg, min)
+  const cell = text => `\`${text.replace(/\|/g, '\\|')}\``
+  const work = lists === undefined
+    ? []
+    : [
+        `## work list (${lists.work.length} live this week, raised inside this repo)`,
+        '',
+        ...(lists.work.length > 0
+          ? [
+              '| this week | week before | total | sessions | signature |',
+              '|---|---|---|---|---|',
+              ...lists.work.map(item => `| ${item.week} | ${item.previous} | ${item.count} | ${item.sessions} | ${cell(item.signature)} |`),
+            ]
+          : ['- nothing live: every eligible signature is quiet this week or is a provider incident.']),
+        '',
+        `Left out: ${lists.quiet.length} quiet this week, ${lists.external.length} provider incidents.`,
+        '',
+      ]
   return [
     `# evo report — ${stamp()}`,
     '',
     `sessions: ${agg.sessions}  failures: ${agg.failures}  sessions with failures: ${agg.withFailures} (${pct(agg.withFailures)}%)  ledger lines: ${agg.entries}`,
     `window: ${agg.first || '?'} → ${agg.last || '?'}`,
     '',
+    ...work,
     `## top signatures (${agg.signatures.length} distinct)`,
     '',
     '| count | sessions | first | last | signature |',
@@ -188,34 +294,42 @@ export function reportText(agg, min = 5) {
   ].join('\n')
 }
 
-/** Pure: aggregate -> promotion packet for the model to turn into rules. */
-export function promotionText(agg, min = 5) {
+const PACKET_ITEMS = 8
+
+/**
+ * Pure: aggregate -> promotion packet for the model to turn into rules.
+ * With `lists` (see `triage`) the packet carries only the work list: a model
+ * shown provider outages and long-dead signatures drafts rules for them.
+ */
+export function promotionText(agg, min = 5, lists) {
   min = Math.max(5, min)
   const candidates = eligibleCandidates(agg, min)
+  const items = lists === undefined ? candidates : lists.work.slice(0, PACKET_ITEMS)
   return [
     `# evo promotion packet — ${stamp()}`,
     '',
     `Evidence window: ${agg.first || '?'} → ${agg.last || '?'} (${agg.sessions} sessions, ${agg.failures} failures).`,
     `Qualified candidates: ${candidates.length}`,
+    ...(lists === undefined ? [] : [`Work list: ${lists.work.length} live this week and raised inside this repo (${items.length} shown; ${lists.quiet.length} quiet and ${lists.external.length} provider incidents left out).`]),
     'Rule: >= 5 occurrences across >= 3 distinct sessions. Audit and propose only; never apply automatically. A proposed rule requires a passing probe and valid scope before application.',
     '',
-    ...candidates.flatMap((item, index) => [
-      `## ${index + 1}. ${item.count}× across ${item.sessions} sessions`,
+    'For each item write ONE of: a sticky rule line for `$DSH_HOME/ceulen/RULES.md` (`## Learnings (auto)` section),',
+    'a skill, or a script fix. If it is not fixable by a rule, say so and drop it. Prefer a script fix when the tool itself raises the error.',
+    '',
+    'Every proposed line under `## Add to RULES.md` MUST carry a scope tag:',
+    '- `- scope: invariant — <repo-agnostic rule>` lands in `$DSH_HOME/ceulen/RULES.md` and applies to every repo.',
+    '- `- scope: domain — <rule naming this repo>` lands in `<repo>/.dsh/RULES.md` and applies here only.',
+    'An invariant line may not contain an absolute path, a repo file name, or an import from this repo.',
+    '',
+    ...items.flatMap((item, index) => [
+      `## ${index + 1}. ${item.week === undefined ? '' : `${item.week}× this week · `}${item.count}× across ${item.sessions} sessions`,
       '',
       `signature: \`${item.signature}\``,
       `first seen: ${item.first.slice(0, 10)}  last seen: ${item.last.slice(0, 10)}`,
       `example: ${item.example}`,
       '',
-      'Write ONE of: a sticky rule line for `$DSH_HOME/ceulen/RULES.md` (`## Learnings (auto)` section),',
-      'a skill, or a script fix. If it is not fixable by a rule, say so and drop it.',
-      '',
-      'Every proposed line under `## Add to RULES.md` MUST carry a scope tag:',
-      '- `- scope: invariant — <repo-agnostic rule>` lands in `$DSH_HOME/ceulen/RULES.md` and applies to every repo.',
-      '- `- scope: domain — <rule naming this repo>` lands in `<repo>/.dsh/RULES.md` and applies here only.',
-      'An invariant line may not contain an absolute path, a repo file name, or an import from this repo.',
-      '',
     ]),
-    candidates.length === 0 ? 'No candidate crossed the threshold.\n' : '',
+    items.length === 0 ? (lists === undefined ? 'No candidate crossed the threshold.\n' : 'Nothing live to draft this week.\n') : '',
   ].join('\n')
 }
 
@@ -369,13 +483,44 @@ function main(argv) {
     return
   }
 
-  const agg = aggregate(loadLedger(base))
+  if (argv.includes('--fixed')) {
+    const wanted = at('--fixed')
+    if (wanted === undefined || wanted.startsWith('--')) {
+      console.error('evo-report: --fixed needs the signature (or a distinctive part of it)')
+      process.exitCode = 2
+      return
+    }
+    const when = at('--at') ?? new Date().toISOString()
+    if (!Number.isFinite(Date.parse(when))) {
+      console.error(`evo-report: --at is not a date: ${when}`)
+      process.exitCode = 2
+      return
+    }
+    const known = aggregate(loadLedger(base)).signatures
+    const exact = known.filter(row => row.signature === normalize(wanted))
+    const matches = exact.length > 0 ? exact : known.filter(row => row.signature.includes(wanted.toLowerCase().trim()))
+    if (matches.length !== 1) {
+      console.error(matches.length === 0 ? `evo-report: no signature matches "${redact(wanted)}"` : `evo-report: ${matches.length} signatures match; pass one whole signature for an exact match:`)
+      for (const row of matches.slice(0, 10)) console.error(`  ${row.count}×  ${row.signature}`)
+      process.exitCode = 1
+      return
+    }
+    const fix = { at: new Date(when).toISOString(), signature: matches[0].signature, example: matches[0].example, note: redact(at('--note') ?? '') }
+    if (!dry) appendFileSync(join(base, 'fixes.jsonl'), `${JSON.stringify(fix)}\n`)
+    console.log(`evo-report: fix recorded for "${fix.signature}" at ${fix.at}${dry ? ' (dry run)' : ''}`)
+    return
+  }
+
+  const entries = loadLedger(base)
+  const data = windows(entries)
+  const agg = data.history
+  const lists = triage(data, fixOutcomes(entries, loadFixes(base)))
   if (argv.includes('--json')) {
-    console.log(JSON.stringify(agg, null, 2))
+    console.log(JSON.stringify({ ...agg, lists }, null, 2))
     return
   }
   const promote = argv.includes('--promote')
-  const text = promote ? promotionText(agg, min) : reportText(agg, min)
+  const text = promote ? promotionText(agg, min, lists) : reportText(agg, min, lists)
   if (!dry) {
     mkdirSync(reportsDir(base), { recursive: true })
     writeFileSync(join(reportsDir(base), `${promote ? 'promotion' : 'report'}-${stamp()}.md`), text)

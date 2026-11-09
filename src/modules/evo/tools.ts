@@ -46,7 +46,7 @@ export function registerEvoTools(ctx: PluginContext, runtime: EvoRuntime): void 
 
   registerToolSafe(ctx, ceulenTool({
     name: 'evo_pass',
-    description: 'Run the evo improvement pass: feed the newest promotion packet to the configured Evo model (ceulen-config → Model → Evo) and write reports/proposal-<date>.md. Never edits RULES.md — the caller reviews and applies it.',
+    description: 'Run the evo improvement pass: feed the newest promotion packet (the signatures still occurring this week) to the configured Evo model (ceulen-config → Model → Evo) and write reports/proposal-<date>.md. Never edits RULES.md — the caller reviews and applies it.',
     parameters: objectSchema({}),
     outputSchema: { type: 'string' },
     async execute(_args, exec) {
@@ -54,13 +54,17 @@ export function registerEvoTools(ctx: PluginContext, runtime: EvoRuntime): void 
       if (packet === undefined) throw new Error('no promotion packet: run the evo-report script with --promote first')
       const routes = routesFor(exec.agent)
       if (routes.length === 0) throw new Error('no evo route: set evo.provider/model in /ceulen-config → Model → Evo, or run inside a session with a provider')
-      const text = await askEvo(ctx, routes, packet.text, exec.signal)
+      // The packet states its own work list; an empty one is not worth a model call.
+      const work = /^Work list: (\d+)/m.exec(packet.text)
+      if (work !== null && Number(work[1]) === 0) return `nothing to draft: ${packet.name} lists no signature that is still occurring this week and raised inside this repo`
+      const draft = await askEvo(ctx, routes, packet.text, exec.signal)
+      const note = draft.truncated ? '> Cut at the token limit: the unfinished last line was dropped and the list may be incomplete.\n\n' : ''
       mkdirSync(reportsDir(), { recursive: true })
       const file = join(reportsDir(), `proposal-${stamp()}.md`)
-      writeFileSync(file, `# evo proposal — ${stamp()}\n\nSource: ${packet.name}\n\n${text}\n`)
+      writeFileSync(file, `# evo proposal — ${stamp()}\n\nSource: ${packet.name}\n\n${note}${draft.text}\n`)
       runtime.flash('💾 evo · proposal ready')
-      logLine('evo', `proposal written from ${packet.name} via ${routes[0]?.provider}/${routes[0]?.model}`)
-      return `proposal: ${file}\n\n${clampText(text, 1_600)}`
+      logLine('evo', `proposal written from ${packet.name} via ${draft.route.provider}/${draft.route.model}${draft.truncated ? ' (cut at the token limit)' : ''}`)
+      return `proposal: ${file}${draft.truncated ? ' (cut at the token limit; may be incomplete)' : ''}\n\n${clampText(draft.text, 1_600)}`
     },
   }))
 }

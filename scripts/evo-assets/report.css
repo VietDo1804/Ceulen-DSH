@@ -114,6 +114,13 @@ dd { margin: 0; font-size: var(--text-xl); font-weight: 700; }
 .signatures li { padding-block: var(--space-4); border-top: 1px solid var(--rule); }
 .message, .draft, code, .archives a { overflow-wrap: anywhere; }
 .evidence { margin-bottom: var(--space-2); }
+/* Week-over-week numbers: the label wraps, the figures stay on one line. */
+.metrics { width: 100%; border-collapse: collapse; margin-block: 0 var(--space-5); }
+.metrics th, .metrics td { padding: var(--space-3) var(--space-4) var(--space-3) 0; border-top: 1px solid var(--rule); text-align: start; vertical-align: top; font-weight: 400; }
+.metrics thead th { border-top: 0; font-size: var(--text-sm); color: var(--ink-soft); }
+.metrics td { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.metrics td:last-child { font-weight: 700; padding-inline-end: 0; }
+@media (max-width: 30rem) { .metrics th, .metrics td { font-size: var(--text-sm); padding-inline-end: var(--space-2); } }
 .notice { border-inline-start: var(--space-1) solid var(--accent-ink); padding-inline-start: var(--space-4); }
 .empty { padding-block: var(--space-4); color: var(--ink-soft); }
 .draft { white-space: pre-wrap; font: inherit; padding: var(--space-4); border: 1px solid var(--rule-strong); background: var(--surface); }

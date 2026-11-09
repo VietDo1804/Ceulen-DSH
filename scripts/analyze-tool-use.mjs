@@ -192,6 +192,42 @@ export function renderText(report, label) {
   return lines.join('\n')
 }
 
+/**
+ * One pass over the session logs. Each window `{ sinceMs, untilMs, model }`
+ * gets its own report, so a week and the week before cost one read per file.
+ */
+export function collectReports(root, windows) {
+  const reports = windows.map(() => emptyReport())
+  const latest = windows.map(() => 0)
+  const earliest = Math.min(...windows.map(window => window.sinceMs ?? 0))
+  for (const file of sessionFiles(root)) {
+    if (fs.statSync(file).mtimeMs < earliest) continue
+    const events = loadEvents(file)
+    for (const [index, window] of windows.entries()) {
+      const calls = callsOf(events, window)
+      if (calls.length === 0) continue
+      const report = reports[index]
+      report.sessions += 1
+      addCalls(report, calls)
+      const system = events.find(event => event.type === 'system/message')
+      const header = events.findLast(event => event.type === 'request/header')
+      if (system !== undefined) {
+        report.prompt.sessions += 1
+        const text = (system.data?.message?.content ?? []).map(block => block.text ?? '').join('')
+        if (text.includes('STICKY RULES TRUNCATED')) report.prompt.stickyTruncated += 1
+      }
+      const time = header?.time ?? 0
+      if (header !== undefined && time > latest[index]) {
+        latest[index] = time
+        const tools = header.data?.header?.tools ?? []
+        report.prompt.toolsDeclared = tools.length
+        report.prompt.schemaBytes = tools.reduce((total, tool) => total + Buffer.byteLength(`${tool.description ?? ''}${JSON.stringify(tool.parameters ?? {})}`), 0)
+      }
+    }
+  }
+  return reports
+}
+
 function main() {
   const args = process.argv.slice(2)
   const readArg = flag => {
@@ -205,30 +241,7 @@ function main() {
   const sinceMs = since ? Date.parse(`${since}T00:00:00`) : undefined
   const untilMs = until ? Date.parse(`${until}T00:00:00`) : undefined
 
-  const report = emptyReport()
-  let latest = 0
-  for (const file of sessionFiles(root)) {
-    if (sinceMs !== undefined && fs.statSync(file).mtimeMs < sinceMs) continue
-    const events = loadEvents(file)
-    const calls = callsOf(events, { sinceMs, untilMs, model })
-    if (calls.length === 0) continue
-    report.sessions += 1
-    addCalls(report, calls)
-    const system = events.find(event => event.type === 'system/message')
-    const header = events.findLast(event => event.type === 'request/header')
-    if (system !== undefined) {
-      report.prompt.sessions += 1
-      const text = (system.data?.message?.content ?? []).map(block => block.text ?? '').join('')
-      if (text.includes('STICKY RULES TRUNCATED')) report.prompt.stickyTruncated += 1
-    }
-    const time = header?.time ?? 0
-    if (header !== undefined && time > latest) {
-      latest = time
-      const tools = header.data?.header?.tools ?? []
-      report.prompt.toolsDeclared = tools.length
-      report.prompt.schemaBytes = tools.reduce((total, tool) => total + Buffer.byteLength(`${tool.description ?? ''}${JSON.stringify(tool.parameters ?? {})}`), 0)
-    }
-  }
+  const [report] = collectReports(root, [{ sinceMs, untilMs, model }])
   if (args.includes('--json')) console.log(JSON.stringify(report, null, 2))
   else console.log(renderText(report, `${model ? `model~${model}` : 'all models'}${since ? `, since ${since}` : ''}${until ? `, until ${until}` : ''}`))
 }
