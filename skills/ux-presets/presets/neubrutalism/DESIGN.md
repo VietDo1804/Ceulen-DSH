@@ -11,7 +11,7 @@ colors:
   sky: "#8FD3FF"
   lime: "#C6F27A"
 typography:
-  display: { fontFamily: Archivo, fontWeight: 900, fontStretch: "112%", letterSpacing: "-0.035em", lineHeight: 1.1 }
+  display: { fontFamily: Archivo, fontWeight: 900, fontStretch: "112%", letterSpacing: "-0.035em", lineHeight: 1.3 }
   body: { fontFamily: Archivo, fontSize: 1.0625rem, lineHeight: 1.55 }
   data: { fontFamily: JetBrains Mono, fontWeight: 700 }
 rounded: { block: 0px, pill: 999px }

@@ -9,7 +9,7 @@ colors:
   teal: "#86DED2"
   yellow: "#FFD34D"
 typography:
-  display: { fontFamily: Baloo 2, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.1 }
+  display: { fontFamily: Baloo 2, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1.26 }
   body: { fontFamily: Nunito, fontWeight: 500, fontSize: 1.125rem, lineHeight: 1.55 }
 rounded: { md: 18px, lg: 28px, pill: 999px }
 spacing: { 1: 4px, 2: 8px, 3: 16px, 4: 24px, 5: 32px, 6: 56px, 7: 104px }

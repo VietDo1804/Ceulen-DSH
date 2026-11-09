@@ -29,9 +29,10 @@ family named here has it. Without it, marks break apart (ế renders as ê plus 
 loose accent). The fallbacks need it too, because they show while the web font
 loads: "Times New Roman" for serif, system-ui or Arial for sans, "Courier New"
 for mono, never Georgia, Futura, Didot or Rockwell. One family per role: never
-combine two fonts with `unicode-range` so one word mixes two designs. Vietnamese marks stacked on a capital reach 1.0–1.2em above the baseline, so a
-headline's line height must be above that for its font: about 1.2 for Playfair
-Display or a heavy slab, 1.1 for most grotesques.
+combine two fonts with `unicode-range` so one word mixes two designs. Vietnamese marks stacked on a capital reach 1.0–1.2em above the baseline and
+must clear the descenders, dots below and commas of the line above, so a
+wrapped headline needs about 1.3 for most grotesques and 1.4 or more for
+Playfair Display or a heavy slab. `ux_audit` names the exact value.
 
 Numbers that make type feel designed: marketing h1 ≥
 `clamp(2.75rem, 7vw, 6.75rem)` (≈96–108px at 1440 — the hero must dominate at

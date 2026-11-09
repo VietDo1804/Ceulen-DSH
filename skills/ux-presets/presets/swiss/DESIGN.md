@@ -8,7 +8,7 @@ colors:
   red: "#BE2219"
   red-text: "#A51C14"
 typography:
-  display: { fontFamily: Inter Tight, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1.05 }
+  display: { fontFamily: Inter Tight, fontWeight: 800, letterSpacing: "-0.04em", lineHeight: 1.29 }
   numeral: { fontFamily: Inter Tight, fontWeight: 900, letterSpacing: "-0.06em" }
   body: { fontFamily: Inter Tight, fontSize: 1.0625rem, lineHeight: 1.5 }
 rounded: { all: 0px }

@@ -15,7 +15,7 @@ colors:
   forest: "#24331F"
   forest-text: "#E8EDDF"
 typography:
-  display: { fontFamily: Vollkorn, fontWeight: 400, lineHeight: 1.08 }
+  display: { fontFamily: Vollkorn, fontWeight: 400, lineHeight: 1.32 }
   body: { fontFamily: Nunito Sans, fontSize: 1.0625rem, lineHeight: 1.6 }
   label: { fontFamily: Nunito Sans, fontWeight: 700, fontSize: 0.8125rem }
 rounded: { sm: 12px, md: 20px, lg: 32px, pill: 999px }

@@ -9,7 +9,7 @@ colors:
   red: "#931D13"
   on-red: "#F7F1E6"
 typography:
-  display: { fontFamily: Alfa Slab One, fontWeight: 400, lineHeight: 1.22, letterSpacing: "-0.01em" }
+  display: { fontFamily: Alfa Slab One, fontWeight: 400, lineHeight: 1.48, letterSpacing: "-0.01em" }
   body: { fontFamily: Work Sans, fontSize: 1.0625rem, lineHeight: 1.6 }
   label: { fontFamily: Space Mono, fontWeight: 700 }
 rounded: { sm: 4px, frame: 10px }

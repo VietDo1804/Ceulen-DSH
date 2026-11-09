@@ -10,7 +10,7 @@ colors:
   blue: "#1C46A8"
   yellow: "#F5CB45"
 typography:
-  display: { fontFamily: Montserrat, fontWeight: 800, textTransform: uppercase, letterSpacing: "-0.02em", lineHeight: 1.1 }
+  display: { fontFamily: Montserrat, fontWeight: 800, textTransform: uppercase, letterSpacing: "-0.02em", lineHeight: 1.31 }
   label: { fontFamily: Montserrat, fontWeight: 700, textTransform: uppercase, letterSpacing: "0.04em", fontSize: 0.9375rem }
   body: { fontFamily: Montserrat, fontSize: 1.0625rem, lineHeight: 1.55 }
 rounded: { square: 0px, circle: 9999px }

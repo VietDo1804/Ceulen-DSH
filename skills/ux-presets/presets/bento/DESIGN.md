@@ -13,7 +13,7 @@ colors:
   on-ember: "#FFF6EF"
   track: "#DEDBD2"
 typography:
-  display: { fontFamily: Geist, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.08 }
+  display: { fontFamily: Geist, fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.22 }
   number: { fontFamily: Geist, fontWeight: 600, letterSpacing: "-0.04em", fontVariantNumeric: tabular-nums }
   body: { fontFamily: Geist, fontSize: 1rem, lineHeight: 1.5 }
   data: { fontFamily: Geist Mono, fontWeight: 500 }

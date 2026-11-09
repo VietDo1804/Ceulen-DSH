@@ -315,9 +315,9 @@ export function pageChecks(): RuntimeFinding[] {
  *   the web font loads, or if it fails, ầ shows as "â`".
  * - `vi-mixed-font`: one family drawn by two typefaces, Vietnamese letters from
  *   one and the rest from another, so a word mixes designs.
- * - `vi-line-height`: a wrapped headline where a mark reaches past the
- *   baseline of the letter above it, into its body, so Ấn reads as Ận.
- *   Touching a descender, dot below or comma is accepted display setting.
+ * - `vi-line-height`: a wrapped headline where the ink of a letter, marks
+ *   included, touches the ink of the letter above it, descenders, dots below
+ *   and commas included, so Ấn reads as Ận or Ổ sits on a comma.
  */
 // Runs in Chrome via toString(), so Node coverage cannot see it; the runtime
 // tests in test/ux-review.test.ts drive every branch that matters.
@@ -463,11 +463,11 @@ export async function vietnameseChecks(): Promise<RuntimeFinding[]> {
     add('high', 'vi-mixed-font', `Vietnamese letters are drawn by a different typeface than the letters around them in ${mixed.length} font(s), so one word mixes two designs`, `${mixed.slice(0, 2).join(' | ')}. Use one family that has Vietnamese for this text; never assemble one from two fonts with unicode-range. If the request named a font without Vietnamese, use the closest family that has it and say why in your report`)
   }
 
-  // Wrapped headlines: a mark on one line must stay below the baseline of the
-  // letter above it, or it runs into that letter's body and Ấn reads as Ận.
-  // Meeting a descender, a dot below or a comma is ordinary Vietnamese display
-  // setting and passes. Each letter is measured in its own font, so an italic
-  // run is judged as italic, and only letters that sit over each other count.
+  // Wrapped headlines: the ink of each letter, marks included, must clear the
+  // ink of the letter above it, descenders, dots below and commas included, or
+  // Ấn reads as Ận and Ổ sits on a comma. Each letter is measured in its own
+  // font, so an italic run is judged as italic, and only letters that sit over
+  // each other count.
   const crowded: string[] = []
   for (const el of Array.from(document.querySelectorAll('h1, h2, h3, h4, [data-words]'))) {
     if (canvas === null || !visible(el) || !VIET.test(el.textContent ?? '')) continue
@@ -475,7 +475,7 @@ export async function vietnameseChecks(): Promise<RuntimeFinding[]> {
     const size = parseFloat(style.fontSize)
     const lineHeight = parseFloat(style.lineHeight)
     if (!Number.isFinite(lineHeight) || size < 20) continue
-    const inks: Array<{ baseline: number; left: number; right: number; top: number; ch: string }> = []
+    const inks: Array<{ baseline: number; left: number; right: number; top: number; bottom: number; ch: string }> = []
     const range = document.createRange()
     const texts = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
     let budget = 600
@@ -496,7 +496,7 @@ export async function vietnameseChecks(): Promise<RuntimeFinding[]> {
         const ch = shown(parent, raw)
         const m = canvas.measureText(ch)
         const baseline = rect.top + ascent
-        inks.push({ baseline, left: rect.left - m.actualBoundingBoxLeft, right: rect.left + m.actualBoundingBoxRight, top: baseline - m.actualBoundingBoxAscent, ch })
+        inks.push({ baseline, left: rect.left - m.actualBoundingBoxLeft, right: rect.left + m.actualBoundingBoxRight, top: baseline - m.actualBoundingBoxAscent, bottom: baseline + m.actualBoundingBoxDescent, ch })
       }
     }
     const baselines: number[] = []
@@ -512,10 +512,10 @@ export async function vietnameseChecks(): Promise<RuntimeFinding[]> {
       if (row <= 0) continue
       for (const upper of inks) {
         if (lineOf(upper) !== row - 1 || upper.right - 0.5 <= lower.left || lower.right - 0.5 <= upper.left) continue
-        const overlap = upper.baseline + size * 0.02 - lower.top
+        const overlap = upper.bottom + size * 0.02 - lower.top
         if (overlap > worst) {
           worst = overlap
-          pair = `"${lower.ch}" reaches into "${upper.ch}" above`
+          pair = `"${lower.ch}" touches "${upper.ch}" above`
         }
       }
     }
