@@ -31,23 +31,23 @@ Write those real tokens into `DESIGN.md` before any markup. Do not pick a preset
 Read the request and go down the table. The **first row** whose words appear in
 the request is the preset. Match whole words or phrases in English or
 Vietnamese, any case: a word inside a longer word does not count ("bar" is not
-in "sidebar"). Do not pick by taste and do not mix two presets.
+in "sidebar", "kho" is not in "khoảng", "báo chí" is not in "thông báo"). Do not pick by taste and do not mix two presets.
 
 | Preset | Words in the request |
 |---|---|
 | `care` | clinic, phòng khám, hospital, bệnh viện, doctor, bác sĩ, healthcare, y tế, dental, nha khoa, pharmacy, nhà thuốc, therapy, patient, bệnh nhân, đặt lịch khám |
-| `bento` | usage, token, ai dashboard, insights, analytics, overview, tổng quan, thống kê, metrics, kpi |
+| `bento` | usage, token, ai dashboard, insights, analytics, phân tích, overview, tổng quan, thống kê, metrics, kpi |
 | `ledger` | invoice, hoá đơn, hóa đơn, billing, accounting, kế toán, finance, tài chính, payroll, bảng lương, bank, ngân hàng, expense, chi phí, budget, ngân sách, legal, pháp lý, pháp lí |
 | `instrument-panel` | monitoring, giám sát, server, máy chủ, infrastructure, hạ tầng, logs, incident, sự cố, devops, uptime, alert, cảnh báo |
 | `pipeline-desk` | crm, pipeline, sales, deal, lead, inventory, stock, warehouse, kho, tồn kho, order management, quản lý đơn hàng, quản lí đơn hàng, admin, back office, quản lý, quản lí, quản trị, erp, hr, nhân sự, ticket, helpdesk, khách hàng |
 | `luxury` | luxury, sang trọng, fashion, thời trang, jewellery, jewelry, trang sức, watch, đồng hồ, perfume, nước hoa, hotel, khách sạn, resort, real estate, bất động sản, wedding, cưới, gallery |
-| `retro-film` | coffee, cà phê, café, cafe, quán, restaurant, nhà hàng, bakery, tiệm bánh, bar, menu, thực đơn, photography, nhiếp ảnh, vinyl, barber |
+| `retro-film` | coffee, cà phê, café, cafe, quán ăn, quán nước, quán nhậu, quán phở, restaurant, nhà hàng, bakery, tiệm bánh, bar, menu, thực đơn, photography, nhiếp ảnh, vinyl, barber |
 | `storefront` | shop, store, cửa hàng, e-commerce, thương mại điện tử, catalog, product, sản phẩm, cart, giỏ hàng, checkout, bán hàng online |
-| `editorial` | blog, article, bài viết, magazine, tạp chí, news, tin tức, báo, essay, journal, newsletter, case study, story, câu chuyện |
+| `editorial` | blog, article, bài viết, magazine, tạp chí, news, tin tức, báo chí, tờ báo, essay, journal, newsletter, case study, story, câu chuyện |
 | `memphis` | kids, children, trẻ em, thiếu nhi, camp, trại hè, toy, đồ chơi, party, tiệc, playful, vui nhộn, family, gia đình |
 | `kinetic-type` | festival, concert, lineup, music, nhạc, âm nhạc, podcast, sport, thể thao, tournament, campaign, chiến dịch |
 | `swiss` | conference, hội thảo, hội nghị, schedule, lịch trình, agenda, timetable, transit, docs, documentation, tài liệu, architecture |
-| `bauhaus` | school, trường, workshop, course, khoá học, khóa học, class, lớp học, museum, bảo tàng, studio, education, giáo dục |
+| `bauhaus` | school, trường học, đại học, workshop, course, khoá học, khóa học, class, lớp học, museum, bảo tàng, studio, education, giáo dục |
 | `nature` | farm, food, thực phẩm, rau, organic, wellness, spa, yoga, garden, vườn, eco, sustainability, community, cộng đồng |
 | `neubrutalism` | developer, dev tool, api, sdk, cli, startup, launch, hackathon, indie, creator, saas |
 | `civic` | government, chính phủ, public service, dịch vụ công, council, ủy ban, uỷ ban, city, thành phố, permit, giấy phép, licence, license, tax, thuế, application, hồ sơ, form, biểu mẫu, đăng ký, đăng kí |
