@@ -13,7 +13,7 @@ colors:
   sale: "#9B1C14"
   sale-soft: "#FCE7E4"
 typography:
-  display: { fontFamily: Bricolage Grotesque, fontWeight: 800, letterSpacing: "-0.035em", lineHeight: 1.06 }
+  display: { fontFamily: Bricolage Grotesque, fontWeight: 800, letterSpacing: "-0.035em", lineHeight: 1.2 }
   body: { fontFamily: Onest, fontSize: 1rem, lineHeight: 1.55 }
   price: { fontFamily: Onest, fontWeight: 700, fontSize: 1.125rem }
 rounded: { sm: 8px, md: 14px, pill: 999px }

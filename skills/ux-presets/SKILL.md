@@ -76,8 +76,8 @@ markup working together. Build your own page in that shape:
 - Add your `Direction:` line under the frontmatter of `DESIGN.md`.
 - Keep the preset's fonts. Each one has Vietnamese glyphs; a font from outside
   the preset may not, and then marks like ế break apart.
-- Headline line height: the preset's value or more, at least 1.05, and 1.1 for
-  capitals. Vietnamese marks stack above capitals (Ấ, Ổ) and touch a tighter line.
+- Keep the preset's headline line height or raise it, never lower it. It is set
+  so marks stacked on a capital (Ổ, Ấ) stay clear of the line above.
 
 Keep the palette. `ux_audit` reports a colour that is not in `DESIGN.md` as
 `off-palette`. To use a brand colour, the request must give it as a hex value:

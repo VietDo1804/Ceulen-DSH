@@ -14,7 +14,7 @@ colors:
   amber-soft: "#FBF0D9"
   line: "#D5E2E3"
 typography:
-  display: { fontFamily: Lexend, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.05 }
+  display: { fontFamily: Lexend, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.12 }
   body: { fontFamily: Noto Sans, fontSize: 1.0625rem, lineHeight: 1.6 }
   label: { fontFamily: Noto Sans, fontWeight: 700 }
 rounded: { sm: 10px, md: 16px, lg: 24px, pill: 999px }

@@ -8,7 +8,7 @@ colors:
   ink-muted: "#55544F"
   teal: "#0E5C63"
 typography:
-  display: { fontFamily: Playfair Display, fontWeight: 400, lineHeight: 1.05, letterSpacing: "-0.02em" }
+  display: { fontFamily: Playfair Display, fontWeight: 400, lineHeight: 1.2, letterSpacing: "-0.02em" }
   body: { fontFamily: Source Serif 4, fontSize: 1.1875rem, lineHeight: 1.65 }
   label: { fontFamily: Public Sans, fontWeight: 700, fontSize: 0.9375rem }
 rounded: { all: 0px }

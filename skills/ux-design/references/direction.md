@@ -26,7 +26,9 @@ Onest, Work Sans, Noto Sans (bodies).
 
 Vietnamese copy needs a family with the Google Fonts `vietnamese` subset; every
 family named here has it. Without it, marks break apart (ế renders as ê plus a
-loose accent). Give Vietnamese headlines a line height of at least 1.05.
+loose accent). Vietnamese marks stacked on a capital reach 1.0–1.2em above the baseline, so a
+headline's line height must be above that for its font: about 1.2 for Playfair
+Display or a heavy slab, 1.1 for most grotesques.
 
 Numbers that make type feel designed: marketing h1 ≥
 `clamp(2.75rem, 7vw, 6.75rem)` (≈96–108px at 1440 — the hero must dominate at

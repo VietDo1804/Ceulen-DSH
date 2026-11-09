@@ -9,7 +9,7 @@ colors:
   night: "#1B1814"
   night-muted: "#B9B8B1"
 typography:
-  display: { fontFamily: Noto Serif Display, fontWeight: 400, letterSpacing: "-0.035em", lineHeight: 1.05 }
+  display: { fontFamily: Noto Serif Display, fontWeight: 400, letterSpacing: "-0.035em", lineHeight: 1.06 }
   body: { fontFamily: Hanken Grotesk, fontSize: 1rem, lineHeight: 1.7, letterSpacing: "0.01em" }
 rounded: { all: 0px }
 spacing: { 1: 4px, 2: 8px, 3: 16px, 4: 24px, 5: 40px, 6: 72px, 7: 144px }
