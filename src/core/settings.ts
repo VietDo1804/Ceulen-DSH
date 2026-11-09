@@ -169,7 +169,9 @@ export function defaultSettings(): CeulenSettings {
         // `web_interact` stays in the prompt: 400 calls through ceulen_tools in
         // nine days of November 2026 sessions, 18 of them argument-shape errors
         // because a cold tool shows the model no schema.
-        'web_map', 'web_pdf', 'web_screenshot',
+        // `web_screenshot` too: 48 calls in 19 sessions is at the break-even
+        // for its 0.9 KB, and it belongs to the same capture flow.
+        'web_map', 'web_pdf',
         // Measured 2026-10-31 on the 40.9 KB / 53-tool TUI surface: these add
         // ~9.1 KB and are named by no always-on prompt section. Native names
         // are hidden per agent (tools.restrict); ceulen ones at register time.
@@ -187,6 +189,13 @@ export function defaultSettings(): CeulenSettings {
         // November 2026 sessions against 389 bytes of schema. A tool the model
         // reaches for by name every session is not cold.
         'workflow', 'list_agents', 'interrupt_agent',
+        // Audit of 142 sessions, 1-9 Nov 2026: 0-2 direct calls each, ~7.7 KB
+        // together with web_chat. One wasted request re-reads the whole
+        // context (~151k tokens), about what a 1 KB schema costs over 600
+        // requests, so a tool is cold when fewer than bytes x 0.019 of those
+        // sessions used it.
+        'plugin_manager', 'github', 'cron',
+        'validate_schema', 'list_subagent_models', 'related_files', 'working_directory',
       ],
     },
     rules: { projectFile: '.dsh/RULES.md', userFile: 'RULES.md', maxBytes: 20_000, guards: 'audit' },
