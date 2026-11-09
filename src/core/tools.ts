@@ -1,7 +1,7 @@
 import type { PluginContext, TextBlock, ToolContent, ToolDefinition, ToolRunContext } from './types.js'
 import { logLine } from './log.js'
 import { isModuleEnabled, loadSettingsSync } from './settings.js'
-import { coerceBySchema, withCallShape } from './toolguard.js'
+import { coerceBySchema, missingRequired, shapeProblem, withCallShape } from './toolguard.js'
 
 /** One text-only tool result. */
 export function text(value: string): readonly TextBlock[] {
@@ -69,13 +69,17 @@ export function ceulenTool(options: CeulenToolOptions): ToolDefinition {
 
 /**
  * Wrap the body with the contract layer: coerce what models actually send, then
- * — only when the body still refuses the call — append the accepted call shape.
+ * append the accepted call shape only when the failure is about the shape —
+ * the arguments do not fit the schema, or the body died on a TypeError. The
+ * body speaks first: its own message for a missing key ("delete needs
+ * confirm: true") says more than a generic one. Only a crash on the missing
+ * value (`Cannot read properties of undefined`) is replaced by its name.
  * Normalization is best-effort: a throw in there must not be the reason a call
  * fails, so it falls back to the raw arguments.
  */
 function contractWrapped(options: CeulenToolOptions): ToolDefinition['execute'] {
   const run = options.execute
-  const usage = options.contract?.usage
+  const shape = options.contract?.usage ?? options.parameters
   const normalize = options.contract?.normalize
   return async (args, exec) => {
     let repaired: unknown = args
@@ -88,7 +92,12 @@ function contractWrapped(options: CeulenToolOptions): ToolDefinition['execute'] 
     try {
       return await run(repaired, exec)
     } catch (error) {
-      throw new Error(withCallShape(errorMessage(error), usage ?? options.parameters), { cause: error })
+      const problem = shapeProblem(repaired, options.parameters)
+      const crashed = error instanceof TypeError
+      if (!crashed && problem === undefined) throw error
+      // A crash on a value that was never sent: name the value, not the stack.
+      const message = crashed && missingRequired(repaired, options.parameters).length > 0 ? (problem ?? errorMessage(error)) : errorMessage(error)
+      throw new Error(withCallShape(message, shape, options.name), { cause: error })
     }
   }
 }

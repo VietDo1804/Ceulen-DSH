@@ -3,12 +3,14 @@ import { basename, dirname, isAbsolute, join, relative, resolve as resolvePath }
 import type { AgentLike, PluginContext, ToolContent } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { logLine } from '../../core/log.js'
-import { ceulenTool, clampText, objectSchema, registerToolSafe } from '../../core/tools.js'
+import { ceulenTool, clampText, coldTool, nativeTool, objectSchema, registerToolSafe } from '../../core/tools.js'
 
 export const name = 'ceulen-repair'
 export const inject = ['tools']
 
 interface Hunk {
+  /** Text after `@@`: lines to seek, in order, before matching the hunk. */
+  anchors: string[]
   before: string[]
   after: string[]
   added: number
@@ -76,8 +78,14 @@ function parsePatch(patch: string): ParsedPatch {
       continue
     }
     if (line.startsWith('@@') && current !== undefined) {
+      const anchor = anchorText(line)
+      // `@@ class A` directly followed by `@@ method()` narrows twice.
+      if (hunk !== undefined && hunk.before.length === 0 && hunk.after.length === 0) {
+        if (anchor !== undefined) hunk.anchors.push(anchor)
+        continue
+      }
       flushHunk()
-      hunk = { before: [], after: [], added: 0, removed: 0 }
+      hunk = { anchors: anchor === undefined ? [] : [anchor], before: [], after: [], added: 0, removed: 0 }
       continue
     }
     if (hunk !== undefined) {
@@ -107,6 +115,40 @@ function parsePatch(patch: string): ParsedPatch {
   return { ops }
 }
 
+/**
+ * The text a model wrote after `@@`. A unified-diff range (`-12,7 +12,8 @@`)
+ * is dropped: its line numbers are a guess, only the trailing text is used.
+ */
+function anchorText(line: string): string | undefined {
+  const text = line
+    .slice(2)
+    .replace(/^\s*-\d+(?:,\d+)?\s+\+\d+(?:,\d+)?\s*@@/, '')
+    .replace(/@@\s*$/, '')
+    .trim()
+  return text.length === 0 ? undefined : text
+}
+
+/** First line at or after `from` that is the anchor, else the first that contains it. */
+function seekAnchor(lines: string[], anchor: string, from: number): number {
+  for (let index = from; index < lines.length; index += 1) if ((lines[index] ?? '').trim() === anchor) return index
+  for (let index = from; index < lines.length; index += 1) if ((lines[index] ?? '').includes(anchor)) return index
+  return -1
+}
+
+function clip(line: string): string {
+  return line.length > 140 ? `${line.slice(0, 140)}…` : line
+}
+
+/** Each match with the two lines above it: what the model has to add to tell them apart. */
+function matchPreview(lines: string[], hits: number[]): string {
+  const shown = hits.slice(0, 4).map(hit => {
+    const start = Math.max(0, hit - 2)
+    return lines.slice(start, hit + 1).map((line, offset) => `  ${start + offset + 1}: ${clip(line)}`).join('\n')
+  })
+  if (hits.length > shown.length) shown.push(`  … ${hits.length - shown.length} more`)
+  return shown.join('\n  --\n')
+}
+
 function countMatches(lines: string[], pattern: string[]): number[] {
   const hits: number[] = []
   for (let index = 0; index + pattern.length <= lines.length; index += 1) {
@@ -131,15 +173,38 @@ function applyHunks(text: string, hunks: Hunk[], path: string): { text: string; 
   let added = 0
   let removed = 0
   let cursor = 0
-  for (const hunk of hunks) {
-    if (hunk.before.length === 0 && lines.length > 0) throw new Error(`hunk in ${path} has no context or removed lines`)
-    const hits = countMatches(lines, hunk.before)
-    if (hits.length === 0) throw new Error(`hunk does not match ${path}: ${JSON.stringify(hunk.before.slice(0, 3))}`)
+  for (const [index, hunk] of hunks.entries()) {
+    const tag = hunks.length > 1 ? ` (hunk ${index + 1} of ${hunks.length})` : ''
+    if (hunk.before.length === 0 && hunk.anchors.length === 0 && lines.length > 0) throw new Error(`hunk in ${path} has no context or removed lines${tag}`)
+    // `@@ <text>` moves the search start to that line, so a block that repeats
+    // further up the file no longer competes.
+    let from = cursor
+    for (const anchor of hunk.anchors) {
+      const found = seekAnchor(lines, anchor, from)
+      if (found < 0) throw new Error(`hunk does not match ${path}: the @@ line ${JSON.stringify(anchor)} was not found${cursor > 0 ? ` after line ${cursor}` : ''}${tag}`)
+      from = found
+    }
+    const all = countMatches(lines, hunk.before)
+    if (all.length === 0) throw new Error(`hunk does not match ${path}${tag}: ${JSON.stringify(hunk.before.slice(0, 3))}`)
     // V4D hunks in one file op are ordered top-to-bottom: when the context
     // repeats, a match at/after the previous hunk disambiguates the patch.
-    const forward = hits.filter(hit => hit >= cursor)
-    if (hits.length > 1 && forward.length !== 1) throw new Error(`hunk is ambiguous in ${path} (${hits.length} matches); add more context`)
-    const at = (hits.length > 1 ? forward[0] : hits[0])!
+    const forward = all.filter(hit => hit >= from)
+    let at: number
+    if (hunk.anchors.length > 0) {
+      if (forward.length === 0) throw new Error(`hunk does not match ${path}${tag}: nothing matches after the @@ line ${JSON.stringify(hunk.anchors.at(-1))}: ${JSON.stringify(hunk.before.slice(0, 3))}`)
+      // Added lines with no context go directly under the @@ line.
+      at = hunk.before.length === 0 ? Math.min(from + 1, lines.length) : forward[0]!
+    } else if (all.length > 1 && forward.length !== 1) {
+      const where = all.map(hit => hit + 1).slice(0, 8).join(', ')
+      throw new Error([
+        `hunk is ambiguous in ${path} (${all.length} matches at lines ${where}${all.length > 8 ? ', …' : ''})${tag}; add more context`,
+        'Add an unchanged line that only one of them has, or write a unique earlier line after @@ (for example "@@ function name(") so the search starts there.',
+        'Matches, each with the two lines above it:',
+        matchPreview(lines, all),
+      ].join('\n'))
+    } else {
+      at = (all.length > 1 ? forward[0] : all[0])!
+    }
     lines = [...lines.slice(0, at), ...hunk.after, ...lines.slice(at + hunk.before.length)]
     added += hunk.added
     removed += hunk.removed
@@ -183,7 +248,7 @@ interface Repair {
 }
 
 /** Contract §3: an annotation marker is appended at most once. */
-const REPAIR_MARKERS: Record<Repair['kind'], string> = { candidates: 'Candidates:', region: 'Current region:', tool: 'Call as:' }
+const REPAIR_MARKERS: Record<Repair['kind'], string> = { candidates: 'Candidates:', region: 'Current region:', tool: 'Closest tool:' }
 
 function hookText(result: HookResult): string {
   return result.content
@@ -272,9 +337,22 @@ async function candidatePaths(path: string, cwd: string): Promise<string | undef
   return `Candidates: ${ranked.map(entry => join(displayDir, entry.name)).join('  ')}`
 }
 
-function registeredToolNames(ctx: PluginContext): string[] {
-  const registry = ctx.get('tools', false) as { schemas?(): readonly { name?: string }[] } | undefined
-  return (registry?.schemas?.() ?? []).map(entry => String(entry.name ?? '')).filter(name => name.length > 0)
+/**
+ * Names as the calling agent sees them. The global view alone misses every tool
+ * an app registers in a scoped layer (the TUI's native `read`, `bash`, …).
+ */
+function registeredToolNames(ctx: PluginContext, agent?: AgentLike): string[] {
+  const registry = ctx.get('tools', false) as { schemas?(scope?: unknown): readonly { name?: string }[] } | undefined
+  const names = new Set<string>()
+  for (const scope of [agent, undefined]) {
+    try {
+      for (const entry of registry?.schemas?.(scope) ?? []) names.add(String(entry.name ?? ''))
+    } catch {
+      // A scope the registry does not know: the other view still answers.
+    }
+  }
+  names.delete('')
+  return [...names]
 }
 
 function closestToolName(wanted: string, names: readonly string[]): string | undefined {
@@ -331,8 +409,16 @@ async function repair(ctx: PluginContext, exec: ExecuteHook, result: HookResult)
   if (/unknown tool/i.test(message)) {
     const wanted = /unknown tool[:\s]+["'`]?([\w.:/-]+)/i.exec(message)?.[1]
     if (wanted === undefined) return undefined
-    const closest = closestToolName(wanted, registeredToolNames(ctx))
-    return closest === undefined || closest === wanted ? undefined : { kind: 'tool', text: `Call as: ${closest}` }
+    // A cold tool is real but not callable by its own name: name the way in.
+    if (coldTool(wanted) !== undefined || nativeTool(wanted) !== undefined) {
+      return { kind: 'tool', text: `Closest tool: ceulen_tools — "${wanted}" is held behind it. Call ceulen_tools({ action: "call", name: "${wanted}", arguments: { … } }); ceulen_tools({ action: "search", query: "${wanted}" }) prints its arguments.` }
+    }
+    const closest = closestToolName(wanted, registeredToolNames(ctx, exec.agent))
+    // A near name is a guess, not a correction (`codemap` is not `codemode`):
+    // say that no such tool exists and leave the choice to the model.
+    return closest === undefined || closest === wanted
+      ? undefined
+      : { kind: 'tool', text: `Closest tool: ${closest} — no tool is named "${wanted}". Use ${closest} only if that is the tool you meant.` }
   }
 
   return undefined
@@ -344,7 +430,7 @@ export function apply(ctx: PluginContext): void {
 
   registerToolSafe(ctx, ceulenTool({
     name: 'apply_patch',
-    description: 'Apply a Codex-style V4D patch. Format: "*** Begin Patch", then "*** Add File: path" with + lines, or "*** Update File: path" with @@ hunks of context, -removed, +added lines, then "*** End Patch". Hunks must match uniquely. Deletes are not supported; use bash rm when appropriate.',
+    description: 'Apply a Codex-style V4D patch. Format: "*** Begin Patch", then "*** Add File: path" with + lines, or "*** Update File: path" with @@ hunks of context, -removed, +added lines, then "*** End Patch". Each hunk must match exactly one place: keep about 3 unchanged lines around a change, and when the block repeats write a unique earlier line after @@ (e.g. "@@ function save(") to start the search there. All files apply or none do. Deletes are not supported; use bash rm when appropriate.',
     parameters: objectSchema({
       patch: { type: 'string', description: 'The complete V4D patch text.' },
     }, ['patch']),
@@ -359,20 +445,29 @@ export function apply(ctx: PluginContext): void {
       const cwd = exec.agent?.session.header?.cwd ?? process.cwd()
       const results: string[] = []
       const staged = new Map<string, { target: unknown; path: string; text: string }>()
-      for (const op of parsed.ops) {
-        exec.signal.throwIfAborted()
-        if (op.kind === 'delete') throw new Error(`delete is not supported by apply_patch: ${op.path}`)
-        const target = await fs.resolve(op.path, { cwd, signal: exec.signal })
-        const key = resolvePath(cwd, op.path)
-        if (op.kind === 'add') {
-          staged.set(key, { target, path: op.path, text: op.content ?? '' })
-          results.push(`Added ${op.path}`)
-          continue
+      try {
+        for (const op of parsed.ops) {
+          exec.signal.throwIfAborted()
+          if (op.kind === 'delete') throw new Error(`delete is not supported by apply_patch: ${op.path}`)
+          const target = await fs.resolve(op.path, { cwd, signal: exec.signal })
+          const key = resolvePath(cwd, op.path)
+          if (op.kind === 'add') {
+            staged.set(key, { target, path: op.path, text: op.content ?? '' })
+            results.push(`Added ${op.path}`)
+            continue
+          }
+          const original = staged.get(key)?.text ?? await fs.readText(target, exec.signal)
+          const applied = applyHunks(original, op.hunks ?? [], op.path)
+          staged.set(key, { target, path: op.path, text: applied.text })
+          results.push(`Updated ${op.path} (+${applied.added} -${applied.removed})`)
         }
-        const original = staged.get(key)?.text ?? await fs.readText(target, exec.signal)
-        const applied = applyHunks(original, op.hunks ?? [], op.path)
-        staged.set(key, { target, path: op.path, text: applied.text })
-        results.push(`Updated ${op.path} (+${applied.added} -${applied.removed})`)
+      } catch (error) {
+        // Everything above is preflight. Say so: with several files in one
+        // patch the model cannot tell whether the earlier ones were written.
+        if (exec.signal.aborted) throw error
+        const files = new Set(parsed.ops.map(op => op.path)).size
+        const untouched = files > 1 ? `No file was changed: all ${files} files in this patch are untouched.` : 'No file was changed.'
+        throw new Error(`${error instanceof Error ? error.message : String(error)}\n${untouched} Fix this hunk and send the whole patch again.`, { cause: error })
       }
       // ponytail: preflight prevents invalid-patch partial writes; I/O is not a multi-file transaction.
       const writes = [...staged.values()]
@@ -439,6 +534,8 @@ export function apply(ctx: PluginContext): void {
     if (extra === undefined) return result
     if (hookText(result).includes(REPAIR_MARKERS[extra.kind])) return result
     logLine('toolguard', `${exec.name ?? '?'} ${extra.kind}`)
-    return { ...result, content: [...result.content, { type: 'text' as const, text: clampText(extra.text, 900) }] }
+    // The harness joins content blocks with nothing between them, so the block
+    // brings its own blank line (contract §3: `Error: <original>\n\n<block>`).
+    return { ...result, content: [...result.content, { type: 'text' as const, text: `\n\n${clampText(extra.text, 900)}` }] }
   })
 }

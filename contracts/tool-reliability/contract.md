@@ -141,3 +141,22 @@ surface. v1 is annotation-only, so pre-dispatch path repair (`ls` → `bash`
 rewrite) is replaced by an annotated error. Target for `retry-ok` (≥90%) is
 unchanged because it was always annotation's job; the error *count* improves
 less than the plan's table implied — the plan doc is corrected after merge.
+
+## 8. Amendment 2026-11-09 (coordinator): what the session logs changed
+
+Measured on 110 `deepseek-v4.1-flash` sessions (1–9 Nov 2026). Three parts of
+§3 misled the model and are replaced. The helper signatures in §3 gain an
+optional trailing `name`; nothing else in the pinned API moves.
+
+| Was | Now | Why |
+|---|---|---|
+| `Call as: path \| [limit]` on **every** throw of a ceulen tool | `Call as: read_slice({ path, start? })`, appended only when the failure is about the shape: the arguments do not fit the schema's top level (`shapeProblem`), or the body died on a `TypeError` | `Call as: patch` under "hunk is ambiguous" read as "call the tool named patch"; a pipe list read as alternatives |
+| body runs with a required key missing | `missing required argument "url"` + `Call as:` before the body runs | a cold dispatch skips the registry's schema check, so the body crashed with `Cannot read properties of undefined` |
+| unknown tool → `Call as: <closest name>` | `Closest tool: <name> — no tool is named "<wanted>". Use <name> only if that is the tool you meant.`; a cold name gets the `ceulen_tools` call instead | the nearest name is a guess (`codemap` is not `codemode`), and the marker no longer has two meanings |
+
+`apply_patch` (repair) now also: reports the line numbers of an ambiguous hunk
+with the two lines above each match, honours the text after `@@` as a search
+start, numbers the failing hunk, and ends every preflight failure with
+"No file was changed". Blocks stay capped (§4.7): the match preview shows at
+most four matches of three lines each.
+

@@ -8,12 +8,14 @@ export const name = 'ceulen-steering'
 
 export const inject = ['commands', 'systemPrompt']
 
+// One text for every route: a prompt section cannot see the selected model,
+// so a line addressed to one model family would be read by all of them.
 const GUIDANCE = `Model steering (Ceulen):
 - Act with tools early: a short intent line, then the first call. Do not narrate a plan you can execute.
 - After a failed command, read the error and change the approach. Never repeat an identical failing call; vary the command or inspect the precondition.
 - Keep reasoning internal. The user needs the finding and the action, not a transcript of deliberation.
-- DeepSeek routes: prefer concrete file/tool evidence over recalling APIs; verify a symbol exists before editing.
-- GLM routes: honor the selected thinking level; do not compensate for a low level with long prose.
+- Prefer concrete file/tool evidence over recalling APIs; verify a symbol exists before editing.
+- Honor the selected thinking level; do not compensate for a low level with long prose.
 - When a tool result is truncated, narrow the query instead of re-running it unchanged.`
 
 export function sessionMovedOn(agent: AgentLike, reviewedSeq: number | undefined): boolean {

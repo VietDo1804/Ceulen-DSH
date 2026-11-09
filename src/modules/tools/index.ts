@@ -10,9 +10,11 @@
  * here instead of registered as a deferred schema.
  */
 import type { AgentLike, PluginContext, ToolDefinition } from '../../core/types.js'
-import { coldTool, coldToolEntries, ceulenTool, clampText, holdNativeTool, jsonText, nativeTool, nativeToolEntries, objectSchema, registerCommandSafe, registerToolSafe, text } from '../../core/tools.js'
+import { coldTool, coldToolEntries, ceulenTool, holdNativeTool, jsonText, nativeTool, nativeToolEntries, objectSchema, registerCommandSafe, registerToolSafe, text } from '../../core/tools.js'
 import type { ToolBudgetEntry } from '../../core/tools.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
+import { logLine } from '../../core/log.js'
+import { missingRequired, synthesizeUsage } from '../../core/toolguard.js'
 
 export const name = 'ceulen-tools'
 export const inject = ['tools', 'commands']
@@ -29,9 +31,53 @@ function definitionFor(name: string): ToolDefinition | undefined {
   return coldTool(name) ?? nativeTool(name)
 }
 
+/** Full descriptions and argument lists are printed for at most this many tools. */
+const MAX_DETAILED = 3
+
+function oneLine(value: string, max: number): string {
+  const flat = value.replace(/\s+/g, ' ').trim()
+  return flat.length > max ? `${flat.slice(0, max)}…` : flat
+}
+
+/** The way a cold tool is actually called: through `ceulen_tools`, never by its own name. */
+function callShape(name: string, argumentsShape?: string): string {
+  const definition = definitionFor(name)
+  const shape = argumentsShape ?? (definition === undefined ? '{ … }' : synthesizeUsage(definition.parameters))
+  return `ceulen_tools({ action: "call", name: "${name}", arguments: ${shape} })`
+}
+
+/** One line of description plus the call, for a long listing. */
 function describe(name: string): string {
   const definition = definitionFor(name)
-  return definition === undefined ? name : `${name} — ${clampText(definition.description, 160)}`
+  if (definition === undefined) return name
+  return `${name} — ${oneLine(definition.description, 160)}\n    call: ${callShape(name)}`
+}
+
+/**
+ * Everything the model needs to call the tool without guessing: the whole
+ * description (argument rules often live in its tail) and every argument with
+ * its type. A cold tool has no schema in the prompt, so this is the only place
+ * the model can read one.
+ */
+function describeFully(name: string): string {
+  const definition = definitionFor(name)
+  if (definition === undefined) return name
+  const parameters = (definition.parameters ?? {}) as { properties?: Record<string, { type?: unknown; enum?: unknown; description?: unknown }>; required?: unknown }
+  const required = Array.isArray(parameters.required) ? parameters.required : []
+  const lines = Object.entries(parameters.properties ?? {}).map(([key, prop]) => {
+    const type = Array.isArray(prop?.enum) ? prop.enum.map(entry => JSON.stringify(entry)).join(' | ') : typeof prop?.type === 'string' ? prop.type : 'any'
+    const note = typeof prop?.description === 'string' && prop.description.length > 0 ? ` — ${oneLine(prop.description, 240)}` : ''
+    return `      ${key} (${type}${required.includes(key) ? ', required' : ''})${note}`
+  })
+  return [
+    `${name} — ${oneLine(definition.description, 1_200)}`,
+    `    call: ${callShape(name)}`,
+    ...(lines.length === 0 ? [] : ['    arguments:', ...lines]),
+  ].join('\n')
+}
+
+function render(names: readonly string[]): string[] {
+  return names.length <= MAX_DETAILED ? names.map(describeFully) : names.slice(0, MAX_LISTED).map(describe)
 }
 
 function search(query: string): string {
@@ -43,14 +89,14 @@ function search(query: string): string {
   }
   const matches = entries().filter(entry => {
     const definition = definitionFor(entry.name)
-    return pattern.test(`${entry.name} ${definition?.description ?? ''}`)
+    // The name alone first, so an anchored `^web_interact$` finds its tool.
+    return pattern.test(entry.name) || pattern.test(`${entry.name} ${definition?.description ?? ''}`)
   })
   if (matches.length === 0) return `no cold tool matches /${query}/. ${entries().length} held: ${entries().map(entry => entry.name).join(', ')}`
   return [
     `${matches.length} cold tool(s) matching /${query}/:`,
-    ...matches.slice(0, MAX_LISTED).map(entry => `  ${describe(entry.name)}`),
-    '',
-    'Call one: ceulen_tools { action: "call", name: "<name>", arguments: { ... } }',
+    ...render(matches.map(entry => entry.name)).map(block => `  ${block}`),
+    ...(matches.length > MAX_DETAILED ? ['', `Search for one name (query: "^<name>$") to print its full description and argument types.`] : []),
   ].join('\n')
 }
 
@@ -60,7 +106,22 @@ function list(): string {
   return [
     `${held.length} cold tool(s) behind ceulen_tools:`,
     ...held.map(entry => `  ${describe(entry.name)}`),
+    '',
+    `Search for one name (query: "^<name>$") to print its full description and argument types.`,
   ].join('\n')
+}
+
+/**
+ * The shape a failed cold call should be retried with. The cold tool's own
+ * contract names itself (`web_interact({ url })`), which is not callable, so
+ * its argument part is lifted into the `ceulen_tools` form.
+ */
+function coldCallError(name: string, message: string): string {
+  const [body, inner] = message.split('\n\nCall as: ')
+  if (inner === undefined) return `${name} failed: ${message}`
+  const own = inner.trim()
+  const lifted = own.startsWith(`${name}(`) && own.endsWith(')') ? own.slice(name.length + 1, -1) : undefined
+  return `${name} failed: ${body}\n\nCall as: ${callShape(name, lifted)}`
 }
 
 export function apply(ctx: PluginContext): void {
@@ -68,10 +129,10 @@ export function apply(ctx: PluginContext): void {
 
   registerToolSafe(ctx, ceulenTool({
     name: 'ceulen_tools',
-    description: 'Search and call Ceulen tools that are held out of the prompt to save schema bytes (tools.cold). action=search matches a regex over the cold names+descriptions; action=list shows them all; action=call runs one by name with its own arguments object.',
+    description: 'Search and call Ceulen tools that are held out of the prompt to save schema bytes (tools.cold). action=search matches a regex over the cold names+descriptions and prints the arguments each match takes; action=list shows them all; action=call runs one by name with its own arguments object. Search before the first call of a tool: its arguments are listed nowhere else.',
     parameters: objectSchema({
       action: { type: 'string', enum: ['search', 'list', 'call'], description: 'search: regex over cold names+descriptions; list: every cold tool; call: run one by name.' },
-      query: { type: 'string', description: 'Regex for search, matched against "<name> <description>".' },
+      query: { type: 'string', description: 'Regex for search, matched against the name and against "<name> <description>".' },
       name: { type: 'string', description: 'Cold tool name (call only).' },
       arguments: { type: 'object', description: "The cold tool's own arguments object (call only)." },
     }, ['action']),
@@ -117,10 +178,17 @@ export function apply(ctx: PluginContext): void {
           : `unknown cold tool "${toolName}". Held: ${held.join(', ') || '(none)'}`)
       }
       const toolArgs = args.arguments !== null && typeof args.arguments === 'object' && !Array.isArray(args.arguments) ? args.arguments : {}
+      // This dispatch skips the registry's schema check a native tool is
+      // written against, so restore it for those. A ceulen tool has its own
+      // contract layer and its body may say more about the missing key.
+      const missing = coldTool(toolName) === undefined ? missingRequired(toolArgs, definition.parameters ?? {}) : []
+      if (missing.length > 0) {
+        throw new Error(coldCallError(toolName, `missing required argument${missing.length > 1 ? 's' : ''} ${missing.map(key => `"${key}"`).join(', ')}\n\nCall as: ${toolName}(${synthesizeUsage(definition.parameters ?? {})})`))
+      }
       try {
         return await definition.execute(toolArgs, exec)
       } catch (error) {
-        throw new Error(`${toolName} failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error })
+        throw new Error(coldCallError(toolName, error instanceof Error ? error.message : String(error)), { cause: error })
       }
     },
   }))
@@ -146,8 +214,7 @@ export function apply(ctx: PluginContext): void {
   // from what the model is offered while the definition stays dispatchable.
   ctx.on('agent/created', (payload: { agent?: AgentLike }) => {
     const agent = payload?.agent as (AgentLike & { ctx?: { inject?: PluginContext['inject'] } }) | undefined
-    const scoped = agent?.ctx
-    if (scoped === undefined || typeof scoped.inject !== 'function') return
+    if (agent === undefined) return
     let names: string[]
     try {
       const settings = loadSettingsSync()
@@ -157,24 +224,47 @@ export function apply(ctx: PluginContext): void {
     } catch {
       return
     }
-    const hidden = names.flatMap(name => {
-      try {
-        const definition = ctx.tools.get?.(name)
-        return definition === undefined ? [] : [[name, definition] as const]
-      } catch {
-        return []
-      }
-    })
-    if (hidden.length === 0) return
+    if (names.length === 0) return
+    const scoped = agent.ctx
+    if (scoped === undefined || typeof scoped.inject !== 'function') {
+      logLine('plugin', `native cold tools NOT hidden (${names.join(', ')}): the created agent exposes no scoped ctx`)
+      return
+    }
     scoped.inject(['tools'], (runtime: PluginContext) => {
-      const tools = runtime.tools as unknown as { restrict(filter: { deny: readonly string[] }): () => void }
-      try {
-        tools.restrict({ deny: hidden.map(([name]) => name) })
-      } catch (error) {
-        ctx.logger?.warn?.(`ceulen-tools: could not hide ${hidden.map(([name]) => name).join(', ')}: ${error instanceof Error ? error.message : String(error)}`)
-        return
+      const tools = runtime.tools as unknown as {
+        get?(name: string, scope?: unknown): ToolDefinition | undefined
+        restrict(filter: { deny: readonly string[] }): () => void
       }
-      for (const [, definition] of hidden) holdNativeTool(definition)
+      const hidden: string[] = []
+      const refused: string[] = []
+      for (const name of names) {
+        // Look the tool up as this agent sees it. The global view (no scope)
+        // misses every tool an app registers in a scoped layer: in the TUI
+        // that is all of the native ones, and the lookup used to come back
+        // empty and end here without a word.
+        let definition: ToolDefinition | undefined
+        try {
+          definition = tools.get?.(name, agent) ?? tools.get?.(name)
+        } catch {
+          definition = undefined
+        }
+        // Not registered for this agent: a disabled module or an absent plugin.
+        if (definition === undefined) continue
+        // One name per restriction: the registry refuses a whole deny list for
+        // a single name it cannot mask, and restrictions intersect anyway.
+        try {
+          tools.restrict({ deny: [name] })
+          holdNativeTool(definition)
+          hidden.push(name)
+        } catch (error) {
+          refused.push(`${name} (${error instanceof Error ? error.message.split(';')[0] : String(error)})`)
+        }
+      }
+      if (hidden.length > 0) logLine('plugin', `native cold tools hidden: ${hidden.join(', ')}`)
+      if (refused.length > 0) {
+        ctx.logger?.warn?.(`ceulen-tools: could not hide ${refused.join(', ')}`)
+        logLine('plugin', `native cold tools NOT hidden: ${refused.join(', ')}`)
+      }
     })
   })
 }

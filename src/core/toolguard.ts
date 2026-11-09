@@ -115,19 +115,61 @@ function renameStray(out: JsonRecord, props: JsonRecord, required: string[]): Js
   return renamed
 }
 
-/** One-line call shape derived from a JSON object schema: `path | css | [limit]`. */
-export function synthesizeUsage(schema: Record<string, unknown>): string {
+/**
+ * Call shape derived from a JSON object schema: `read_slice({ path, start? })`,
+ * required keys first, optional keys marked `?`. Written as a call so a
+ * one-key shape (`apply_patch({ patch })`) cannot be read as a tool name.
+ */
+export function synthesizeUsage(schema: Record<string, unknown>, name?: string): string {
   const props = properties(schema)
   const required = requiredKeys(schema)
   const optional = Object.keys(props).filter(key => !required.includes(key))
-  const parts = [...required, ...optional.map(key => `[${key}]`)]
-  return parts.length === 0 ? '(no arguments)' : parts.join(' | ')
+  const parts = [...required, ...optional.map(key => `${key}?`)]
+  const body = parts.length === 0 ? '{}' : `{ ${parts.join(', ')} }`
+  return name === undefined ? body : `${name}(${body})`
 }
 
 /** Append `Call as: <shape>` to a message; no-op when the marker is already there. */
-export function withCallShape(message: string, shape: Record<string, unknown> | string): string {
+export function withCallShape(message: string, shape: Record<string, unknown> | string, name?: string): string {
   if (message.includes('Call as:')) return message
-  return `${message}\n\nCall as: ${typeof shape === 'string' ? shape : synthesizeUsage(shape)}`
+  return `${message}\n\nCall as: ${typeof shape === 'string' ? shape : synthesizeUsage(shape, name)}`
+}
+
+function quoted(keys: readonly string[]): string {
+  return keys.map(key => `"${key}"`).join(', ')
+}
+
+/** The required keys an arguments object does not carry. */
+export function missingRequired(args: unknown, schema: Record<string, unknown>): string[] {
+  const record = plainRecord(args) ?? {}
+  return requiredKeys(schema).filter(key => !Object.hasOwn(record, key) || record[key] === undefined)
+}
+
+/**
+ * What is wrong with the arguments object against the top level of its schema,
+ * or undefined when it fits. This decides whether a failure is about the call
+ * shape: a body that rejects well-shaped arguments (a hunk that does not match,
+ * a refused path) gains nothing from being told the shape again.
+ */
+export function shapeProblem(args: unknown, schema: Record<string, unknown>): string | undefined {
+  const record = plainRecord(args)
+  if (record === undefined) return 'arguments must be one JSON object'
+  const missing = missingRequired(record, schema)
+  if (missing.length > 0) return `missing required argument${missing.length > 1 ? 's' : ''} ${quoted(missing)}`
+  const props = properties(schema)
+  if (schema.additionalProperties === false) {
+    const unknown = Object.keys(record).filter(key => !Object.hasOwn(props, key))
+    if (unknown.length > 0) return `unknown argument${unknown.length > 1 ? 's' : ''} ${quoted(unknown)}`
+  }
+  for (const [key, prop] of Object.entries(props)) {
+    if (!Object.hasOwn(record, key) || record[key] === undefined) continue
+    const propSchema = plainRecord(prop) ?? {}
+    if (!matchesType(record[key], propSchema)) {
+      const expected = Array.isArray(propSchema.enum) ? `one of ${propSchema.enum.map(entry => JSON.stringify(entry)).join(', ')}` : `of type ${declaredType(propSchema) ?? 'declared in the schema'}`
+      return `argument "${key}" must be ${expected}`
+    }
+  }
+  return undefined
 }
 
 /** Coerce literal strings and single values; never invents a missing required key. */

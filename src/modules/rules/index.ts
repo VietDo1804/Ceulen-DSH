@@ -12,7 +12,19 @@ function cwdOf(exec?: ToolRunContext): string {
   return exec?.agent?.session.header?.cwd ?? process.cwd()
 }
 
+/**
+ * Sticky rules the prompt block had no room for. The vendor renderer drops a
+ * rule whole once the block passes its cap and tells only the model, so the
+ * owner of RULES.md never learns that a rule stopped applying.
+ */
+export function droppedSticky(model: RuleModel): string[] {
+  const block = model.block
+  if (block === undefined) return []
+  return model.sticky.filter(rule => !block.includes(`### ${rule.name} (`)).map(rule => rule.name)
+}
+
 function statusText(model: RuleModel, cwd: string, mode: RuleGuardMode): string {
+  const dropped = droppedSticky(model)
   const names = (rules: { name: string }[]) => rules.map(rule => rule.name).join(', ') || '(none)'
   const sources = model.sources.length === 0
     ? []
@@ -37,6 +49,7 @@ function statusText(model: RuleModel, cwd: string, mode: RuleGuardMode): string 
   return [
     ...sources,
     `Sticky (${model.sticky.length}): ${names(model.sticky)}`,
+    ...(dropped.length === 0 ? [] : [`⚠ NOT in the prompt (${dropped.length}): ${dropped.join(', ')} — the sticky block is over its cap. Shorten RULES.md, or give a rule a \`description:\` line to serve it on demand.`]),
     `Rulebook (${model.rulebook.length}): ${names(model.rulebook)}`,
     ...guards,
     `Prompt block: ${model.blockChars} chars${model.block === undefined ? ' (no block)' : ''}`,
@@ -111,12 +124,18 @@ export function apply(ctx: PluginContext): void {
     if (typeof cwd === 'string' && cwd.length > 0) currentCwd = cwd
   })
 
+  let lastDropped = ''
   registerPromptSection(ctx, {
     name: 'ceulen:rules',
     order: 55,
     text: () => {
       try {
         const model = loadRules(currentCwd, ceulenHome(), true)
+        const dropped = droppedSticky(model).join(', ')
+        if (dropped !== lastDropped) {
+          lastDropped = dropped
+          if (dropped !== '') logLine('rules', `sticky rules dropped from the prompt (block over its cap): ${dropped}`)
+        }
         return model.block ?? ''
       } catch {
         return ''

@@ -126,7 +126,7 @@ export function apply(ctx: PluginContext): void {
     name: 'ceulen:rtk',
     order: 110,
     text: () => loadSettingsSync().rtk.enabled
-      ? 'RTK is available. For a single supported shell command (git, ls, rg, tests), call the `rtk` tool first; if it returns a rewritten command, run that with bash. Chains, redirects, inline scripts, and unsupported commands pass through unchanged. Never claim a saving you did not measure.'
+      ? 'RTK is available for commands you run for their output: git, test runners, linters, builds, docker/kubectl. For one such command, call the `rtk` tool first; if it returns a rewritten command, run that with bash. Reading, searching and listing files is not RTK work: use `read`, `grep` and `glob`, because only `read` lets `edit` and `write` accept the file. Chains, redirects, inline scripts, and unsupported commands pass through unchanged. Never claim a saving you did not measure.'
       : '',
   })
 
