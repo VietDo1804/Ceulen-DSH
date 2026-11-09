@@ -45,7 +45,7 @@ const DESCRIPTION = [
   '',
   'Images do not pass through this return value: a capture tool (`web_screenshot`, `web_interact`, `ux_audit`, `read_image`) called inside the program returns no image to you. Call those tools directly when you need to see the result.',
   '',
-  '`await state.store({ key, value })` / `await state.load({ key })` keep small JSON values across codemode calls in this session (≤256k chars per value, ≤1M total); both are async, and writes persist only when the script succeeds. The first line may be `// @options: {"timeout_ms": 60000, "max_output_chars": 4000}` (deadline up to 600s; default 120s).',
+  '`await state.store({ key, value })` / `await state.load({ key })` keep small JSON values across codemode calls in this live session, lost on restart, so put anything you must keep in a file (≤256k chars per value, ≤1M total); both are async, and writes persist only when the script succeeds. The first line may be `// @options: {"timeout_ms": 60000, "max_output_chars": 4000}` (deadline up to 600s; default 120s).',
   '',
   '`await codemode.exit(null)` ends the script successfully from a nested helper (store writes made before it still commit); always `await` it so it unwinds at the call site. A failed script\'s error is trimmed to the message plus its own `<anonymous>:line:column` frame; Node/PTC stack internals are dropped.',
   '',
