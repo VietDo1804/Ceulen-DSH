@@ -166,7 +166,10 @@ export function defaultSettings(): CeulenSettings {
         'jfind',
         'munin_delete', 'munin_share',
         'evo_pass',
-        'web_interact', 'web_map', 'web_pdf', 'web_screenshot',
+        // `web_interact` stays in the prompt: 400 calls through ceulen_tools in
+        // nine days of November 2026 sessions, 18 of them argument-shape errors
+        // because a cold tool shows the model no schema.
+        'web_map', 'web_pdf', 'web_screenshot',
         // Measured 2026-10-31 on the 40.9 KB / 53-tool TUI surface: these add
         // ~9.1 KB and are named by no always-on prompt section. Native names
         // are hidden per agent (tools.restrict); ceulen ones at register time.
