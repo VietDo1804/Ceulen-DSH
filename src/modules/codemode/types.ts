@@ -69,11 +69,12 @@ export interface ToolSchemaLike {
 }
 
 export interface RegistryLike {
-  schemas(agent?: unknown): readonly ToolSchemaLike[]
+  schemas(agent?: unknown, toolSet?: unknown): readonly ToolSchemaLike[]
   execute(request: {
     calls: readonly NestedToolCall[]
     agent?: unknown
     signal?: AbortSignal
+    toolSet?: unknown
   }): Promise<NestedToolBatch>
 }
 
