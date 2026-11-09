@@ -59,7 +59,7 @@ export async function streamTextDetailed(
 ): Promise<StreamedText> {
   if (ctx.llm === undefined) throw new Error('the llm service is not mounted')
   let text = ''
-  let finish = 'stop'
+  let finish = 'unknown'
   for await (const chunk of ctx.llm.stream({
     provider: route.provider,
     model: route.model,
@@ -86,7 +86,7 @@ export async function streamTextDetailed(
         const label = item.reason.kind === 'aborted' ? 'aborted' : 'failed'
         throw new Error(`llm call ${label}${failure?.code === undefined ? '' : ` (${failure.code})`}: ${failure?.message ?? 'no failure details'}`)
       }
-      finish = item.reason?.kind ?? 'stop'
+      finish = item.reason?.kind ?? 'unknown'
     }
   }
   return { text: text.trim(), finish }
