@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { AgentLike, PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync, updateSettings, type ReasoningEffort } from '../../core/settings.js'
-import { parseRoute, streamText, type LlmRoute } from '../../core/llm.js'
+import { parseRoute, streamTextDetailed, type LlmRoute } from '../../core/llm.js'
 import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerToolSafe, tuiStatusPublisher } from '../../core/tools.js'
 import { createGuard, guardCheck, nextCycle, parseReviewOutput, type GuardState, type Severity } from '../../vendor/ceulen/advisor/emission-guard.js'
 import { sessionMovedOn, shelveLateNote } from '../steering/index.js'
@@ -73,6 +73,7 @@ async function streamChain(
   system: string,
   user: string,
   signal?: AbortSignal,
+  allowSilence = false,
   timeoutMs = 300_000,
   maxTokens = 18_000,
 ): Promise<{ text: string; route: Route }> {
@@ -85,9 +86,12 @@ async function streamChain(
     timer.unref?.()
     const combined = signal === undefined ? controller.signal : AbortSignal.any([controller.signal, signal])
     try {
-      const text = await streamText(ctx, route, system, user, combined, maxTokens)
-      if (text.length > 0) return { text, route }
-      failures.push(`${route.provider}/${route.model}: empty response`)
+      const { text, finish } = await streamTextDetailed(ctx, route, system, user, combined, maxTokens)
+      logLine('advisor', `route completed ${route.provider}/${route.model} finish=${finish} chars=${text.length}`)
+      if (finish === 'max-tokens') throw new Error('response truncated (finish=max-tokens)')
+      // ponytail: only the watcher permits silence, and only after an explicit clean stop.
+      if (text.length > 0 || (allowSilence && finish === 'stop')) return { text, route }
+      failures.push(`${route.provider}/${route.model}: empty response (finish=${finish})`)
     } catch (error) {
       if (signal?.aborted) throw error
       failures.push(`${route.provider}/${route.model}: ${error instanceof Error ? error.message : String(error)}`)
@@ -212,7 +216,7 @@ export function apply(ctx: PluginContext): void {
       const evidence = await gitEvidence(session.header?.cwd, touchedPaths(messages), signal)
       const userPrompt = `Transcript of the latest turn:\n\n${transcript.text}${evidence.length > 0 ? `\n\n${evidence}` : ''}\n\nReturn exactly one JSON line, or nothing.`
       logLine('advisor', `review start seq=${seq} chars=${userPrompt.length} pinned=${transcript.pinned} evidence=${evidence.length}`)
-      const { text: raw, route } = await streamChain(ctx, routes, SYSTEM, userPrompt, signal)
+      const { text: raw, route } = await streamChain(ctx, routes, SYSTEM, userPrompt, signal, true)
       if (abort()) return
       const routeLabel = `${route.provider}/${route.model}`
       lastReviewed.set(key, seq)
