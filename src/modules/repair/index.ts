@@ -11,6 +11,8 @@ export const inject = ['tools']
 interface Hunk {
   before: string[]
   after: string[]
+  added: number
+  removed: number
 }
 
 interface FileOp {
@@ -25,45 +27,48 @@ interface ParsedPatch {
 }
 
 function parsePatch(patch: string): ParsedPatch {
-  const lines = patch.replace(/\r\n/g, '\n').split('\n')
+  const lines = patch.replace(/\r\n/g, '\n').trim().split('\n')
+  if (lines[0]?.trim() !== '*** Begin Patch') throw new Error('invalid patch at line 1: expected *** Begin Patch')
+  if (lines.at(-1)?.trim() !== '*** End Patch') throw new Error(`invalid patch at line ${lines.length}: expected *** End Patch`)
   const ops: FileOp[] = []
-  let index = 0
-  if (lines[index]?.trim() === '*** Begin Patch') index += 1
+  let index = 1
   let current: FileOp | undefined
   let hunk: Hunk | undefined
+  const invalid = (message: string): never => { throw new Error(`invalid patch at line ${index + 1}: ${message}`) }
   const flushHunk = () => {
     if (hunk !== undefined && current !== undefined) {
+      if (hunk.added + hunk.removed === 0) invalid(`hunk in ${current.path} has no changes`)
       current.hunks = current.hunks ?? []
       current.hunks.push(hunk)
       hunk = undefined
     }
   }
-  for (; index < lines.length; index += 1) {
+  for (; index < lines.length - 1; index += 1) {
     const line = lines[index] ?? ''
-    if (line.trim() === '*** End Patch') break
-    const add = /^\*\*\* Add File:\s*(.+)$/.exec(line)
+    const add = /^\*\*\* Add File:\s*(\S.*)$/.exec(line)
     if (add !== null) {
       flushHunk()
       current = { kind: 'add', path: add[1]!.trim(), content: '' }
       ops.push(current)
       const content: string[] = []
-      while (index + 1 < lines.length && !(lines[index + 1] ?? '').startsWith('*** ')) {
+      while (index + 1 < lines.length - 1 && !(lines[index + 1] ?? '').startsWith('*** ')) {
         index += 1
         const next = lines[index] ?? ''
-        content.push(next.startsWith('+') ? next.slice(1) : next)
+        if (!next.startsWith('+')) invalid('added file lines must start with +')
+        content.push(next.slice(1))
       }
-      current.content = `${content.join('\n')}\n`
+      current.content = content.length === 0 ? '' : `${content.join('\n')}\n`
       current = undefined
       continue
     }
-    const del = /^\*\*\* Delete File:\s*(.+)$/.exec(line)
+    const del = /^\*\*\* Delete File:\s*(\S.*)$/.exec(line)
     if (del !== null) {
       flushHunk()
       ops.push({ kind: 'delete', path: del[1]!.trim() })
       current = undefined
       continue
     }
-    const update = /^\*\*\* Update File:\s*(.+)$/.exec(line)
+    const update = /^\*\*\* Update File:\s*(\S.*)$/.exec(line)
     if (update !== null) {
       flushHunk()
       current = { kind: 'update', path: update[1]!.trim(), hunks: [] }
@@ -72,7 +77,7 @@ function parsePatch(patch: string): ParsedPatch {
     }
     if (line.startsWith('@@') && current !== undefined) {
       flushHunk()
-      hunk = { before: [], after: [] }
+      hunk = { before: [], after: [], added: 0, removed: 0 }
       continue
     }
     if (hunk !== undefined) {
@@ -81,15 +86,24 @@ function parsePatch(patch: string): ParsedPatch {
         hunk.after.push(line.slice(1))
       } else if (line.startsWith('-')) {
         hunk.before.push(line.slice(1))
+        hunk.removed += 1
       } else if (line.startsWith('+')) {
         hunk.after.push(line.slice(1))
+        hunk.added += 1
       } else if (line.length === 0) {
         hunk.before.push('')
         hunk.after.push('')
+      } else {
+        invalid(`unsupported line ${JSON.stringify(line)}`)
       }
+    } else if (line.trim().length > 0) {
+      invalid(`unsupported line ${JSON.stringify(line)}`)
     }
   }
   flushHunk()
+  for (const op of ops) {
+    if (op.kind === 'update' && op.hunks?.length === 0) invalid(`update in ${op.path} has no hunks`)
+  }
   return { ops }
 }
 
@@ -109,14 +123,16 @@ function countMatches(lines: string[], pattern: string[]): number[] {
 }
 
 function applyHunks(text: string, hunks: Hunk[], path: string): { text: string; added: number; removed: number } {
+  const eol = text.includes('\r\n') ? '\r\n' : '\n'
+  if (eol === '\r\n' && /(^|[^\r])\n/.test(text)) throw new Error(`mixed line endings in ${path}; normalize them before patching`)
   const trailing = text.endsWith('\n')
-  let lines = text.split('\n')
+  let lines = text.length === 0 ? [] : text.replace(/\r\n/g, '\n').split('\n')
   if (trailing) lines = lines.slice(0, -1)
   let added = 0
   let removed = 0
   let cursor = 0
   for (const hunk of hunks) {
-    if (hunk.before.length === 0) throw new Error(`hunk in ${path} has no context or removed lines`)
+    if (hunk.before.length === 0 && lines.length > 0) throw new Error(`hunk in ${path} has no context or removed lines`)
     const hits = countMatches(lines, hunk.before)
     if (hits.length === 0) throw new Error(`hunk does not match ${path}: ${JSON.stringify(hunk.before.slice(0, 3))}`)
     // V4D hunks in one file op are ordered top-to-bottom: when the context
@@ -125,11 +141,11 @@ function applyHunks(text: string, hunks: Hunk[], path: string): { text: string; 
     if (hits.length > 1 && forward.length !== 1) throw new Error(`hunk is ambiguous in ${path} (${hits.length} matches); add more context`)
     const at = (hits.length > 1 ? forward[0] : hits[0])!
     lines = [...lines.slice(0, at), ...hunk.after, ...lines.slice(at + hunk.before.length)]
-    added += hunk.after.length
-    removed += hunk.before.length
+    added += hunk.added
+    removed += hunk.removed
     cursor = at + hunk.after.length
   }
-  return { text: `${lines.join('\n')}${trailing ? '\n' : ''}`, added, removed }
+  return { text: `${lines.join(eol)}${trailing ? eol : ''}`, added, removed }
 }
 
 interface FsLike {
@@ -342,18 +358,35 @@ export function apply(ctx: PluginContext): void {
       const fs = fsService(ctx)
       const cwd = exec.agent?.session.header?.cwd ?? process.cwd()
       const results: string[] = []
+      const staged = new Map<string, { target: unknown; path: string; text: string }>()
       for (const op of parsed.ops) {
+        exec.signal.throwIfAborted()
         if (op.kind === 'delete') throw new Error(`delete is not supported by apply_patch: ${op.path}`)
         const target = await fs.resolve(op.path, { cwd, signal: exec.signal })
+        const key = resolvePath(cwd, op.path)
         if (op.kind === 'add') {
-          await fs.writeText(target, op.content ?? '', undefined, exec.signal)
+          staged.set(key, { target, path: op.path, text: op.content ?? '' })
           results.push(`Added ${op.path}`)
           continue
         }
-        const original = await fs.readText(target, exec.signal)
+        const original = staged.get(key)?.text ?? await fs.readText(target, exec.signal)
         const applied = applyHunks(original, op.hunks ?? [], op.path)
-        await fs.writeText(target, applied.text, undefined, exec.signal)
+        staged.set(key, { target, path: op.path, text: applied.text })
         results.push(`Updated ${op.path} (+${applied.added} -${applied.removed})`)
+      }
+      // ponytail: preflight prevents invalid-patch partial writes; I/O is not a multi-file transaction.
+      const writes = [...staged.values()]
+      let completed = 0
+      try {
+        for (const entry of writes) {
+          exec.signal.throwIfAborted()
+          await fs.writeText(entry.target, entry.text, undefined, exec.signal)
+          completed += 1
+        }
+      } catch (error) {
+        const written = writes.slice(0, completed).map(entry => entry.path).join(', ') || '(none)'
+        const pending = writes.slice(completed).map(entry => entry.path).join(', ')
+        throw new Error(`${error instanceof Error ? error.message : String(error)}\nWritten: ${written}\nNot confirmed written: ${pending}`, { cause: error })
       }
       return results.join('\n')
     },

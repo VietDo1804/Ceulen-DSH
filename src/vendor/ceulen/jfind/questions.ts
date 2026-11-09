@@ -31,6 +31,46 @@ export interface JudgmentResult {
   usage?: { input?: number; output?: number };
 }
 
+/** Largest serialized judge request, in chars (the exact user message). */
+export const JUDGE_BUDGET_CHARS = 26_000;
+
+const JUDGE_PREFIX = 'Judge these entries. Return {"answers":{...}}.\n\n';
+
+/** The exact user message the judge seam sends for one request. */
+export function judgeUserMessage(request: Request): string {
+  const questions: Record<string, string> = {};
+  for (const [key, question] of Object.entries(request.questions)) questions[key] = question.instructions;
+  return `${JUDGE_PREFIX}${JSON.stringify({ state: request.state, questions })}`;
+}
+
+/**
+ * Split `items` into requests whose serialized user message fits
+ * JUDGE_BUDGET_CHARS, preserving order and every item. One item over budget is
+ * returned alone so the judge can refuse it loudly instead of cutting JSON.
+ */
+export function packBatches<T>(items: readonly T[], build: (batch: T[]) => Request, maxItems = Infinity): T[][] {
+  const batches: T[][] = [];
+  let batch: T[] = [];
+  const flush = (): void => {
+    if (batch.length > 0) {
+      batches.push(batch);
+      batch = [];
+    }
+  };
+  for (const item of items) {
+    if (batch.length >= maxItems) flush();
+    const next = [...batch, item];
+    if (batch.length > 0 && judgeUserMessage(build(next)).length > JUDGE_BUDGET_CHARS) {
+      flush();
+      batch = [item];
+    } else {
+      batch = next;
+    }
+  }
+  flush();
+  return batches;
+}
+
 const TASK =
   "Semantic grep over a source tree: locate files whose content matches the search description. Entries are judged by name, size, position in the tree, and (for folders) a sample of what they contain.";
 

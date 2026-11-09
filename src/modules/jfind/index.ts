@@ -1,5 +1,5 @@
 import { existsSync, lstatSync } from 'node:fs'
-import { relative as relativePath, resolve as resolvePath } from 'node:path'
+import { isAbsolute, relative as relativePath, resolve as resolvePath, sep } from 'node:path'
 import type { PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { ceulenTool, clampText, objectSchema, registerToolSafe } from '../../core/tools.js'
@@ -34,13 +34,13 @@ export function apply(ctx: PluginContext): void {
       const args = raw as { query: string; keywords?: string[]; path?: string }
       const query = args.query.trim()
       if (query.length === 0) throw new Error('query must be a non-empty description')
-      const cwd = exec.agent?.session.header?.cwd ?? process.cwd()
+      const cwd = resolvePath(exec.agent?.session.header?.cwd ?? process.cwd())
       const scope = typeof args.path === 'string' ? args.path.trim() : ''
-      let root = resolvePath(cwd)
+      let root = cwd
       if (scope.length > 0) {
         root = resolvePath(cwd, scope)
         const rel = relativePath(cwd, root)
-        if (root !== cwd && (rel.startsWith('..') || rel.startsWith('/') || rel.length === 0)) {
+        if (root !== cwd && (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel))) {
           throw new Error(`path must be inside the workspace: ${scope}`)
         }
         if (!existsSync(root)) throw new Error(`path not found: ${scope}`)

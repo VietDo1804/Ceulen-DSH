@@ -1,6 +1,6 @@
 import type { AgentLike, PluginContext } from '../../core/types.js'
 import { extractJson, streamText, type LlmRoute } from '../../core/llm.js'
-import type { Judge, JudgmentResult, Request } from '../../vendor/ceulen/jfind/questions.js'
+import { JUDGE_BUDGET_CHARS, judgeUserMessage, type Judge, type JudgmentResult, type Request } from '../../vendor/ceulen/jfind/questions.js'
 
 const SYSTEM = `You are a semantic code-search judge. Read the supplied state (a tree listing, sketches, or passages) and answer every question with a calibrated probability.
 
@@ -19,12 +19,13 @@ export function createLlmJudge(ctx: PluginContext, route: LlmRoute): Judge {
     label: `${route.provider}/${route.model}`,
     async judge(request: Request, options?: { signal?: AbortSignal }): Promise<JudgmentResult> {
       const signal = options?.signal ?? new AbortController().signal
-      const payload = {
-        state: request.state,
-        questions: Object.fromEntries(Object.entries(request.questions).map(([key, value]) => [key, value.instructions])),
+      const user = judgeUserMessage(request)
+      if (user.length > JUDGE_BUDGET_CHARS) {
+        throw new Error(
+          `jfind judge request is ${user.length} chars, over the ${JUDGE_BUDGET_CHARS}-char budget; refusing to truncate serialized JSON`,
+        )
       }
-      const user = `Judge these entries. Return {"answers":{...}}.\n\n${JSON.stringify(payload)}`
-      const text = await streamText(ctx, route, SYSTEM, user.slice(0, 26_000), signal, 2_400)
+      const text = await streamText(ctx, route, SYSTEM, user, signal, 2_400)
       const parsed = extractJson(text)
       if (parsed === null || typeof parsed !== 'object') throw new Error('jfind judge returned no JSON object')
       const root = parsed as { answers?: unknown; [key: string]: unknown }

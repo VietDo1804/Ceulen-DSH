@@ -139,14 +139,15 @@ export function listFiles(rootAbs: string, includeHidden = false): FileEntry[] {
   const files: FileEntry[] = [];
   let gitFiles: string[] | undefined;
   try {
-    gitFiles = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
+    gitFiles = execFileSync("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], {
       cwd: rootAbs,
       encoding: "utf8",
       timeout: 10_000,
       // DSH port: a non-repo workspace must not print git's fatal message.
       stdio: ["ignore", "pipe", "ignore"],
     })
-      .split("\n")
+      // -z: NUL-terminated, unquoted — newline, quote, and non-ASCII names survive.
+      .split("\0")
       .filter(Boolean);
   } catch {
     gitFiles = undefined; // not a repo / no git — plain walk below

@@ -138,21 +138,3 @@ export function formatMatches(matches: SgMatch[], pattern: string, maxMatches = 
   }
   return lines.join("\n");
 }
-
-/** Split a dry-run diff preview into per-file sections (`path\n@@ …`). */
-export function parseDiffOutput(stdout: string): Array<{ file: string; diff: string }> {
-  const out: Array<{ file: string; diff: string }> = [];
-  const lines = stdout.split("\n");
-  let current: { file: string; lines: string[] } | undefined;
-  for (const line of lines) {
-    // File headers are bare relative paths (no @@, no gutter glyphs).
-    if (line.length > 0 && !line.startsWith("@@") && !/^\s*[0-9]+\s*[│|]/.test(line) && !/^[│\-+ ]/.test(line) && line === line.trim() && !line.includes("│")) {
-      if (current) out.push({ file: current.file, diff: current.lines.join("\n") });
-      current = { file: line, lines: [] };
-    } else if (current) {
-      current.lines.push(line);
-    }
-  }
-  if (current) out.push({ file: current.file, diff: current.lines.join("\n") });
-  return out;
-}

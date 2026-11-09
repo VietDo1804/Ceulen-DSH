@@ -19,6 +19,7 @@ import {
   passageKey,
   nameBatch,
   passageBatch,
+  packBatches,
   sketchBatch,
   type Judge,
   type Request,
@@ -61,12 +62,10 @@ const CUTOFF = 0.45;
 const THRESHOLD = 0.2;
 /** Bytes of a file read for windowing. */
 const READ_LIMIT = 4 * 1024 * 1024;
-/** Sketch state budget per request. */
-const SKETCH_STATE_BYTES = 18_000;
 /** Hard cap on sketch cards per request. */
 const SKETCH_CARDS_MAX = 48;
-/** Passage state budget per verification request, tags included. */
-const VERIFY_STATE_BYTES = 24 * 1024;
+/** Passages (source windows) per verification request — OMP's 24KB state budget. */
+const VERIFY_BATCH = 3;
 /** Distinct failure messages retained for the report. */
 const FAILURES_KEPT = 5;
 /** ponytail: classify round-trips are costlier than OMP's native judge, so
@@ -126,12 +125,6 @@ function noul(outcome: Outcome, key: string): number | undefined {
   if (!outcome.ok) return undefined;
   const p = outcome.result.answers[key]?.probability;
   return p !== undefined && Number.isFinite(p) && p >= 0 && p <= 1 ? p : undefined;
-}
-
-function chunks<T>(items: readonly T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let start = 0; start < items.length; start += size) out.push(items.slice(start, start + size));
-  return out;
 }
 
 function compareRel(a: FileEntry, b: FileEntry): number {
@@ -216,13 +209,12 @@ class Cascade {
 
     // Wave 1: filename ranking over the lexical shortlist.
     const project = basename(root);
-    const nameJobs = chunks(
+    const nameRequest = (batch: number[]): Request => nameBatch(project, query, batch.map((node) => entries[node]!));
+    const nameJobs = packBatches(
       ranked.map((candidate) => candidate.node),
+      nameRequest,
       NAME_BATCH,
-    ).map((batch) => ({
-      batch,
-      request: nameBatch(project, query, batch.map((node) => entries[node]!)),
-    }));
+    ).map((batch) => ({ batch, request: nameRequest(batch) }));
     let named = 0;
     onProgress?.(`filename ranking 0/${ranked.length}`);
     await this.#dispatch(nameJobs, (job, outcome) => {
@@ -269,17 +261,18 @@ class Cascade {
     // Wave 2: sketch routing over mixed-file cards.
     const cards: { f: number; p: number }[] = [];
     files.forEach((plan, f) => plan.passages.forEach((_, p) => cards.push({ f, p })));
-    const sketchJobs = chunks(
-      cards,
-      Math.min(SKETCH_CARDS_MAX, Math.max(1, Math.floor(SKETCH_STATE_BYTES / SKETCH_BYTES))),
-    ).map((batch) => {
+    const sketchRequest = (batch: { f: number; p: number }[]): Request => {
       const sketches: SketchCard[] = batch.map(({ f, p }) => ({
         fileKey: `f${f}`,
         rel: entries[files[f]!.node]!.rel,
         sketch: sketch(files[f]!.passages[p]!, keywords, weights, SKETCH_BYTES),
       }));
-      return { batch, request: sketchBatch(query, sketches) };
-    });
+      return sketchBatch(query, sketches);
+    };
+    const sketchJobs = packBatches(cards, sketchRequest, SKETCH_CARDS_MAX).map((batch) => ({
+      batch,
+      request: sketchRequest(batch),
+    }));
     this.stats.mapCards += cards.length;
     onProgress?.(`scoring ${cards.length} passage sketches across ${files.length} files`);
     const candidates: { f: number; p: number; score: number }[] = [];
@@ -313,9 +306,10 @@ class Cascade {
     for (const f of [...chosen.keys()].sort((a, b) => a - b)) {
       const rel = entries[files[f]!.node]!.rel;
       const ps = chosen.get(f)!.sort((a, b) => a - b);
-      for (const group of chunks(ps, Math.max(1, Math.floor(VERIFY_STATE_BYTES / WINDOW_BYTES)))) {
+      const passageRequest = (group: number[]): Request => passageBatch(query, rel, group.map((p) => files[f]!.passages[p]!));
+      for (const group of packBatches(ps, passageRequest, VERIFY_BATCH)) {
         const passages = group.map((p) => files[f]!.passages[p]!);
-        verifyJobs.push({ f, passages, request: passageBatch(query, rel, passages) });
+        verifyJobs.push({ f, passages, request: passageRequest(group) });
       }
     }
     onProgress?.(`verifying ${survivors.length} passages in ${chosen.size} files`);

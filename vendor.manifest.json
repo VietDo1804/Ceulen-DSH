@@ -174,7 +174,7 @@
       "module": "sg",
       "source": "extensions/modules/sg/lib/ops.ts",
       "target": "src/vendor/ceulen/sg/ops.ts",
-      "mode": "copy"
+      "mode": "patched"
     },
     {
       "module": "ux",
@@ -198,7 +198,7 @@
       "module": "jfind",
       "source": "extensions/modules/jfind/lib/cascade.ts",
       "target": "src/vendor/ceulen/jfind/cascade.ts",
-      "mode": "copy"
+      "mode": "patched"
     },
     {
       "module": "jfind",
@@ -210,7 +210,7 @@
       "module": "jfind",
       "source": "extensions/modules/jfind/lib/questions.ts",
       "target": "src/vendor/ceulen/jfind/questions.ts",
-      "mode": "copy"
+      "mode": "patched"
     },
     {
       "module": "web",

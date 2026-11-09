@@ -181,7 +181,7 @@
       "source": "extensions/modules/sg/lib/ops.ts",
       "upstreamSha256": "b29b5b68421253fd0f01e2300d11ca143b90ec90f9bc24f02949b0c00a9a72f3",
       "localSha256": "b29b5b68421253fd0f01e2300d11ca143b90ec90f9bc24f02949b0c00a9a72f3",
-      "mode": "copy"
+      "mode": "patched"
     },
     "src/vendor/ceulen/ux/audit.ts": {
       "source": "extensions/modules/ux/lib/audit.ts",
@@ -205,7 +205,7 @@
       "source": "extensions/modules/jfind/lib/cascade.ts",
       "upstreamSha256": "c5c0c67ee01c06e17eb2c225fad963c2097a5feae872278fa5bd84fda866bf27",
       "localSha256": "c5c0c67ee01c06e17eb2c225fad963c2097a5feae872278fa5bd84fda866bf27",
-      "mode": "copy"
+      "mode": "patched"
     },
     "src/vendor/ceulen/jfind/format.ts": {
       "source": "extensions/modules/jfind/lib/format.ts",
@@ -217,7 +217,7 @@
       "source": "extensions/modules/jfind/lib/questions.ts",
       "upstreamSha256": "1ccc67743a84b7f2b47c8626099099e672596ac3486b0cb661efd9b865d7c92d",
       "localSha256": "1ccc67743a84b7f2b47c8626099099e672596ac3486b0cb661efd9b865d7c92d",
-      "mode": "copy"
+      "mode": "patched"
     },
     "src/vendor/ceulen/web/chrome.ts": {
       "source": "extensions/modules/web/lib/chrome.ts",
