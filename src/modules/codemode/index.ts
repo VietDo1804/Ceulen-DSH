@@ -41,7 +41,7 @@ const DESCRIPTION = [
   '',
   '`code` is the body of an async function: top-level `await` and `return` work. `tools.<name>(args)` calls any tool the session can call and resolves to its structured value (see the shapes below); arguments follow that tool\'s declared schema (DSH\'s `bash` also requires `description`). Tool names are exact; use `tools[\'name\']` when the name is not a JavaScript identifier. A failed, blocked or denied call rejects with the tool\'s error text — use `Promise.allSettled()` to keep the calls that succeed, and when a call fails on its arguments retry the fallback shape inside `try { … } catch { … }` so the wrong variant costs no extra model round trip.',
   '',
-  'Result shapes: `bash` → `{ exitCode, stdout: { text, truncated }, stderr: { text, truncated } }`, so the output is `r.stdout.text`, never `r.stdout`; a non-zero exit does not reject, check `exitCode`. `read` → `{ path, lines: [{ number, text }], totalLines }`.',
+  'Result shapes: `bash` → `{ exitCode, stdout: { text, truncated }, stderr: { text, truncated } }`, so the output is `r.stdout.text`, never `r.stdout`; a non-zero exit does not reject, check `exitCode`. `read` → `{ path, lines: [{ number, text }], totalLines }`. `web_search({ queries: [\'…\'] })` (an array, not `query`) → `{ content?, sources: [{ url, title?, snippet?, publishedAt?, summary? }], truncated }`; `content` is the provider\'s answer text when it gives one, and there is no `answer` field.',
   '',
   'Images do not pass through this return value: a capture tool (`web_screenshot`, `web_interact`, `ux_audit`, `read_image`) called inside the program returns no image to you. Call those tools directly when you need to see the result.',
   '',
