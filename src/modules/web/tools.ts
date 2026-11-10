@@ -5,10 +5,36 @@ import { findChromeBinary, capturePdf, captureScreenshot } from '../../vendor/ce
 import { runInteraction, validateSteps, type InteractStep } from '../../vendor/ceulen/web/cdp.js'
 import { chatgptWebChat, describeChatGptError, loadChatGptAuth } from '../../vendor/ceulen/web/chatgpt.js'
 import { chatgptChat, describeChatApiError, loadChatConfig } from '../../vendor/ceulen/web/chatapi.js'
+import { ignoredNote, normalizeInteractArgs, normalizeScreenshotArgs } from './args.js'
 import { assertCaptureScope, IMAGE_RESULT_SCHEMA, imageRender, savePdfFile, saveScreenshot } from './capture.js'
 import { FALLBACK_FETCH_PROVIDER_ID, fetchPage, fetchHtmlPage } from './fetch.js'
 import { webProviders } from './providers.js'
 import { htmlToText } from './text.js'
+
+// Both schemas let undeclared keys through (third argument): the aliases models
+// send are mapped in args.ts, and whatever is left is named in the result.
+const SCREENSHOT_PARAMETERS = objectSchema({
+  url: { type: 'string', description: 'http(s) or workspace file:// URL.' },
+  width: { type: 'integer', description: 'Viewport width (default 1280).' },
+  height: { type: 'integer', description: 'Viewport height (default 800).' },
+  fullPage: { type: 'boolean', description: 'Use a tall 8000px window to approximate a full page.' },
+  reducedMotion: { type: 'boolean', description: 'Force prefers-reduced-motion: reduce.' },
+  waitForSec: { type: 'number', description: 'Settle time before capture, seconds.' },
+}, ['url'], true)
+
+const INTERACT_PARAMETERS = objectSchema({
+  url: { type: 'string', description: 'http(s) or workspace file:// URL.' },
+  steps: {
+    type: 'array',
+    description: 'Ordered interaction steps, exactly one action key per step.',
+    items: { type: 'object', additionalProperties: true },
+  },
+  viewport: { type: 'object', additionalProperties: true, description: '{width,height?,device_scale_factor?}.' },
+  reducedMotion: { type: 'boolean', description: 'Force prefers-reduced-motion: reduce.' },
+  waitForSec: { type: 'number', description: 'Settle time after load, seconds.' },
+  stepTimeoutMs: { type: 'integer', description: 'Per-step budget (default 60000).' },
+  grant: { type: 'array', items: { type: 'string' }, description: 'Browser permissions to grant, e.g. clipboard-read.' },
+}, ['url'], true)
 
 /** The seven model-facing web tools; the command surface stays in index.ts. */
 export function registerWebTools(ctx: PluginContext): void {
@@ -77,14 +103,8 @@ export function registerWebTools(ctx: PluginContext): void {
   registerToolSafe(ctx, ceulenTool({
     name: 'web_screenshot',
     description: 'Capture a page with local headless Chrome. Returns the screenshot as an image when the attachment store is mounted, otherwise saves a PNG and returns its path. Supports public http(s) URLs, localhost/private dev servers, and workspace file:// URLs. Images do not pass through codemode — call this directly when you need to see the page.',
-    parameters: objectSchema({
-      url: { type: 'string', description: 'http(s) or workspace file:// URL.' },
-      width: { type: 'integer', description: 'Viewport width (default 1280).' },
-      height: { type: 'integer', description: 'Viewport height (default 800).' },
-      fullPage: { type: 'boolean', description: 'Use a tall 8000px window to approximate a full page.' },
-      reducedMotion: { type: 'boolean', description: 'Force prefers-reduced-motion: reduce.' },
-      waitForSec: { type: 'number', description: 'Settle time before capture, seconds.' },
-    }, ['url']),
+    parameters: SCREENSHOT_PARAMETERS,
+    contract: { normalize: normalizeScreenshotArgs },
     outputSchema: IMAGE_RESULT_SCHEMA,
     render: imageRender,
     timeoutMs: 60_000,
@@ -103,7 +123,9 @@ export function registerWebTools(ctx: PluginContext): void {
         signal: exec.signal,
         timeoutMs: 45_000,
       })
-      return await saveScreenshot(ctx, capture.base64, `screenshot-${new URL(args.url).hostname || 'page'}`)
+      const saved = await saveScreenshot(ctx, capture.base64, `screenshot-${new URL(args.url).hostname || 'page'}`)
+      const ignored = ignoredNote('web_screenshot', raw, SCREENSHOT_PARAMETERS)
+      return ignored === '' ? saved : { ...saved, text: `${saved.text}\n${ignored}` }
     },
   }))
 
@@ -130,19 +152,8 @@ export function registerWebTools(ctx: PluginContext): void {
   registerToolSafe(ctx, ceulenTool({
     name: 'web_interact',
     description: 'Drive a real headless Chrome page: click, type, press keys, evaluate JS, wait, answer dialogs, and capture a final screenshot. One call = one browser lifecycle. Steps use exactly one action key each: {click:"selector"}, {type:{selector,text}}, {press:"Enter"}, {evaluate:"js",label?}, {wait_for:number|selector}, {dialog:"accept"|"dismiss"}, {screenshot:true}. Images do not pass through codemode — call this directly when you need to see the page.',
-    parameters: objectSchema({
-      url: { type: 'string', description: 'http(s) or workspace file:// URL.' },
-      steps: {
-        type: 'array',
-        description: 'Ordered interaction steps, exactly one action key per step.',
-        items: { type: 'object', additionalProperties: true },
-      },
-      viewport: { type: 'object', additionalProperties: true, description: '{width,height?,device_scale_factor?}.' },
-      reducedMotion: { type: 'boolean', description: 'Force prefers-reduced-motion: reduce.' },
-      waitForSec: { type: 'number', description: 'Settle time after load, seconds.' },
-      stepTimeoutMs: { type: 'integer', description: 'Per-step budget (default 60000).' },
-      grant: { type: 'array', items: { type: 'string' }, description: 'Browser permissions to grant, e.g. clipboard-read.' },
-    }, ['url']),
+    parameters: INTERACT_PARAMETERS,
+    contract: { normalize: normalizeInteractArgs },
     outputSchema: IMAGE_RESULT_SCHEMA,
     render: imageRender,
     timeoutMs: 120_000,
@@ -182,6 +193,8 @@ export function registerWebTools(ctx: PluginContext): void {
       if (result.consoleErrors !== undefined && result.consoleErrors.length > 0) lines.push(`console errors: ${result.consoleErrors.slice(0, 5).join(' | ')}`)
       if (result.dialogs !== undefined && result.dialogs.length > 0) lines.push(`dialogs: ${result.dialogs.join('; ')}`)
       if (result.probe.scrollWidth !== undefined) lines.push(`page width ${result.probe.scrollWidth}px · viewport ${result.probe.innerWidth ?? '?'}px`)
+      const ignored = ignoredNote('web_interact', raw, INTERACT_PARAMETERS)
+      if (ignored !== '') lines.push(ignored)
       const screenshot = result.screenshot === undefined
         ? { text: 'No screenshot returned.' }
         : await saveScreenshot(ctx, result.screenshot, `interact-${new URL(args.url).hostname || 'page'}`)

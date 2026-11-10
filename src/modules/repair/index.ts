@@ -427,6 +427,22 @@ async function repair(ctx: PluginContext, exec: ExecuteHook, result: HookResult)
     return { kind: 'region', text: currentRegion(lines, argText(args, 'old_string') ?? argText(args, 'old_text')) }
   }
 
+  // The file exists but the text does not: show the file around the line of
+  // `old_string` it does contain. This must come before the missing-path case,
+  // whose "not found" test also matches this message and then lists the edited
+  // file itself as a path candidate.
+  if (tool === 'edit' && /old_string was not found/i.test(message)) {
+    const wanted = argText(args, 'old_string') ?? argText(args, 'old_text')
+    if (path === undefined || wanted === undefined) return undefined
+    const lines = await readLines(ctx, path, cwd)
+    if (lines === undefined) return undefined
+    const hits = (line: string): number => lines.filter(have => have.trim() === line.trim()).length
+    const candidates = wanted.split('\n').filter(line => line.trim().length > 0 && hits(line) > 0)
+    // A line found once pins the place; a repeated one (`}`) only if nothing better exists.
+    const anchor = candidates.find(line => hits(line) === 1) ?? candidates[0]
+    return anchor === undefined ? undefined : { kind: 'region', text: currentRegion(lines, anchor) }
+  }
+
   // Missing path: name the nearest real siblings instead of letting the model guess.
   if ((tool === 'read' || tool === 'edit' || tool === 'write') && /\bnot found\b|no such file|does not exist|ENOENT/i.test(message)) {
     if (path === undefined) return undefined
