@@ -66,7 +66,7 @@ inventing one. `/ceulen doctor` prints the line and dist-tag it follows.
 | GitHub | read-only `github` tool over the `gh` CLI |
 | Ponytail | `/ponytail off|lite|full|ultra`, prompt discipline, skills |
 | Skills | all 19 bundled skill packs registered (15 ported from Ceulen) |
-| Evolve | `/evo` session postmortem → session ledger → Munin; `npm run evo` digests finished sessions for the daily `evo-daily` cron; `/evo-cycle` scans every session, rebuilds the report and spawns a worker on the model chosen in `/ceulen-config → Model → Evo` to fix, test, store Munin memory and notify; `evo_notice` shows a 💾 Self-improvement block; `/evo-status` groups proposals by destination; `/evo-probe` runs a proposal against recorded fixtures in base/candidate worktrees and writes a contrast record; `/evo-apply` refuses an unprobed proposal; `evo_pass` runs the improvement pass; see `docs/evo.md` |
+| Evolve | Weekly audit with no model: `scripts/evo-weekly.mjs` (systemd timer) scans every session, gathers recurring tool errors into fix groups and writes an HTML report plus `report-<date>.md`; the review is a session the user starts on a strong model (skill `evo`, "evo weekly review"): diagnose, fix in a worktree with a test, then `evo-report.mjs --fixed` so later reports compare before and after; `/evo-status` names the newest report; `evo_notice` shows a 💾 Self-improvement block; `/evo` session postmortem → ledger → Munin; see `docs/evo.md` |
 | Cron | `cron` tool, `/cron`, persisted jobs fired into the live session |
 | Classifier | `classify` typed decisions, bash audit, `/classifier` (audit + enforce) |
 | Repair | `apply_patch`, `read_slice` |
@@ -102,7 +102,7 @@ Settings live at `$DSH_HOME/ceulen/settings.json` (mode `0600`):
   "upstream": { "enabled": true, "intervalHours": 24 },
   "advisor": { "provider": "zai", "model": "glm-5.3", "reasoningEffort": "max", "fallbacks": [], "watch": false, "minToolCalls": 1 },
   "classifier": { "provider": null, "model": null, "audit": true, "enforce": false, "fallbacks": [] },
-  "tools": { "cold": ["a2a_call", "a2a_list", "a2a_peers", "a2a_status", "jfind", "munin_delete", "munin_share", "evo_pass", "web_interact", "web_map", "web_pdf", "web_screenshot"] },
+  "tools": { "cold": ["a2a_call", "a2a_list", "a2a_peers", "a2a_status", "jfind", "munin_delete", "munin_share", "web_interact", "web_map", "web_pdf", "web_screenshot"] },
   "munin": { "project": "", "baseUrl": "", "allowProjectConfig": false, "brief": { "enabled": false, "maxChars": 600, "recencyDays": 30 } },
   "agentmem": { "project": "", "baseUrl": "", "brief": { "enabled": false, "maxChars": 600, "recencyDays": 30 } },
   "cron": { "enabled": true, "tickMs": 30000 },
@@ -112,7 +112,6 @@ Settings live at `$DSH_HOME/ceulen/settings.json` (mode `0600`):
   "usage": { "enabled": true, "showStatus": true, "intervalMinutes": 5, "providers": [] },
   "codemode": { "enabled": true },
   "rtk": { "enabled": true },
-  "evo": { "provider": null, "model": null, "reasoningEffort": null, "fallbacks": [], "probeBudget": { "maxRunsPerDay": 8 } },
   "subagent": { "roles": { "fast": ["*"], "coder": ["*"], "smart": ["zai/glm-5.3:max"] }, "models": {}, "thinking": {} },
   "a2a": { "peers": [] }
 }

@@ -328,9 +328,9 @@
       "name": "evo",
       "category": "Plugins",
       "status": "native",
-      "dsh": "evo_notice tool + /evo-status: 💾 Self-improvement notice; daily distiller and weekly promoter scripts; /evo-probe (base vs candidate worktrees -> contrast-<proposal>.json) and /evo-apply (refuses an unprobed proposal; --evidence override recorded); proposals carry scope: invariant|domain",
+      "dsh": "Weekly audit scripts with no model (distil, ledger, fix groups, HTML report and report-<date>.md, before/after tracking with --fixed); the review is a session the user starts with the evo skill; /evo-status names the newest report; evo_notice shows the 💾 Self-improvement notice",
       "phase": 0,
-      "notes": "DSH-only; upstream ceulen has no self-evolution loop. Runtime state (ledger, queue, reports, changelog) lives under $DSH_HOME/ceulen/self-evo. The probe gate exists because refining a harness without a reference run measured worse (Harness² code 73.4 -> 63.2).",
+      "notes": "DSH-only; upstream ceulen has no self-evolution loop. Runtime state (ledger, queue, reports, fixes, changelog) lives under $DSH_HOME/ceulen/self-evo. The model draft (evo_pass), /evo-cycle and the rule probe (/evo-probe, /evo-apply) were removed in November 2026: the probe never ran, and the causes came from reading code and session logs, not from the counts.",
       "rowId": "ceulen-evo"
     },
     {

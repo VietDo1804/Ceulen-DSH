@@ -101,24 +101,6 @@ export function buildCoreTabs(settings: CeulenSettings, context: ConfigContext, 
           ],
         },
         {
-          id: 'evo',
-          label: 'Evo',
-          rows: [
-            text('evo.route', 'Improvement model', routeText(settings.evo.provider, settings.evo.model, settings.evo.reasoningEffort), value => {
-              const route = splitRoute(value)
-              settings.evo.provider = route?.provider ?? null
-              settings.evo.model = route?.model ?? null
-              settings.evo.reasoningEffort = route?.effort ?? null
-            }, { picker: true, placeholder: 'parent agent route', description: 'provider/model[:effort] for the evo improvement pass (packet -> rule lines). Empty uses the parent route. Enter filters registered provider models.' }),
-            option('evo.reasoningEffort', 'Reasoning', settings.evo.reasoningEffort ?? 'auto', ['auto', ...REASONING_EFFORTS], value => {
-              settings.evo.reasoningEffort = value === 'auto' ? null : (value as ReasoningEffort)
-            }, { description: 'Thinking level for the improvement pass; auto uses the model catalog default.' }),
-            text('evo.fallbacks', 'Fallbacks', settings.evo.fallbacks.join(', '), value => {
-              settings.evo.fallbacks = routeList(value)
-            }, { picker: true, pickerAppend: true, placeholder: 'none', description: 'provider/model routes tried in order when the improvement route fails. Enter opens the model list and APPENDS the pick; "-" clears the list.' }),
-          ],
-        },
-        {
           id: 'subagents',
           label: 'Subagents',
           rows: subagentRows,

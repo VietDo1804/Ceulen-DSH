@@ -7,7 +7,7 @@ import { registerEvoCommands } from './commands.js'
 import { registerEvoTools } from './tools.js'
 
 export const name = 'ceulen-evo'
-export const inject = ['tools', 'commands', 'llm']
+export const inject = ['tools', 'commands']
 
 // Kept as the module's public surface: tests and docs use these two.
 export { noticeText, pendingChanges, type ChangeEntry } from './notice.js'
@@ -27,7 +27,7 @@ export function apply(ctx: PluginContext): void {
   const runtime = { flash }
 
   registerEvoTools(ctx, runtime)
-  registerEvoCommands(ctx, flash)
+  registerEvoCommands(ctx)
 
   // Show anything the cron pass recorded while the user was away, once per session.
   const shownIn = new Set<string>()

@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 /**
- * evo Phase 1.5 / Phase 2 — ledger, report and promotion packet.
+ * evo — ledger and report.
  *
- * Deterministic only: this script counts and groups evidence, it never decides
- * what a rule should say. The model turns a promotion packet into rule lines.
+ * Deterministic only: this script counts and groups evidence and never calls
+ * a model. What to fix is decided in a review the user starts (skills/evo).
  *
  *   node scripts/evo-report.mjs --drain     # queue digests -> ledger.jsonl
- *   node scripts/evo-report.mjs             # aggregate report (default)
- *   node scripts/evo-report.mjs --promote   # candidates above --min
+ *   node scripts/evo-report.mjs             # report-<date>.md (default)
  *   node scripts/evo-report.mjs --json      # machine-readable aggregate
- *   node scripts/evo-report.mjs --validate <proposal.md>  # scope check (M1-2)
  *   node scripts/evo-report.mjs --fixed "<signature text>" --note "<commit or what changed>"
  *                                           # record a landed fix; later reports compare before/after
  *
@@ -44,7 +42,7 @@ export function digestToEntry(text, file = '') {
   const started = /^started: (\S+)/m.exec(text)?.[1] ?? ''
   const outcome = redact(section(text, 'outcome').trim())
   const artifacts = bullets(section(text, 'artifacts')).map(redact)
-  // The first request is the fixture's task prompt: /evo-probe replays it.
+  // The first request says what the session was asked to do: context for whoever reviews its failures.
   const task = redact(bullets(section(text, 'requests'))[0] ?? '')
   const revision = /^revision: (\S+)$/m.exec(text)?.[1]
   const activityAt = /^activity: (\S+)$/m.exec(text)?.[1]
@@ -132,7 +130,8 @@ export function aggregate(entries, { since, until } = {}) {
       const count = typeof error === 'object' && Number.isSafeInteger(error?.count) && error.count > 0 ? error.count : 1
       const times = Array.isArray(error?.times) ? error.times.filter(at => typeof at === 'string' && Number.isFinite(Date.parse(at))).slice(0, count) : []
       untimedFailures += count - times.length
-      return { text: redact(typeof error === 'string' ? error : error?.error ?? ''), count: bounded ? times.filter(inWindow).length : count }
+      const seen = (bounded ? times.filter(inWindow) : times).sort()
+      return { text: redact(typeof error === 'string' ? error : error?.error ?? ''), count: bounded ? seen.length : count, seen }
     }).filter(item => item.text && item.count > 0)
     if (bounded && !inWindow(ts) && texts.length === 0) continue
     sessions += 1
@@ -143,13 +142,16 @@ export function aggregate(entries, { since, until } = {}) {
     if (texts.length > 0) withFailures += 1
     const ws = redact(entry.ws ?? '?')
     workspaces.set(ws, (workspaces.get(ws) ?? 0) + count)
-    for (const { text, count } of texts) {
+    for (const { text, count, seen } of texts) {
       const key = normalize(text)
-      const found = signatures.get(key) ?? { count: 0, sessions: new Set(), first: ts, last: ts, example: String(text).slice(0, 220) }
+      // When the error itself is timed, date it by its occurrences: a long session can start days before its last failure.
+      const from = seen[0] ?? ts
+      const to = seen[seen.length - 1] ?? ts
+      const found = signatures.get(key) ?? { count: 0, sessions: new Set(), first: from, last: to, example: String(text).slice(0, 220) }
       found.count += count
       found.sessions.add(id)
-      if (ts !== '' && ts < found.first) found.first = ts
-      if (ts > found.last) found.last = ts
+      if (from !== '' && (found.first === '' || from < found.first)) found.first = from
+      if (to > found.last) found.last = to
       if (String(text).length > found.example.length) found.example = String(text).slice(0, 220)
       signatures.set(key, found)
     }
@@ -298,9 +300,12 @@ export function reportText(agg, min = 5, lists) {
               `${group.week} this week · ${group.previous} the week before · ${group.count} total${group.where === '' ? '' : ` · fix in ${group.where}`}`,
               ...(group.note === undefined ? [] : [group.note]),
               '',
-              '| this week | week before | total | sessions | signature |',
-              '|---|---|---|---|---|',
-              ...group.items.map(item => `| ${item.week} | ${item.previous} | ${item.count} | ${item.sessions} | ${cell(item.signature)} |`),
+              '| this week | week before | total | sessions | last seen | signature |',
+              '|---|---|---|---|---|---|',
+              ...group.items.map(item => `| ${item.week} | ${item.previous} | ${item.count} | ${item.sessions} | ${item.last.slice(0, 10)} | ${cell(item.signature)} |`),
+              '',
+              // One real occurrence each: the signature is normalised, the reviewer needs the tool and the values.
+              ...group.items.map(item => `- ${cell(item.signature)}${item.fixedAt === undefined ? '' : ` (fix recorded ${item.fixedAt.slice(0, 10)}, still occurring)`}: ${item.example}`),
               '',
             ])
           : ['- nothing live: every eligible signature is quiet this week or is a provider incident.', '']),
@@ -309,6 +314,8 @@ export function reportText(agg, min = 5, lists) {
       ]
   return [
     `# evo report — ${stamp()}`,
+    '',
+    'Counts only: nothing here was applied. To act on it, follow "Weekly review" in skills/evo/SKILL.md.',
     '',
     `sessions: ${agg.sessions}  failures: ${agg.failures}  sessions with failures: ${agg.withFailures} (${pct(agg.withFailures)}%)  ledger lines: ${agg.entries}`,
     `window: ${agg.first || '?'} → ${agg.last || '?'}`,
@@ -326,118 +333,13 @@ export function reportText(agg, min = 5, lists) {
     '|---|---|',
     ...agg.workspaces.slice(0, 12).map(item => `| ${item.count} | ${item.workspace} |`),
     '',
-    `## promotion candidates (>= ${min} occurrences across >= 3 sessions)`,
+    `## above the threshold (>= ${min} occurrences across >= 3 sessions)`,
     '',
     ...(candidates.length > 0
       ? candidates.map(item => `- **${item.count}×** (${item.sessions} sessions, ${item.first.slice(0, 10)} → ${item.last.slice(0, 10)}): ${item.example}`)
-      : ['- none above the threshold — the loop has nothing to promote yet.']),
+      : ['- none above the threshold yet.']),
     '',
   ].join('\n')
-}
-
-const PACKET_GROUPS = 6
-const PACKET_SIGNATURES = 4
-
-/**
- * Pure: aggregate -> promotion packet for the model to turn into rules.
- * With `lists` (see `triage`) the packet carries only the fix groups: a model
- * shown provider outages and long-dead signatures drafts rules for them.
- */
-export function promotionText(agg, min = 5, lists) {
-  min = Math.max(5, min)
-  const candidates = eligibleCandidates(agg, min)
-  const evidence = item => [`signature: \`${item.signature}\``, `first seen: ${item.first.slice(0, 10)}  last seen: ${item.last.slice(0, 10)}`, `example: ${item.example}`, '']
-  const groups = lists === undefined ? [] : (lists.groups ?? fixGroups(lists.work)).slice(0, PACKET_GROUPS)
-  const body = lists === undefined
-    ? candidates.flatMap((item, index) => [`## ${index + 1}. ${item.count}× across ${item.sessions} sessions`, '', ...evidence(item)])
-    : groups.flatMap((group, index) => [
-        `## ${index + 1}. ${group.title} — ${group.week}× this week${group.where === '' ? '' : ` · fix in ${group.where}`}`,
-        '',
-        ...(group.note === undefined ? [] : [group.note, '']),
-        ...group.items.slice(0, PACKET_SIGNATURES).flatMap(item => [`${item.week}× this week · ${item.count}× across ${item.sessions} sessions`, ...evidence(item)]),
-      ])
-  return [
-    `# evo promotion packet — ${stamp()}`,
-    '',
-    `Evidence window: ${agg.first || '?'} → ${agg.last || '?'} (${agg.sessions} sessions, ${agg.failures} failures).`,
-    `Qualified candidates: ${candidates.length}`,
-    ...(lists === undefined ? [] : [`Work list: ${lists.work.length} live this week and raised inside this repo, in ${(lists.groups ?? fixGroups(lists.work)).length} fix groups (${groups.length} shown; ${lists.quiet.length} quiet and ${lists.external.length} provider incidents left out).`]),
-    'Rule: >= 5 occurrences across >= 3 distinct sessions. Audit and propose only; never apply automatically. A proposed rule requires a passing probe and valid scope before application.',
-    '',
-    `For each ${lists === undefined ? 'item' : 'group'} write ONE of: a sticky rule line for \`$DSH_HOME/ceulen/RULES.md\` (\`## Learnings (auto)\` section),`,
-    'a skill, or a script fix. If it is not fixable by a rule, say so and drop it. Prefer a script fix when the tool itself raises the error.',
-    '',
-    'Every proposed line under `## Add to RULES.md` MUST carry a scope tag:',
-    '- `- scope: invariant — <repo-agnostic rule>` lands in `$DSH_HOME/ceulen/RULES.md` and applies to every repo.',
-    '- `- scope: domain — <rule naming this repo>` lands in `<repo>/.dsh/RULES.md` and applies here only.',
-    'An invariant line may not contain an absolute path, a repo file name, or an import from this repo.',
-    '',
-    ...body,
-    body.length === 0 ? (lists === undefined ? 'No candidate crossed the threshold.\n' : 'Nothing live to draft this week.\n') : '',
-  ].join('\n')
-}
-
-// ---------------------------------------------------------------------------
-// Proposal scoping (M1-2): a repo convention adopted as a global law is how a
-// rules file becomes a liability. Every proposed line names its destination.
-// ---------------------------------------------------------------------------
-
-const SCOPE_LINE = /^-\s*scope:\s*(invariant|domain)\s*(?:—|–|-|:)\s*(.+)$/i
-const ABSOLUTE_PATH = /(^|[\s(`"'])\/(?:home|Users|tmp|var|opt|srv|workspace|mnt|Volumes)\/\S+/
-const REPO_IMPORT = /\b(?:from|require\()\s*['"]((?:\.{1,2}\/)[^'"]*|(?:src|test|scripts|lib)\/[^'"]*)['"]/
-
-/** The narrow, data-driven rejection list: paths, repo-local file names, repo imports. */
-export function offendingToken(text, repoRoot = process.cwd()) {
-  const absolute = ABSOLUTE_PATH.exec(text)
-  if (absolute) return absolute[0].trim().replace(/^[(`"']/, '')
-  const imported = REPO_IMPORT.exec(text)
-  if (imported) return imported[1]
-  const repoName = basename(repoRoot)
-  for (const raw of text.split(/[^\w./@-]+/)) {
-    const token = raw.replace(/[.,;:!?)\]}"']+$/, '')
-    if (token === '' ) continue
-    if (token === repoName) return token
-    if (/^(?:\.{1,2}\/)?[\w./@-]+\.(md|json|ya?ml|toml|mjs|ts|js)$/.test(token) && existsSync(join(repoRoot, token))) return token
-  }
-  return undefined
-}
-
-/**
- * Pure: one proposal document -> destination-scoped lines plus rejections.
- * Only the `## Add to RULES.md` section carries rule lines; other sections are
- * scripts/skills/drops and are not rules.
- */
-export function parseProposal(text, options = {}) {
-  const repoRoot = options.repoRoot ?? process.cwd()
-  const proposed = []
-  const errors = []
-  for (const line of section(text, 'Add to RULES.md').split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed.startsWith('- ') || trimmed === '- none' || trimmed === '- (none)') continue
-    const match = SCOPE_LINE.exec(trimmed)
-    if (match === null) {
-      errors.push({ line: trimmed, reason: 'missing scope: prefix — every line must start with "- scope: invariant — " or "- scope: domain — "' })
-      continue
-    }
-    const scope = match[1].toLowerCase()
-    const body = match[2].trim()
-    if (scope === 'invariant') {
-      const bad = offendingToken(body, repoRoot)
-      if (bad !== undefined) {
-        errors.push({
-          line: trimmed,
-          reason: `invariant proposal names repo-specific "${bad}" — move it to scope: domain, destination ${join(repoRoot, '.dsh', 'RULES.md')}`,
-        })
-        continue
-      }
-    }
-    proposed.push({
-      scope,
-      text: body,
-      destination: scope === 'invariant' ? '~/.dsh/ceulen/RULES.md' : join(repoRoot, '.dsh', 'RULES.md'),
-    })
-  }
-  return { proposed, errors }
 }
 
 export function loadLedger(base) {
@@ -512,21 +414,6 @@ function main(argv) {
     return
   }
 
-  if (argv.includes('--validate')) {
-    const file = at('--validate')
-    if (file === undefined) {
-      console.error('evo-report: --validate needs a proposal file')
-      process.exitCode = 2
-      return
-    }
-    const report = parseProposal(readFileSync(file, 'utf8'), { repoRoot: process.cwd() })
-    for (const item of report.proposed) console.log(`ok ${item.scope}: ${item.text}  -> ${item.destination}`)
-    for (const item of report.errors) console.error(`invalid: ${item.reason}\n  ${item.line}`)
-    if (report.errors.length > 0) process.exitCode = 1
-    else console.log(`evo-report: ${report.proposed.length} proposal line(s) valid`)
-    return
-  }
-
   if (argv.includes('--fixed')) {
     const wanted = at('--fixed')
     if (wanted === undefined || wanted.startsWith('--')) {
@@ -563,11 +450,10 @@ function main(argv) {
     console.log(JSON.stringify({ ...agg, lists }, null, 2))
     return
   }
-  const promote = argv.includes('--promote')
-  const text = promote ? promotionText(agg, min, lists) : reportText(agg, min, lists)
+  const text = reportText(agg, min, lists)
   if (!dry) {
     mkdirSync(reportsDir(base), { recursive: true })
-    writeFileSync(join(reportsDir(base), `${promote ? 'promotion' : 'report'}-${stamp()}.md`), text)
+    writeFileSync(join(reportsDir(base), `report-${stamp()}.md`), text)
   }
   process.stdout.write(text)
 }

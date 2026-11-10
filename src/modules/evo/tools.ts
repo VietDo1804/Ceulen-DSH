@@ -1,12 +1,7 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
 import type { PluginContext, ToolRunContext } from '../../core/types.js'
 import { ceulenTool, clampText, objectSchema, registerToolSafe } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import { appendChange, deliver, moveCursor, type ChangeEntry } from './notice.js'
-import { newestPacket, reportsDir } from './reports.js'
-import { askEvo, routesFor } from './cycle.js'
-import { stamp } from './paths.js'
 
 export interface EvoRuntime {
   /** Status-line flash owned by the root activation. */
@@ -27,9 +22,9 @@ export function recordChange(runtime: EvoRuntime, exec: ToolRunContext | undefin
 export function registerEvoTools(ctx: PluginContext, runtime: EvoRuntime): void {
   registerToolSafe(ctx, ceulenTool({
     name: 'evo_notice',
-    description: 'Record a self-improvement change (rule promoted, skill updated, memory stored) and show it in the session as a "💾 Self-improvement" notice. Call it once per evo pass, after the change actually landed.',
+    description: 'Record a self-improvement change that actually landed (a merged fix from the weekly review, a memory stored) and show it in the session as a "💾 Self-improvement" notice. Call it once per review, after the change is in. A report alone is not a change.',
     parameters: objectSchema({
-      summary: { type: 'string', description: 'One line: what changed, e.g. "promoted 2 rules: read-before-edit, apply_patch anchors".' },
+      summary: { type: 'string', description: 'One line: what changed, e.g. "web tools accept the argument aliases models send (commit 4907165)".' },
       detail: { type: 'string', description: 'Optional evidence: counts, sessions, file paths.' },
     }, ['summary']),
     outputSchema: { type: 'string' },
@@ -41,30 +36,6 @@ export function registerEvoTools(ctx: PluginContext, runtime: EvoRuntime): void 
       return result.delivered
         ? `recorded and shown: ${result.entry.summary}`
         : `recorded (no live session): ${result.entry.summary}`
-    },
-  }))
-
-  registerToolSafe(ctx, ceulenTool({
-    name: 'evo_pass',
-    description: 'Run the evo improvement pass: feed the newest promotion packet (the signatures still occurring this week) to the configured Evo model (ceulen-config → Model → Evo) and write reports/proposal-<date>.md. Never edits RULES.md — the caller reviews and applies it.',
-    parameters: objectSchema({}),
-    outputSchema: { type: 'string' },
-    async execute(_args, exec) {
-      const packet = newestPacket()
-      if (packet === undefined) throw new Error('no promotion packet: run the evo-report script with --promote first')
-      const routes = routesFor(exec.agent)
-      if (routes.length === 0) throw new Error('no evo route: set evo.provider/model in /ceulen-config → Model → Evo, or run inside a session with a provider')
-      // The packet states its own work list; an empty one is not worth a model call.
-      const work = /^Work list: (\d+)/m.exec(packet.text)
-      if (work !== null && Number(work[1]) === 0) return `nothing to draft: ${packet.name} lists no signature that is still occurring this week and raised inside this repo`
-      const draft = await askEvo(ctx, routes, packet.text, exec.signal)
-      const note = draft.truncated ? '> Cut at the token limit: the unfinished last line was dropped and the list may be incomplete.\n\n' : ''
-      mkdirSync(reportsDir(), { recursive: true })
-      const file = join(reportsDir(), `proposal-${stamp()}.md`)
-      writeFileSync(file, `# evo proposal — ${stamp()}\n\nSource: ${packet.name}\n\n${note}${draft.text}\n`)
-      runtime.flash('💾 evo · proposal ready')
-      logLine('evo', `proposal written from ${packet.name} via ${draft.route.provider}/${draft.route.model}${draft.truncated ? ' (cut at the token limit)' : ''}`)
-      return `proposal: ${file}${draft.truncated ? ' (cut at the token limit; may be incomplete)' : ''}\n\n${clampText(draft.text, 1_600)}`
     },
   }))
 }

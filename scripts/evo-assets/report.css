@@ -112,7 +112,7 @@ dt { font-size: var(--text-sm); color: var(--ink-soft); }
 dd { margin: 0; font-size: var(--text-xl); font-weight: 700; }
 .signatures { list-style: none; padding: 0; margin: 0; }
 .signatures li { padding-block: var(--space-4); border-top: 1px solid var(--rule); }
-.message, .draft, code, .archives a { overflow-wrap: anywhere; }
+.message, code, .archives a { overflow-wrap: anywhere; }
 .evidence { margin-bottom: var(--space-2); }
 /* One fix group: a heavier rule above, its signatures listed beneath. */
 .group { border-top: var(--space-1) solid var(--rule-strong); margin-block: var(--space-6) 0; }
@@ -128,7 +128,6 @@ dd { margin: 0; font-size: var(--text-xl); font-weight: 700; }
 @media (max-width: 30rem) { .metrics th, .metrics td { font-size: var(--text-sm); padding-inline-end: var(--space-2); } }
 .notice { border-inline-start: var(--space-1) solid var(--accent-ink); padding-inline-start: var(--space-4); }
 .empty { padding-block: var(--space-4); color: var(--ink-soft); }
-.draft { white-space: pre-wrap; font: inherit; padding: var(--space-4); border: 1px solid var(--rule-strong); background: var(--surface); }
 .method, .archives { padding-inline-start: var(--space-5); }
 .method li { margin-block: var(--space-4); }
 code { font: inherit; }

@@ -17,12 +17,3 @@ export function changelogPath(): string {
 export function cursorPath(): string {
   return join(evoDir(), 'notice-cursor.json')
 }
-
-export function probeLedgerPath(): string {
-  return join(evoDir(), 'probe-ledger.jsonl')
-}
-
-/** `YYYY-MM-DD` in UTC — the report/proposal file stamp. */
-export function stamp(date = new Date()): string {
-  return date.toISOString().slice(0, 10)
-}

@@ -1,75 +1,58 @@
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { PluginContext } from '../../core/types.js'
 import { clampText, registerCommandSafe } from '../../core/tools.js'
-import { loadSettingsSync } from '../../core/settings.js'
-import { runCycle } from './cycle.js'
 import { readChanges, pendingChanges } from './notice.js'
-import { newestProposal, proposalLines, scopeParser } from './reports.js'
-import { probesToday } from './probe-ledger.js'
 import { evoDir, reportsDir } from './paths.js'
-import { applyCommand, probeCommand } from './probe-command.js'
 
-export function registerEvoCommands(ctx: PluginContext, flash: (text: string) => void): void {
+function lineCount(file: string): number {
+  try {
+    return readFileSync(file, 'utf8').split('\n').filter(Boolean).length
+  } catch {
+    return 0
+  }
+}
+
+/** The newest `report-<date>.md` and the line that sums up its fix groups. */
+export function newestReport(): { file: string; headline: string } | undefined {
+  let names: string[] = []
+  try {
+    names = readdirSync(reportsDir()).filter(name => /^report-\d{4}-\d{2}-\d{2}\.md$/.test(name)).sort()
+  } catch {
+    return undefined
+  }
+  const name = names[names.length - 1]
+  if (name === undefined) return undefined
+  const file = join(reportsDir(), name)
+  try {
+    const headline = readFileSync(file, 'utf8').split('\n').find(line => line.startsWith('## fix groups')) ?? ''
+    return { file, headline: headline.replace(/^## /, '') }
+  } catch {
+    return undefined
+  }
+}
+
+export function registerEvoCommands(ctx: PluginContext): void {
   registerCommandSafe(ctx, {
     name: 'evo-status',
-    description: 'Show evo ledger, pending notices and the latest report',
+    description: 'Show the evo ledger, the newest weekly report with its fix groups, recorded fixes and pending notices',
     async handler() {
       const changes = readChanges()
       const pending = pendingChanges()
-      let ledger = 0
-      try {
-        ledger = readFileSync(join(evoDir(), 'ledger.jsonl'), 'utf8').split('\n').filter(Boolean).length
-      } catch {
-        ledger = 0
-      }
-      const proposal = newestProposal()
-      let proposalText: string[] = []
-      if (proposal !== undefined) {
-        try {
-          const parseProposal = await scopeParser()
-          proposalText = [`proposals: ${proposal.name}`, ...proposalLines(parseProposal(proposal.text, { repoRoot: process.cwd() }))]
-        } catch (error) {
-          proposalText = [`proposals: ${proposal.name} (unreadable: ${error instanceof Error ? error.message : String(error)})`]
-        }
-      }
+      const report = newestReport()
       return {
         kind: 'success',
         text: [
-          `evo · ledger ${ledger} sessions · changes ${changes.length} · unseen ${pending.length}`,
+          `evo · ledger ${lineCount(join(evoDir(), 'ledger.jsonl'))} sessions · changes ${changes.length} · unseen ${pending.length}`,
           ...changes.slice(-3).map(entry => `  ${entry.at.slice(0, 16).replace('T', ' ')}  ${clampText(entry.summary, 140)}`),
-          `report: ${reportsDir()}/`,
-          `probe: ${probesToday()}/${loadSettingsSync().evo.probeBudget.maxRunsPerDay} runs today · /evo-probe · /evo-apply`,
-          ...proposalText,
+          report === undefined
+            ? `report: none yet in ${reportsDir()}/ (the weekly timer writes it; scripts/evo-weekly.mjs by hand)`
+            : `report: ${report.file}${report.headline === '' ? '' : `\n  ${report.headline}`}`,
+          `fixes recorded: ${lineCount(join(evoDir(), 'fixes.jsonl'))} (scripts/evo-report.mjs --fixed)`,
+          'The report changes nothing. To act on it, start a review session on the model you trust: "evo weekly review".',
           pending.length > 0 ? 'A pending notice is delivered at the next idle; /evo-status does not consume it.' : '',
         ].filter(Boolean).join('\n'),
       }
-    },
-  })
-
-  registerCommandSafe(ctx, {
-    name: 'evo-cycle',
-    description: 'Scan every session, rebuild the evo report, then hand the top signatures to an agent on the configured Evo model that fixes, smoke-tests, stores Munin memories and posts the notice',
-    async handler({ agent, signal }) {
-      return await runCycle(ctx, agent, signal)
-    },
-  })
-
-  registerCommandSafe(ctx, {
-    name: 'evo-probe',
-    description: 'Probe a proposal: base vs candidate worktrees on the recorded fixtures, then write contrast-<proposal>.json (--k 2, --fixtures id,id)',
-    input: { hint: '[proposal.md] [--k 2] [--fixtures id,id]' },
-    async handler({ rawInput, agent, signal }) {
-      return await probeCommand(ctx, rawInput, agent, signal ?? new AbortController().signal, flash)
-    },
-  })
-
-  registerCommandSafe(ctx, {
-    name: 'evo-apply',
-    description: 'Render reviewable rule blocks only after a matching adopt probe and valid scope; never writes rules and has no manual bypass',
-    input: { hint: '[proposal.md]' },
-    async handler({ rawInput }) {
-      return await applyCommand(rawInput)
     },
   })
 }

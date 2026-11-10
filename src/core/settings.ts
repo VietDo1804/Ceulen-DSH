@@ -34,18 +34,6 @@ export interface CeulenSettings {
     /** provider/model routes tried in order when the primary route fails. */
     fallbacks: string[]
   }
-  /** Route for the evo improvement pass (promotion packet -> rule lines). */
-  evo: {
-    provider: string | null
-    model: string | null
-    reasoningEffort: ReasoningEffort | null
-    /** provider/model routes tried in order when the primary route fails. */
-    fallbacks: string[]
-    /** `/evo-probe` runs per day; the command refuses past the cap. */
-    probeBudget: {
-      maxRunsPerDay: number
-    }
-  }
   munin: {
     project: string
     baseUrl: string
@@ -152,8 +140,6 @@ export function defaultSettings(): CeulenSettings {
     // panel's route row to fall back to the parent agent's route.
     advisor: { provider: 'zai', model: 'glm-5.3', reasoningEffort: 'max', fallbacks: [], watch: false, showStatus: true, minToolCalls: 1 },
     classifier: { provider: null, model: null, audit: true, enforce: false, fallbacks: [] },
-    // ponytail: no evo route -> the improvement pass inherits the parent route.
-    evo: { provider: null, model: null, reasoningEffort: null, fallbacks: [], probeBudget: { maxRunsPerDay: 8 } },
     munin: { project: '', baseUrl: '', allowProjectConfig: false, fallback: { baseUrl: '' }, brief: { enabled: false, maxChars: 600, recencyDays: 30 } },
     agentmem: { project: '', baseUrl: '', brief: { enabled: false, maxChars: 600, recencyDays: 30 } },
     cron: { enabled: true, tickMs: 30_000 },
@@ -165,7 +151,6 @@ export function defaultSettings(): CeulenSettings {
         'a2a_call', 'a2a_list', 'a2a_peers', 'a2a_status',
         'jfind',
         'munin_delete', 'munin_share',
-        'evo_pass',
         // `web_interact` stays in the prompt: 400 calls through ceulen_tools in
         // nine days of November 2026 sessions, 18 of them argument-shape errors
         // because a cold tool shows the model no schema.
@@ -331,8 +316,6 @@ export function normalizeSettings(raw: unknown): CeulenSettings {
   const upstream = isRecord(raw.upstream) ? raw.upstream : {}
   const advisor = isRecord(raw.advisor) ? raw.advisor : {}
   const classifier = isRecord(raw.classifier) ? raw.classifier : {}
-  const evo = isRecord(raw.evo) ? raw.evo : {}
-  const probeBudget = isRecord(evo.probeBudget) ? evo.probeBudget : {}
   const munin = isRecord(raw.munin) ? raw.munin : {}
   const brief = isRecord(munin.brief) ? munin.brief : {}
   const muninFallback = isRecord(munin.fallback) ? munin.fallback : {}
@@ -374,15 +357,6 @@ export function normalizeSettings(raw: unknown): CeulenSettings {
       audit: bool(classifier.audit, base.classifier.audit),
       enforce: bool(classifier.enforce, base.classifier.enforce),
       fallbacks: dedupeRoutes(strArray(classifier.fallbacks)),
-    },
-    evo: {
-      provider: nullableStr(evo.provider),
-      model: nullableStr(evo.model),
-      reasoningEffort: reasoningEffort(evo.reasoningEffort),
-      fallbacks: dedupeRoutes(strArray(evo.fallbacks)),
-      probeBudget: {
-        maxRunsPerDay: num(probeBudget.maxRunsPerDay, base.evo.probeBudget.maxRunsPerDay, 1, 64),
-      },
     },
     munin: {
       project: str(munin.project, base.munin.project),

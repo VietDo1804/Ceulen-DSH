@@ -56,7 +56,6 @@
     "evo": "node scripts/evo-distill.mjs",
     "evo:report": "node scripts/evo-report.mjs",
     "evo:drain": "node scripts/evo-report.mjs --drain",
-    "evo:promote": "node scripts/evo-report.mjs --promote",
     "sync": "node scripts/ceulen-sync.mjs",
     "parity": "node scripts/ceulen-sync.mjs parity",
     "lint": "biome check .",
