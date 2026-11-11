@@ -187,7 +187,7 @@ async function binaryVersion(binary: string, args: string[]): Promise<string> {
 }
 
 /**
- * Whether the optional dsh-tui patches are applied (advisor transcript block,
+ * Whether the optional dsh-tui patches are applied (per-model effort, advisor transcript block,
  * /context redirect, tool-name aliases, plan-mode polish). They live in the
  * installed profile tree, so a dsh-tui update silently reverts them;
  * `/ceulen doctor` must make that visible instead of letting the loss rot
@@ -251,7 +251,13 @@ export function tuiFooterState(): string {
     } catch {
       // Unreadable sources count as not applied.
     }
-    states.push(`${profile}:${version} ${footer} · advisor-block ${advisor ? 'applied' : 'stock (advisor notes stay out of the transcript; run scripts/tui-advisor-patch.mjs apply)'} · context-redirect ${contextRedirect ? 'applied' : 'stock (the built-in /context dump stays; run scripts/tui-context-patch.mjs apply)'} · tool-names ${toolNames ? 'applied' : 'stock (fff_grep renders as Fff_grep; run scripts/tui-toolname-patch.mjs apply)'} · plan-mode ${planMode ? 'applied' : 'stock (/plan asks on/off, Esc drops a typed answer and the footer may not name plan mode; run scripts/tui-plan-patch.mjs apply)'}`)
+    let effortPerModel = false
+    try {
+      effortPerModel = readFileSync(join(dir, 'lib', 'types', 'dsh-adapter', 'channel', 'model-actions.js'), 'utf8').includes('readRouteEffortPref(capture.provider, capture.model) ?? preferredEffort')
+    } catch {
+      // Unreadable model actions count as not applied.
+    }
+    states.push(`${profile}:${version} ${footer} · effort-per-model ${effortPerModel ? 'applied' : 'stock (one effort for every model; run scripts/tui-effort-patch.mjs apply)'} · advisor-block ${advisor ? 'applied' : 'stock (advisor notes stay out of the transcript; run scripts/tui-advisor-patch.mjs apply)'} · context-redirect ${contextRedirect ? 'applied' : 'stock (the built-in /context dump stays; run scripts/tui-context-patch.mjs apply)'} · tool-names ${toolNames ? 'applied' : 'stock (fff_grep renders as Fff_grep; run scripts/tui-toolname-patch.mjs apply)'} · plan-mode ${planMode ? 'applied' : 'stock (/plan asks on/off, Esc drops a typed answer and the footer may not name plan mode; run scripts/tui-plan-patch.mjs apply)'}`)
   }
   return states.length === 0 ? 'dsh-tui not installed' : states.join(' · ')
 }

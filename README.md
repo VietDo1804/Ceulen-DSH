@@ -292,6 +292,19 @@ turns the acronym `fff_grep` into `Fff_grep`.
 alias table that renders it as the short id (`fff`) — add a row per acronym family,
 not per tool.
 
+dsh-tui keeps one reasoning effort for every model: the `/settings` default
+reasoning effort (or the last `/effort`) is re-applied on each `/model`
+switch, so a `max` default puts every model on max.
+`node scripts/tui-effort-patch.mjs` (`apply`/`check`/`revert`) makes it
+per model, as in Pi: `/effort <level>` (or ←/→ in the `/model` picker, which
+now previews the level a switch will apply) records the level for the current
+model in `~/.dsh-tui/effort-by-model.json` (`{ "provider/model": "level" }`, also
+fine to edit by hand), a switch applies that model's entry, and a model with no
+entry uses the `/settings` default. A level the model does not offer still
+steps down to the nearest lower one; a resumed session keeps the level it ran
+on. `/effort` no longer moves the global default. `/ceulen doctor` reports
+`effort-per-model applied|stock`.
+
 Plan mode has three TUI gaps the harness cannot reach.
 `node scripts/tui-plan-patch.mjs` (`apply`/`check`/`revert`) makes bare
 `/plan` toggle instead of opening the on/off picker that confirmed the state
