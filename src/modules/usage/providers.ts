@@ -1,4 +1,7 @@
+import { readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { credential } from '../../core/credentials.js'
+import { dshHome } from '../../core/paths.js'
 
 export interface UsageWindow {
   percent?: number
@@ -270,8 +273,65 @@ export const commandCodeAdapter: UsageAdapter = {
 }
 
 // ---------------------------------------------------------------------------
-// OpenAI Codex (OAuth access token from env/DSH credential)
+// OpenAI Codex (env/DSH credential, then the DSH-owned OAuth login)
 // ---------------------------------------------------------------------------
+
+interface CodexAuthEntry {
+  access: string
+  accountId?: string
+  expires?: number
+}
+
+let codexAuthCache: { path: string; mtimeMs: number; size: number; entry?: CodexAuthEntry } | undefined
+
+/**
+ * Read `$DSH_HOME/dsh-auth/credentials.json` (the login DSH itself writes).
+ * Read-only by design: DSH owns the OAuth refresh, and swapping its refresh
+ * token would sign the user out. Re-read whenever the file changes so rotated
+ * tokens are picked up.
+ */
+function readCodexAuth(): CodexAuthEntry | undefined {
+  const path = join(dshHome(), 'dsh-auth', 'credentials.json')
+  let mtimeMs = -1
+  let size = -1
+  try {
+    const info = statSync(path)
+    mtimeMs = info.mtimeMs
+    size = info.size
+  } catch {
+    return undefined
+  }
+  if (codexAuthCache !== undefined && codexAuthCache.path === path && codexAuthCache.mtimeMs === mtimeMs && codexAuthCache.size === size) {
+    return codexAuthCache.entry
+  }
+  let entry: CodexAuthEntry | undefined
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as {
+      providers?: Record<string, { access?: unknown; accountId?: unknown; expires?: unknown }>
+    }
+    const raw = parsed.providers?.['openai-codex']
+    if (typeof raw?.access === 'string' && raw.access.trim().length > 0) {
+      entry = {
+        access: raw.access.trim(),
+        accountId: typeof raw.accountId === 'string' && raw.accountId.length > 0 ? raw.accountId : undefined,
+        expires: typeof raw.expires === 'number' && Number.isFinite(raw.expires) ? raw.expires : undefined,
+      }
+    }
+  } catch {
+    // Unreadable or malformed auth behaves as absent.
+  }
+  codexAuthCache = { path, mtimeMs, size, entry }
+  return entry
+}
+
+/** Codex auth: environment/DSH credential refs first, then the DSH OAuth login. */
+function codexAuth(): { token?: string; accountId?: string; expiresAt?: number } {
+  const accountId = credential('OPENAI_CODEX_ACCOUNT_ID', 'CODEX_ACCOUNT_ID')
+  const token = credential('OPENAI_CODEX_ACCESS_TOKEN', 'CODEX_ACCESS_TOKEN')
+  if (token.value !== undefined) return { token: token.value, accountId: accountId.value }
+  const stored = readCodexAuth()
+  return { token: stored?.access, accountId: accountId.value ?? stored?.accountId, expiresAt: stored?.expires }
+}
 
 function codexWindow(window: { used_percent?: number; reset_at?: number } | undefined): UsageWindow | undefined {
   if (window === undefined || typeof window.used_percent !== 'number') return undefined
@@ -283,11 +343,13 @@ export const codexAdapter: UsageAdapter = {
   displayName: 'Codex',
   async fetchUsage(signal) {
     try {
-      const token = credential('OPENAI_CODEX_ACCESS_TOKEN', 'CODEX_ACCESS_TOKEN')
-      const accountId = credential('OPENAI_CODEX_ACCOUNT_ID', 'CODEX_ACCOUNT_ID')
-      if (token.value === undefined) throw new Error('missing OPENAI_CODEX_ACCESS_TOKEN (env or DSH credential)')
-      const headers: Record<string, string> = { Authorization: `Bearer ${token.value}`, 'User-Agent': 'ceulen-dsh-usage/1' }
-      if (accountId.value !== undefined) headers['chatgpt-account-id'] = accountId.value
+      const auth = codexAuth()
+      if (auth.token === undefined) throw new Error('missing Codex login (env OPENAI_CODEX_ACCESS_TOKEN or DSH dsh-auth)')
+      if (auth.expiresAt !== undefined && auth.expiresAt <= Date.now()) {
+        throw new Error('token expired, use Codex once in DSH to refresh')
+      }
+      const headers: Record<string, string> = { Authorization: `Bearer ${auth.token}`, 'User-Agent': 'ceulen-dsh-usage/1' }
+      if (auth.accountId !== undefined) headers['chatgpt-account-id'] = auth.accountId
       const body = (await requestJson(CODEX_USAGE_URL, headers, signal)) as {
         rate_limit?: { primary_window?: { used_percent?: number; reset_at?: number }; secondary_window?: { used_percent?: number; reset_at?: number } }
         plan_type?: string
@@ -295,7 +357,7 @@ export const codexAdapter: UsageAdapter = {
       const fiveHour = codexWindow(body.rate_limit?.primary_window)
       const weekly = codexWindow(body.rate_limit?.secondary_window)
       const account: UsageAccount = {
-        id: accountId.value,
+        id: auth.accountId,
         isActive: true,
         accountLabel: 'Codex',
         plan: firstString(body.plan_type),
@@ -378,7 +440,7 @@ export function configuredAdapters(): UsageAdapter[] {
       case 'zai': return credential('ZAI_ANTHROPIC_API_KEY', 'ZAI_API_KEY').value !== undefined
       case 'zai-coding-cn': return credential('ZAI_CODING_CN_API_KEY').value !== undefined
       case 'commandcode': return credential('COMMAND_CODE_API_KEY', 'COMMANDCODE_API_KEY').value !== undefined
-      case 'openai-codex': return credential('OPENAI_CODEX_ACCESS_TOKEN', 'CODEX_ACCESS_TOKEN').value !== undefined
+      case 'openai-codex': return codexAuth().token !== undefined
       case 'router': return credential('ROUTER_API_KEY', 'NINE_ROUTER_API_KEY').value !== undefined
       default: return false
     }
