@@ -305,7 +305,7 @@ export function apply(ctx: PluginContext): void {
       let mode = rawInput.trim().toLowerCase()
       if (mode === '') {
         const questions = ctx.get('userQuestions', false) as {
-          ask?(request: unknown): Promise<{ answers?: { selected?: string[] }[] }>
+          ask?(request: unknown): Promise<{ answers?: { selected?: string[]; custom?: string }[] }>
         } | undefined
         if (typeof questions?.ask !== 'function') {
           return { kind: 'error', text: 'Usage: /plan-approve current|new|stay' }
@@ -339,6 +339,13 @@ export function apply(ctx: PluginContext): void {
             signal,
           })
           const label = answer?.answers?.[0]?.selected?.[0]
+          const custom = answer?.answers?.[0]?.custom?.trim() ?? ''
+          // A typed answer is planning feedback, whatever option it rides on:
+          // stay in plan mode and hand the text to the agent verbatim.
+          if (custom !== '') {
+            deliver(agent, `Plan feedback from the user (stay in plan mode, revise the plan, then present it again with exit_plan_mode):\n${custom}`)
+            return { kind: 'success', text: 'Continuing in plan mode with your feedback.' }
+          }
           mode = label === CURRENT_OPTION ? 'current' : label === NEW_SESSION_OPTION ? 'new' : label === STAY_OPTION ? 'stay' : ''
         } catch {
           mode = ''

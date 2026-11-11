@@ -2,7 +2,7 @@
 /**
  * dsh-tui plan-mode polish for the installed profile tree.
  *
- * Target: dsh-tui 0.18.0. Three behaviors the stock TUI cannot express, each
+ * Target: dsh-tui 0.19.0 (anchors unchanged since 0.18.0). Four behaviors the stock TUI cannot express, each
  * anchored on the exact 0.18.0 source text (a dsh-tui update reverts them
  * silently — re-run `apply` and check `/ceulen doctor`):
  *
@@ -20,6 +20,10 @@
  *     matched and the segment fell back to the base mode. The plan identity is
  *     overlaid on the derived mode; the real sandbox/approval atoms stay for
  *     the safety readout.
+ *  4. Esc keeps typed text. On a question (first question, no "back") or on
+ *     the plan-review card, Esc used to cancel and drop what the user typed;
+ *     the model then heard only "the user cancelled". With text typed, Esc now
+ *     submits it like Enter. Empty Esc and Ctrl+C still cancel.
  *
  * Usage: node scripts/tui-plan-patch.mjs [apply|revert|check] [--tui <dir>]
  * Restart the TUI after apply/revert.
@@ -31,6 +35,7 @@ import { join } from 'node:path'
 const CHAT = 'lib/types/screens/Chat.js'
 const MODE = 'lib/types/dsh-adapter/channel/mode-actions.js'
 const PERMISSION_MODE = 'lib/types/dsh-adapter/channel/mode-permission-actions.js'
+const PLAN_REVIEW = 'lib/types/components/questions/PlanReviewPanel.js'
 
 const commandEdge = [
   {
@@ -50,7 +55,9 @@ const commandEdge = [
                     // on/off picker preselected the CURRENT state, so a bare
                     // Enter silently confirmed Off; the registry command stays
                     // the only writer (\`/plan\` = enter, \`/plan off\` = leave).
-                    return runExternalCommand('plan', channel.mode.plan === true ? 'off' : '', images);
+                    // The invoker builds the line as \`/\${name}\${rawInput}\`, so
+                    // the argument carries its own leading space.
+                    return runExternalCommand('plan', channel.mode.plan === true ? ' off' : '', images);
                 }`,
   },
   {
@@ -78,6 +85,46 @@ const commandEdge = [
                 return;
             }
             questionStore.answerCurrent(selection);`,
+  },
+  {
+    file: CHAT,
+    label: 'Esc keeps a typed answer',
+    stock: `            if (live !== null && questionStore.stillCurrent(questionSnapshot.key)) {
+                questionStore.cancelCurrent();
+            }
+        }, onBack: questionSnapshot.canGoBack`,
+    patched: `            if (live !== null && questionStore.stillCurrent(questionSnapshot.key)) {
+                // ceulen-plan: Esc after typing a custom answer used to cancel
+                // the whole ask, so the model only saw "the user cancelled
+                // ask_user_question" and the typed text was lost. Typed text
+                // is an answer: submit it like Enter. Esc with nothing typed
+                // (and Ctrl+C always) still cancels.
+                if (typeof draft?.custom === 'string' && draft.custom.trim() !== '') {
+                    questionStore.answerCurrent({ selected: draft.selected ?? [], custom: draft.custom.trim() });
+                    return;
+                }
+                questionStore.cancelCurrent();
+            }
+        }, onBack: questionSnapshot.canGoBack`,
+  },
+  {
+    file: PLAN_REVIEW,
+    label: 'Esc keeps typed plan feedback',
+    stock: `        if (key.escape || (key.ctrl && input === 'c')) {
+            onCancel();
+            return;
+        }`,
+    patched: `        if (key.escape || (key.ctrl && input === 'c')) {
+            // ceulen-plan: Esc with feedback typed sends it as keep-planning
+            // feedback; dismissing used to drop the text. Empty Esc and
+            // Ctrl+C still dismiss.
+            if (key.escape && textRef.current.trim() !== '') {
+                submitFeedback();
+                return;
+            }
+            onCancel();
+            return;
+        }`,
   },
   {
     file: MODE,

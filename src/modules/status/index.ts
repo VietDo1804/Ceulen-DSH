@@ -243,12 +243,15 @@ export function tuiFooterState(): string {
     }
     let planMode = false
     try {
-      planMode = readFileSync(chat, 'utf8').includes('ceulen-plan: bare `/plan` toggles') &&
-        readFileSync(join(dir, 'lib', 'types', 'dsh-adapter', 'channel', 'mode-permission-actions.js'), 'utf8').includes("id: 'plan',")
+      // The leading-space marker also flags the older patch whose toggle-off
+      // sent `/planoff` ("no such command").
+      planMode = readFileSync(chat, 'utf8').includes('the argument carries its own leading space') &&
+        readFileSync(join(dir, 'lib', 'types', 'dsh-adapter', 'channel', 'mode-permission-actions.js'), 'utf8').includes("id: 'plan',") &&
+        readFileSync(join(dir, 'lib', 'types', 'components', 'questions', 'PlanReviewPanel.js'), 'utf8').includes('ceulen-plan: Esc with feedback')
     } catch {
       // Unreadable sources count as not applied.
     }
-    states.push(`${profile}:${version} ${footer} · advisor-block ${advisor ? 'applied' : 'stock (advisor notes stay out of the transcript; run scripts/tui-advisor-patch.mjs apply)'} · context-redirect ${contextRedirect ? 'applied' : 'stock (the built-in /context dump stays; run scripts/tui-context-patch.mjs apply)'} · tool-names ${toolNames ? 'applied' : 'stock (fff_grep renders as Fff_grep; run scripts/tui-toolname-patch.mjs apply)'} · plan-mode ${planMode ? 'applied' : 'stock (/plan asks on/off and the footer may not name plan mode; run scripts/tui-plan-patch.mjs apply)'}`)
+    states.push(`${profile}:${version} ${footer} · advisor-block ${advisor ? 'applied' : 'stock (advisor notes stay out of the transcript; run scripts/tui-advisor-patch.mjs apply)'} · context-redirect ${contextRedirect ? 'applied' : 'stock (the built-in /context dump stays; run scripts/tui-context-patch.mjs apply)'} · tool-names ${toolNames ? 'applied' : 'stock (fff_grep renders as Fff_grep; run scripts/tui-toolname-patch.mjs apply)'} · plan-mode ${planMode ? 'applied' : 'stock (/plan asks on/off, Esc drops a typed answer and the footer may not name plan mode; run scripts/tui-plan-patch.mjs apply)'}`)
   }
   return states.length === 0 ? 'dsh-tui not installed' : states.join(' · ')
 }
