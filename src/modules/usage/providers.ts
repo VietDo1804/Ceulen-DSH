@@ -53,7 +53,7 @@ export function formatRemainingTime(resetAtSec: number | undefined): string | un
   const minutes = Math.ceil(remainingSec / 60)
   if (minutes < 60) return `${minutes}M`
   if (minutes < 24 * 60) return `${Math.floor(minutes / 60)}H`
-  return `${Math.ceil(remainingSec / 86_400)}D`
+  return `${Math.floor(remainingSec / 86_400)}D`
 }
 
 export function formatReset(timestampSeconds: number | undefined): string | undefined {
@@ -492,7 +492,7 @@ export function compactLine(snapshot: UsageSnapshot): string | undefined {
   if (account === undefined) return undefined
   const parts: string[] = [snapshot.providerDisplayName.replace(/^OpenCode Go$/, 'Go')]
   if (account.fiveHour?.remaining !== undefined) parts.push(`5h ${account.fiveHour.remaining}%`)
-  if (account.weekly?.remaining !== undefined) parts.push(`W ${account.weekly.remaining}%`)
+  if (account.weekly?.remaining !== undefined) parts.push(`W ${account.weekly.remaining}%${account.weekly.remainingLabel === undefined ? '' : ` ${account.weekly.remainingLabel}`}`)
   if (account.monthly?.remaining !== undefined) parts.push(`M ${account.monthly.remaining}%`)
   if (account.monthlyCredits !== undefined) parts.push(formatMonthlyCredits(account.monthlyCredits, account.creditsCurrency))
   if (parts.length === 1) parts.push('no windows')
