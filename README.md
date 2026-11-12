@@ -7,40 +7,87 @@ Ceulen itself is a Pi extension bundle. DSH has a different plugin API, so this 
 ## Requirements
 
 - DSH `0.2.2-rc.1` (the `dsh` CLI and `dsh-tui` 0.19.0 profile)
-- Node.js `>=22.19` (tested on Node 24)
+- Node.js `>=24.9.0` for a fresh installation (required by the pinned DSH CLI; the bundle itself supports `>=22.19`)
 - Optional backends: `gh`, `sg`/`ast-grep`, `rtk`, Serena, Chrome/Chromium, a Munin server, a Brave Search key, an OpenAI-compatible router, A2A peers
 
 ## Install
 
-From this checkout, install the bundle into the TUI profile and restart:
+### Fresh DeepSeek Harness installation
+
+Use Node.js **24.9 or newer** (Node 24 LTS recommended), npm, and Git.
+On Windows, run these Bash commands in WSL. No existing DSH profile is needed.
+
+`ceulen-dsh` is **not published to npm yet**: `dsh plugin add ceulen-dsh`
+currently returns 404. Build a tarball from this repository instead:
 
 ```sh
-dsh plugin --profile tui add link:"$PWD"
+node --version
+npm install -g @deepseek-ai/dsh@0.2.2-rc.1
+dsh --version
+
+git clone https://github.com/VietDo1804/Ceulen-DSH.git
+cd Ceulen-DSH
+npm ci --include=dev
+./release/build.sh
+
+# Install BOTH the TUI app and this bundle into a new profile.
+./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.5.tgz"
+dsh --profile tui
 ```
 
-`link:` keeps this checkout as the source of truth; rebuild with `npm run build` after changes and reload.
+DSH does not ship a `tui` template: installing only Ceulen-DSH does **not**
+install the TUI app. `--with-tui` adds the pinned TUI as well. The installer
+creates the profile under `${DSH_HOME:-$HOME/.dsh}/profiles/tui`; it does not
+replace an existing profile's settings. Restart an already-running session
+after installation.
 
-Installing on another machine, with no checkout: either install the published package with
-`dsh plugin --profile tui add ceulen-dsh`, or build a frozen tarball and ship it —
-see [release/README.md](release/README.md) for the one-command install (`dsh plugin
---profile tui add file:<tarball>` or an HTTPS URL, plus `--with-tui` on a fresh host). The plugin manager writes outside the workspace, so the install needs explicit approval.
+Follow the TUI's first-run setup, or run `/setup` again. Use `/provider` to add
+your model provider/API key and `/model` to select a model before sending
+prompts. Ceulen-DSH does not include an API key or subscription. Optional
+backends below are needed only for their respective features, not to install
+the bundle.
 
-Upgrade is the same command with the newer version (`add ceulen-dsh@<version>` for the
-npm channel, a new tarball for the frozen one). A newer npm release is reported in the
-session status line (`bundle <version> available`); `/ceulen upgrade` prints the exact
-install + restart pair, and `/ceulen update` checks both upstream Ceulen and this bundle.
+### Install on a friend's machine without building
+
+Send `release/ceulen-dsh-0.2.5.tgz` to your friend after building it. With Node
+24.9+ and the pinned DSH CLI installed, they can run (replace the tarball path):
+
+```sh
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.19.0 file:/absolute/path/to/ceulen-dsh-0.2.5.tgz
+dsh --profile tui
+```
+
+The tarball includes compiled code; no clone or build is needed on their
+machine. An HTTPS tarball URL works in place of `file:...`. Do not install
+directly from a Git URL: compiled `lib/` is not committed. See
+[release/README.md](release/README.md) for checksums and installer options.
+
+### Develop from a checkout
+
+After `npm ci --include=dev` and `npm run build`, link this checkout instead:
+
+```sh
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.19.0 link:"$PWD"
+dsh --profile tui
+```
+
+`link:` keeps this checkout as the source of truth; rebuild with `npm run build`
+after changes and restart DSH. To upgrade a tarball installation, install a
+newly built tarball into the same profile and restart. npm-based update notices
+and `/ceulen upgrade` cannot supply a release until the package is published.
 
 After restart:
 
 ```text
 /ceulen
 /ceulen-config   # full-screen settings panel
+/ceulen doctor  # compatibility and optional-backend diagnostics
 ```
 
 You should see the release line (`ceulen-dsh 0.2.5 (stable)`), the pinned
 Ceulen version, and the mounted/native/planned modules.
 
-This checkout is already linked into `~/.dsh/profiles/tui`. The bundle composes
+Installation is per machine and profile, not inherited from this checkout. The bundle composes
 31 rows. See `docs/live-verification.md` for the evidence.
 
 ### Release line
@@ -51,6 +98,30 @@ tracks lives in `upstream.lock.json` (`0.23.0`). The bundle update check follows
 the `stable` npm dist-tag, so `latest` staying on the old `0.23.0-dsh.x` line
 never reads as an upgrade — and a missing tag reports `unknown` instead of
 inventing one. `/ceulen doctor` prints the line and dist-tag it follows.
+
+## Credential safety
+
+Keep API keys and login state in your own DSH credential store, never in this
+repository or a shared tarball. `.gitignore` excludes local `.env` files,
+credential files, and Codex/Claude login directories. Example environment files
+may be committed, but must contain placeholders only. Ignoring a file does not
+remove it from Git if it was already tracked.
+
+The `secrets` GitHub Actions workflow scans Git history with Gitleaks on pushes
+and pull requests, redacts findings, and fails if a secret is detected. It needs
+no API key. GitHub's billing lock must be resolved before this workflow can run.
+Keep GitHub's native secret scanning and push protection enabled in repository
+security settings too: push protection can reject supported secret types before
+GitHub accepts the push, independently of Actions.
+With Gitleaks 8.30.1 installed, run the same check locally before pushing:
+
+```sh
+gitleaks git . --redact --log-opts="--all"
+```
+
+History scanning does not cover uncommitted or ignored files. Share only the
+built tarball, not your workspace, `~/.dsh`, or `~/.codex`. If a real secret was
+committed, revoke/rotate it immediately; adding it to `.gitignore` is not enough.
 
 ## What works today
 

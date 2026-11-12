@@ -31,10 +31,18 @@ Inside the session: `/ceulen` (bundle version + module status) and
 
 ### Fresh machine
 
+Install Node.js **24.9+** (Node 24 LTS recommended) and the pinned Harness first:
+
+```sh
+npm install -g @deepseek-ai/dsh@0.2.2-rc.1
+dsh --version
+```
+
 `dsh` ships templates for `web`, `headless`, `acp`, and `sdk-minimal` — **not**
 `tui`. A profile named `tui` created by `dsh plugin add` therefore gets the base
 harness plus this bundle, but no TUI app. If the target has no TUI yet, use the
-wrapper, which adds `@deepseek-harness-tui/dsh-tui@0.19.0` in the same command:
+wrapper from this release folder, which adds `@deepseek-harness-tui/dsh-tui@0.19.0`
+in the same command (keep `install.sh` beside the supplied tarball):
 
 ```sh
 ./install.sh --profile tui --with-tui
@@ -43,11 +51,30 @@ wrapper, which adds `@deepseek-harness-tui/dsh-tui@0.19.0` in the same command:
 It refuses to run without `dsh` and Node `>=22.19`, and `--dry-run` prints the
 exact `dsh plugin` invocation without touching anything.
 
+With only a tarball, no wrapper is required:
+
+```sh
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.19.0 file:/absolute/path/to/ceulen-dsh-0.2.5.tgz
+dsh --profile tui
+```
+
+Inside DSH, follow the first-run wizard (or run `/setup`), add your credentials
+with `/provider`, and select a model with `/model` before sending prompts.
+Then check `/ceulen` and `/ceulen doctor`. No credentials are included.
+`ceulen-dsh` is not published on npm yet; installing by its bare package name
+returns 404. Build from the [source checkout](../README.md#fresh-deepseek-harness-installation)
+or obtain a built tarball from its maintainer.
+
+The pinned upstream TUI can emit `dsh-working-activity` peer warnings and
+`tool-ralph` / `tool-subagent-list-agents` patch-entry warnings. The isolated
+installation smoke test still reached the TUI launchpad; this does not verify
+an authenticated model request. Use `/ceulen doctor` to check your installation.
+
 ## Requirements
 
 | Requirement | Version | Why |
 |---|---|---|
-| Node.js | `>=22.19` (tested on 24) | `engines`, and dsh-tui's own `^22.19 \|\| >=24` |
+| Node.js | `>=24.9.0` for a fresh host | pinned DSH CLI requirement; the bundle alone supports `>=22.19`, dsh-tui `^22.19 \|\| >=24` |
 | DSH CLI | `0.2.2-rc.1` | `engines.dsh` (single source in `package.json`); pin it: `npm install -g @deepseek-ai/dsh@0.2.2-rc.1` |
 | Profile | any; `tui` is the supported one | bundle rows mount into the base composition |
 
