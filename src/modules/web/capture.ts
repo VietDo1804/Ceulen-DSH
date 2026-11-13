@@ -25,11 +25,11 @@ export function assertCaptureScope(url: string, cwd: string): void {
   }
 }
 
-export async function saveScreenshot(ctx: PluginContext, base64: string, name: string): Promise<{ text: string; image?: unknown }> {
+export async function saveScreenshot(ctx: PluginContext, base64: string, name: string, attach = true): Promise<{ text: string; image?: unknown }> {
   const bytes = Buffer.from(base64, 'base64')
   let attachments: { saveImage?: (input: { data: Uint8Array; mediaType: string; name: string }) => Promise<unknown> } | undefined
   try {
-    attachments = ctx.get('attachments', false)
+    attachments = attach ? ctx.get('attachments', false) : undefined
   } catch {
     attachments = undefined
   }

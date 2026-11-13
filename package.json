@@ -1,6 +1,6 @@
 {
   "name": "ceulen-dsh",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "release": {
     "line": "stable",
     "distTag": "stable"
@@ -51,7 +51,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run lint && npm run build && npm run typecheck:strict && npm run typecheck:test && npm run test:cov && node scripts/check-bundle.mjs && node scripts/check-pack.mjs && node scripts/ceulen-sync.mjs parity --check",
+    "check": "npm run lint && npm run build && node scripts/check-web-regressions.mjs && npm run typecheck:strict && npm run typecheck:test && npm run test:cov && node scripts/check-bundle.mjs && node scripts/check-pack.mjs && node scripts/ceulen-sync.mjs parity --check",
     "bench:search": "node scripts/bench-search.mjs",
     "evo": "node scripts/evo-distill.mjs",
     "evo:report": "node scripts/evo-report.mjs",

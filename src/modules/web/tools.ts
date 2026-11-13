@@ -195,11 +195,12 @@ export function registerWebTools(ctx: PluginContext): void {
       if (result.probe.scrollWidth !== undefined) lines.push(`page width ${result.probe.scrollWidth}px · viewport ${result.probe.innerWidth ?? '?'}px`)
       const ignored = ignoredNote('web_interact', raw, INTERACT_PARAMETERS)
       if (ignored !== '') lines.push(ignored)
+      const failed = result.outcomes.some(outcome => !outcome.ok)
       const screenshot = result.screenshot === undefined
         ? { text: 'No screenshot returned.' }
-        : await saveScreenshot(ctx, result.screenshot, `interact-${new URL(args.url).hostname || 'page'}`)
+        : await saveScreenshot(ctx, result.screenshot, `interact-${new URL(args.url).hostname || 'page'}`, !failed)
       const text = `${lines.join('\n')}\n\n${screenshot.text}`
-      if (lines.some(line => line.startsWith('FAIL')) && screenshot.image === undefined) throw new Error(text)
+      if (failed) throw new Error(text)
       return { text, ...(screenshot.image === undefined ? {} : { image: screenshot.image }) }
     },
   }))

@@ -156,8 +156,8 @@
     "skills/web/SKILL.md": {
       "source": "skills/web/SKILL.md",
       "upstreamSha256": "12daf4ec5c56d51928bb698bed4f96ca64560e5be63952368df41e371278c0c2",
-      "localSha256": "12daf4ec5c56d51928bb698bed4f96ca64560e5be63952368df41e371278c0c2",
-      "mode": "copy"
+      "localSha256": "4a03e92473852013e90ef71049c62d5498f5ee2bf50f0ccdf99a52ff1000fc42",
+      "mode": "patched"
     },
     "src/vendor/ceulen/cron/schedule.ts": {
       "source": "extensions/modules/cron/lib/schedule.ts",
@@ -222,7 +222,7 @@
     "src/vendor/ceulen/web/chrome.ts": {
       "source": "extensions/modules/web/lib/chrome.ts",
       "upstreamSha256": "baac2852b71dcd937b3583cdb7e4f46cbede3528661091da8dfaa9ced29d9b36",
-      "localSha256": "f30be262097d46c50a1d5abe23ae1e119524d695a51916e3eb6e68f0a3efacd4",
+      "localSha256": "31afff91b6ae56ed9f926051b873bc153e0df8f13ca968bf1310e14d955cefb9",
       "mode": "patched"
     },
     "src/vendor/ceulen/web/cdp.ts": {

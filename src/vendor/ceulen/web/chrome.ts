@@ -298,6 +298,21 @@ export async function captureScreenshot(opts: {
   timeoutMs?: number;
 }): Promise<LocalCapture> {
   assertCaptureUrl(opts.url);
+  const width = opts.width ?? 1280;
+  if (width < 500) {
+    // ponytail: reuse CDP below Chrome CLI's 500px layout minimum.
+    const { runInteraction } = await import("./cdp.js");
+    const deadline = AbortSignal.timeout(opts.timeoutMs ?? CHROME_TIMEOUT_MS);
+    const result = await runInteraction({
+      url: opts.url,
+      viewport: { width, height: opts.fullPage ? FULL_PAGE_HEIGHT : (opts.height ?? 800) },
+      reducedMotion: opts.reducedMotion,
+      waitForSec: opts.waitForSec,
+      signal: opts.signal ? AbortSignal.any([opts.signal, deadline]) : deadline,
+    });
+    if (!result.screenshot) throw new Error("Chrome returned no screenshot");
+    return { base64: result.screenshot, mime: "image/png", size: Buffer.byteLength(result.screenshot, "base64") };
+  }
   const chromePath = findChromeBinary();
   if (!chromePath) {
     throw new Error("No local Chrome/Chromium found — install Chrome or set CHROME_PATH.");

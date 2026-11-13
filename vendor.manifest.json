@@ -150,7 +150,7 @@
       "module": "skills",
       "source": "skills/web/SKILL.md",
       "target": "skills/web/SKILL.md",
-      "mode": "copy"
+      "mode": "patched"
     },
     {
       "module": "cron",
