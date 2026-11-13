@@ -7,6 +7,7 @@ export function displayValue(row: ConfigRow): string {
   if (row.kind === 'secret') return String(row.value)
   if (row.kind === 'text') {
     const value = String(row.value)
+    if (row.pickerAppend === true) return `${value.split(',').filter(entry => entry.trim() !== '').length} configured · Enter to add`
     return value.length > 0 ? value : (row.placeholder ?? '(empty)')
   }
   if (row.kind === 'enum') return String(row.value)

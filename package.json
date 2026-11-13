@@ -37,7 +37,7 @@
     "node": ">=22.19.0",
     "dsh": "0.2.2-rc.1"
   },
-  "dshTui": "0.19.0",
+  "dshTui": "0.20.0",
   "publishConfig": {
     "access": "public",
     "tag": "latest"

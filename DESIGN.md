@@ -92,3 +92,7 @@ Canonical stylesheet tokens: `docs/codemode_explain/codemode-tokens.css`. The co
 ```
 
 Layout uses existing spacing scale; hairlines 1px; zero radius except code samples. Reduced-motion disables transitions and animation. All interactive targets have at least 44px height.
+
+## Native terminal settings
+
+`/ceulen-config` is a host-rendered terminal scene, not a browser page. Keep the host's terminal font, cell spacing, border and semantic colour tokens (`accent`, `text`, `subtle`, `success`, `inactive`, `warning`, `error`); never translate the documentation CSS palette into terminal colours. Use section headings for authentication groups and numbered rows for ordered fallbacks. Selection is the native cursor/bold treatment; Enter edits, arrows navigate/change enums, Escape cancels an editor or saves the panel. Loading, empty and error states use explicit text; saving disables input. No browser motion kit or CSS audit applies to this surface.

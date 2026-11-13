@@ -1,6 +1,6 @@
 import type { CeulenSettings } from '../../core/settings.js'
 import { info, number, secret, text, toggle } from './rows.js'
-import { envValue, planTargets, } from './helpers.js'
+import { planTargets } from './helpers.js'
 import type { ConfigContext, ConfigTab } from './types.js'
 
 /** Shell, Tasks, Providers, Tools and Plugins tabs. */
@@ -68,14 +68,27 @@ export function buildExtraTabs(
       label: 'Providers',
       sections: [
         {
-          id: 'routes',
-          label: 'Routes',
+          id: 'overview',
+          label: 'Provider registry',
           rows: [
-            info('providers.routes', 'Registered routes', routes.length > 0 ? routes.join(', ') : '(none)'),
-            info('providers.routerBase', 'ROUTER_BASE_URL', envValue(context, 'ROUTER_BASE_URL')),
-            info('providers.routerKey', 'ROUTER_API_KEY', envValue(context, 'ROUTER_API_KEY')),
+            info('providers.routes', 'Registered routes', String(context.providers?.length ?? routes.length), 'Providers come from DSH. Manage provider accounts in the native settings; this panel never displays tokens.'),
+          ],
+        },
+        ...(['api-key', 'login', 'unknown'] as const).map(auth => {
+          const providers = (context.providers ?? routes.map(id => ({ id, name: id, auth: 'unknown' as const }))).filter(provider => provider.auth === auth)
+          return {
+            id: `providers-${auth}`,
+            label: auth === 'api-key' ? 'API key providers' : auth === 'login' ? 'Sign-in providers · OAuth' : 'Other / custom providers',
+            rows: providers.length === 0
+              ? [info(`providers.${auth}.empty`, 'Providers', '(none)')]
+              : providers.map(provider => info(`providers.account.${provider.id}`, provider.name, provider.id, auth === 'unknown' ? 'Authentication not advertised by the adapter; no assumptions made.' : 'Native authentication reported by DSH; profile credential overrides may differ.')),
+          }
+        }),
+        {
+          id: 'provider-credentials',
+          label: 'API key credential store',
+          rows: [
             secret(context, 'providers.zaiKey', 'Z.AI key', 'ZAI_ANTHROPIC_API_KEY', "Enter saves to the DSH credential store ('-' clears); route it with apiKeyEnv: ZAI_ANTHROPIC_API_KEY."),
-            info('providers.hint', 'Recipe', '/router-status · /zai', 'Provider routes are declared in the profile patch; these commands print a ready-to-paste row.'),
           ],
         },
       ],

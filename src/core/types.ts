@@ -184,6 +184,11 @@ export interface LlmChunk {
 export interface LlmService {
   stream(options: LlmStreamOptions): AsyncIterable<LlmChunk>
   listProviders?(): readonly unknown[]
+  /** Public provider-directory metadata; contains no credential values. */
+  listConfigurableProviders?(): readonly {
+    provider: string
+    nativeAuth?: { env: readonly string[]; oauth: boolean }
+  }[]
   /** Adapter-advertised models for one registered provider route. */
   listModels?(provider: string): Promise<readonly unknown[]>
 }

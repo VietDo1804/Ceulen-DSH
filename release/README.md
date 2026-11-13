@@ -41,7 +41,7 @@ dsh --version
 `dsh` ships templates for `web`, `headless`, `acp`, and `sdk-minimal` — **not**
 `tui`. A profile named `tui` created by `dsh plugin add` therefore gets the base
 harness plus this bundle, but no TUI app. If the target has no TUI yet, use the
-wrapper from this release folder, which adds `@deepseek-harness-tui/dsh-tui@0.19.0`
+wrapper from this release folder, which adds `@deepseek-harness-tui/dsh-tui@0.20.0`
 in the same command (keep `install.sh` beside the supplied tarball):
 
 ```sh
@@ -54,7 +54,7 @@ exact `dsh plugin` invocation without touching anything.
 With only a tarball, no wrapper is required:
 
 ```sh
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.19.0 file:/absolute/path/to/ceulen-dsh-0.2.5.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.0 file:/absolute/path/to/ceulen-dsh-0.2.5.tgz
 dsh --profile tui
 ```
 
@@ -93,7 +93,7 @@ cd release && sha256sum -c SHA256SUMS
 
 `lib/` (compiled modules + 104 themes + vendored Ceulen files), `skills/`
 (19 skill packs), `scripts/` (TUI patches, sync/parity tooling),
-`cordis.patch.yml` (31 composed rows), `parity.json`, `docs/`, `README.md`,
+`cordis.patch.yml` (32 composed rows), `parity.json`, `docs/`, `README.md`,
 LICENSE/NOTICE. `devDependencies` are not needed at runtime and are not
 installed. `node scripts/check-pack.mjs` asserts that the tarball holds these.
 
@@ -109,18 +109,23 @@ and the profile keeps your settings (`$DSH_HOME/ceulen/settings.json`).
 
 ## Optional TUI patches
 
-Only needed for the reviewer transcript row; they edit the *installed* dsh-tui
-copy and are reverted by every dsh-tui upgrade. Re-apply after upgrading:
+These preserve advisor notes, the context dashboard, tool names, plan mode,
+per-model effort and UI styles. They edit the *installed* dsh-tui copy and
+are reverted by every dsh-tui upgrade. Re-apply all six after upgrading:
 
 ```sh
-node ~/.dsh/profiles/tui/node_modules/ceulen-dsh/scripts/tui-advisor-patch.mjs apply
-# --tui <dir> if DSH_HOME is not ~/.dsh (the script ignores DSH_HOME)
+for p in advisor context toolname plan effort style; do
+  node "${DSH_HOME:-$HOME/.dsh}/profiles/tui/node_modules/ceulen-dsh/scripts/tui-$p-patch.mjs" apply || break
+done
+for p in advisor context toolname plan effort style; do
+  node "${DSH_HOME:-$HOME/.dsh}/profiles/tui/node_modules/ceulen-dsh/scripts/tui-$p-patch.mjs" check || break
+done
 ```
 
 `/ceulen doctor` reports `tui footer: … · advisor-block applied|stock …`, and each
 script's `check` exits non-zero when its patch is missing. The footer patch was
 deleted — dsh-tui 0.17.0+ renders plugin footer fields natively. Patches target
-dsh-tui 0.19.0; re-apply after every upgrade.
+dsh-tui 0.20.0; re-apply after every upgrade.
 
 ## Uninstall
 

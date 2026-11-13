@@ -17,7 +17,7 @@ import { loadSettingsSync } from '../../core/settings.js'
 import { registerCommandSafe, errorMessage } from '../../core/tools.js'
 import { displayPath, settingsPath } from '../../core/paths.js'
 import { logLine } from '../../core/log.js'
-import { buildConfigTabs, summaryLines, type ConfigContext } from './model.js'
+import { buildConfigTabs, summaryLines, type ConfigContext, type ConfigProvider } from './model.js'
 import { createConfigScene } from './scene.js'
 
 const SCENE_ID = 'ceulen-config'
@@ -80,15 +80,26 @@ function ptcRuntimeMounted(ctx: PluginContext): boolean {
   }
 }
 
-function routeNames(ctx: PluginContext): string[] {
+/** Use adapter authentication metadata, never provider-name guesses or secrets. */
+export function collectConfigProviders(ctx: PluginContext): ConfigProvider[] {
   try {
-    const list = llmOf(ctx)?.listProviders?.() ?? []
+    const llm = llmOf(ctx)
+    const list = llm?.listProviders?.() ?? []
+    let directory: ReturnType<NonNullable<LlmService['listConfigurableProviders']>> = []
+    try {
+      directory = llm?.listConfigurableProviders?.() ?? []
+    } catch {
+      // An older/broken directory must not hide the registered providers.
+    }
     return list.map(entry => {
-      if (typeof entry === 'string') return entry
-      const record = entry as { id?: string; name?: string }
-      return record.id !== undefined
-        ? `${record.id}${record.name !== undefined && record.name !== record.id ? ` (${record.name})` : ''}`
-        : String(entry)
+      const record = typeof entry === 'string' ? { id: entry } : entry as { id?: string; name?: string }
+      const id = record.id ?? String(entry)
+      const auth = directory.find(provider => provider.provider === id)?.nativeAuth
+      return {
+        id,
+        name: record.name ?? id,
+        auth: auth?.oauth === true ? 'login' : auth !== undefined && auth.env.length > 0 ? 'api-key' : 'unknown',
+      }
     })
   } catch {
     return []
@@ -120,9 +131,11 @@ export async function collectModelRoutes(ctx: PluginContext): Promise<string[]> 
 }
 
 function configContext(ctx: PluginContext): ConfigContext {
+  const providers = collectConfigProviders(ctx)
   return {
     settingsFile: displayPath(settingsPath()),
-    routes: routeNames(ctx),
+    providers,
+    routes: providers.map(provider => provider.id),
     modelRoutes: () => collectModelRoutes(ctx),
     codemodeRuntime: ptcRuntimeMounted(ctx),
     env: process.env,

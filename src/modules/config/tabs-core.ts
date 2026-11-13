@@ -4,6 +4,26 @@ import { info, number, option, secret, text, toggle } from './rows.js'
 import { roleSelector, routeList, routeText, splitList, splitRoute } from './helpers.js'
 import type { ConfigContext, ConfigRow, ConfigTab } from './types.js'
 
+/** Keep fallback order and effort in the existing route strings. */
+function fallbackRows(settings: CeulenSettings, owner: 'advisor' | 'classifier'): ConfigRow[] {
+  return settings[owner].fallbacks.flatMap((value, index) => [
+    text(`${owner}.fallbacks.${index}.model`, `Fallback ${index + 1} model`, value, next => {
+      const routes = [...settings[owner].fallbacks]
+      if (next.trim() === '') routes.splice(index, 1)
+      else {
+        splitRoute(next)
+        routes[index] = next
+      }
+      settings[owner].fallbacks = routeList(routes.join(', '))
+    }, { picker: true, description: 'Tried in this order. Enter replaces only this fallback; type "-" in the picker to remove it.' }),
+    option(`${owner}.fallbacks.${index}.reasoning`, `Fallback ${index + 1} reasoning`, splitRoute(value)?.effort ?? 'auto', ['auto', ...REASONING_EFFORTS], next => {
+      const route = splitRoute(settings[owner].fallbacks[index] ?? '')
+      if (route === null) return
+      settings[owner].fallbacks[index] = routeText(route.provider, route.model, next === 'auto' ? null : next as ReasoningEffort)
+    }, { description: 'Reasoning for this fallback only; auto uses its model default.' }),
+  ])
+}
+
 /** The per-role model/reasoning rows, reused by the Model tab. */
 export function buildSubagentRows(settings: CeulenSettings): ConfigRow[] {
   return ROLES.flatMap(role => {
@@ -76,9 +96,10 @@ export function buildCoreTabs(settings: CeulenSettings, context: ConfigContext, 
             option('advisor.reasoningEffort', 'Reasoning', settings.advisor.reasoningEffort ?? 'auto', ['auto', ...REASONING_EFFORTS], value => {
               settings.advisor.reasoningEffort = value === 'auto' ? null : (value as ReasoningEffort)
             }, { description: 'Thinking level sent with the reviewer request; auto uses the model catalog default.' }),
-            text('advisor.fallbacks', 'Fallbacks', settings.advisor.fallbacks.join(', '), value => {
+            text('advisor.fallbacks', 'Add fallback', settings.advisor.fallbacks.join(', '), value => {
               settings.advisor.fallbacks = routeList(value)
             }, { picker: true, pickerAppend: true, placeholder: 'none', description: 'provider/model routes tried in order when the primary fails. Enter opens the model list and APPENDS the pick; type freely for an effort suffix; "-" clears the list.' }),
+            ...fallbackRows(settings, 'advisor'),
             toggle('advisor.watch', 'Watch turns', settings.advisor.watch, value => { settings.advisor.watch = value }, { description: 'Review settled turns and raise at most one note.' }),
             toggle('advisor.showStatus', 'Status line', settings.advisor.showStatus, value => { settings.advisor.showStatus = value }, { description: 'Show advisor working/done in the status bar.' }),
             number('advisor.minToolCalls', 'Min tool calls', settings.advisor.minToolCalls, value => { settings.advisor.minToolCalls = value }, 0, 100),
@@ -95,9 +116,10 @@ export function buildCoreTabs(settings: CeulenSettings, context: ConfigContext, 
             }, { picker: true, placeholder: 'agent route', description: 'provider/model for typed classify decisions; empty uses the agent route. Enter filters registered provider models.' }),
             toggle('classifier.audit', 'Bash audit', settings.classifier.audit, value => { settings.classifier.audit = value }, { description: 'Log a verdict for every bash call.' }),
             toggle('classifier.enforce', 'Enforce on destructive bash', settings.classifier.enforce, value => { settings.classifier.enforce = value }, { description: 'Deny irreversible bash (rm -rf, reset --hard, clean -xfd, force push, DROP) when the in-code gate scores safe < 0.5.' }),
-            text('classifier.fallbacks', 'Fallbacks', settings.classifier.fallbacks.join(', '), value => {
+            text('classifier.fallbacks', 'Add fallback', settings.classifier.fallbacks.join(', '), value => {
               settings.classifier.fallbacks = routeList(value)
             }, { picker: true, pickerAppend: true, description: 'provider/model routes tried in order when the primary classify route fails or returns invalid JSON. Enter opens the model list and APPENDS the pick; "-" clears the list.' }),
+            ...fallbackRows(settings, 'classifier'),
           ],
         },
         {

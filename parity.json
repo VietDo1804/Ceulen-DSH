@@ -8,6 +8,15 @@
   },
   "modules": [
     {
+      "name": "agent-mode",
+      "category": "Workflow",
+      "status": "native",
+      "dsh": "/Agent-mode [on|off|status] (alias /agent-mode) loads an external AGENTS.md role without changing permissions",
+      "phase": 0,
+      "notes": "Ceulen-DSH-only role command. Defaults to ~/vietdo_workspace/DHS/agent_mode/AGENTS.md; the plugin path config overrides it. Starts inactive on plugin activation; on reloads the file, off removes the prompt section contents. Missing or empty files disable the role with an error.",
+      "rowId": "ceulen-agent-mode"
+    },
+    {
       "name": "agentmem",
       "category": "Memory",
       "status": "native",

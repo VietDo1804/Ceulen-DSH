@@ -16,8 +16,6 @@ import {
   formatUpstream,
   isCacheFresh,
   readPinnedVersion,
-  statusLine,
-  type BundleUpdateState,
   type UpstreamState,
 } from '../../core/upstream.js'
 import { pluginVersion, releaseDistTag, releaseLine } from '../../core/version.js'
@@ -55,16 +53,9 @@ function profileName(): string {
   return value !== undefined && value.length > 0 ? value : '<profile>'
 }
 
-function composeLine(upstream: UpstreamState, bundle: BundleUpdateState): string | undefined {
-  const parts = [statusLine(upstream, pluginVersion()), bundleStatusLine(bundle)]
-  const text = parts.filter((part): part is string => part !== undefined).join(' · ')
-  return text.length > 0 ? text : undefined
-}
-
 async function applyStatusLine(publish: (text: string | undefined) => void): Promise<void> {
   try {
-    const [upstream, bundle] = await Promise.all([currentUpstreamState(), currentBundleUpdate()])
-    publish(composeLine(upstream, bundle))
+    publish(bundleStatusLine(await currentBundleUpdate()))
   } catch {
     // A status line must never break the plugin.
   }
@@ -74,11 +65,8 @@ async function refreshStatusLine(publish: (text: string | undefined) => void): P
   try {
     const settings = loadSettingsSync()
     if (!settings.upstream.enabled) return
-    const [upstream, bundle] = await Promise.all([
-      checkUpstream({ intervalHours: settings.upstream.intervalHours }),
-      checkBundleUpdate({ intervalHours: settings.upstream.intervalHours }),
-    ])
-    publish(composeLine(upstream, bundle))
+    const bundle = await checkBundleUpdate({ intervalHours: settings.upstream.intervalHours })
+    publish(bundleStatusLine(bundle))
   } catch (error) {
     logLine('upstream', `status refresh failed: ${error instanceof Error ? error.message : String(error)}`)
   }
@@ -257,7 +245,13 @@ export function tuiFooterState(): string {
     } catch {
       // Unreadable model actions count as not applied.
     }
-    states.push(`${profile}:${version} ${footer} · effort-per-model ${effortPerModel ? 'applied' : 'stock (one effort for every model; run scripts/tui-effort-patch.mjs apply)'} · advisor-block ${advisor ? 'applied' : 'stock (advisor notes stay out of the transcript; run scripts/tui-advisor-patch.mjs apply)'} · context-redirect ${contextRedirect ? 'applied' : 'stock (the built-in /context dump stays; run scripts/tui-context-patch.mjs apply)'} · tool-names ${toolNames ? 'applied' : 'stock (fff_grep renders as Fff_grep; run scripts/tui-toolname-patch.mjs apply)'} · plan-mode ${planMode ? 'applied' : 'stock (/plan asks on/off, Esc drops a typed answer and the footer may not name plan mode; run scripts/tui-plan-patch.mjs apply)'}`)
+    let uiStyle = false
+    try {
+      uiStyle = readFileSync(join(dir, 'lib', 'types', 'uiStyle.js'), 'utf8').includes('ceulen-style:')
+    } catch {
+      // Missing style module keeps the stock layout.
+    }
+    states.push(`${profile}:${version} ${footer} · effort-per-model ${effortPerModel ? 'applied' : 'stock (one effort for every model; run scripts/tui-effort-patch.mjs apply)'} · ui-style ${uiStyle ? 'applied' : 'stock (layout stays dsh; run scripts/tui-style-patch.mjs apply)'} · advisor-block ${advisor ? 'applied' : 'stock (advisor notes stay out of the transcript; run scripts/tui-advisor-patch.mjs apply)'} · context-redirect ${contextRedirect ? 'applied' : 'stock (the built-in /context dump stays; run scripts/tui-context-patch.mjs apply)'} · tool-names ${toolNames ? 'applied' : 'stock (fff_grep renders as Fff_grep; run scripts/tui-toolname-patch.mjs apply)'} · plan-mode ${planMode ? 'applied' : 'stock (/plan asks on/off, Esc drops a typed answer and the footer may not name plan mode; run scripts/tui-plan-patch.mjs apply)'}`)
   }
   return states.length === 0 ? 'dsh-tui not installed' : states.join(' · ')
 }
@@ -488,13 +482,14 @@ export function apply(ctx: PluginContext): void {
   // an injected child activation (same fix as the usage module).
   const publishUpstream = tuiStatusPublisher(ctx, STATUS_KEY)
 
+  // Only this fork's bundle updates belong in the footer, not upstream releases.
   // Publish a cached "update available" line immediately, then refresh in the
   // background. The check is detached and unref'd: it must never delay or keep
   // alive a TUI/headless process.
   const timer = setTimeout(() => {
     void (async () => {
       await applyStatusLine(publishUpstream)
-      const current = await currentUpstreamState()
+      const current = await currentBundleUpdate()
       if (!settings.upstream.enabled) return
       if (!isCacheFresh(current, settings.upstream.intervalHours)) await refreshStatusLine(publishUpstream)
     })()

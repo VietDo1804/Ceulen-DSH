@@ -6,7 +6,7 @@ Ceulen itself is a Pi extension bundle. DSH has a different plugin API, so this 
 
 ## Requirements
 
-- DSH `0.2.2-rc.1` (the `dsh` CLI and `dsh-tui` 0.19.0 profile)
+- DSH `0.2.2-rc.1` (the `dsh` CLI and `dsh-tui` 0.20.0 profile)
 - Node.js `>=24.9.0` for a fresh installation (required by the pinned DSH CLI; the bundle itself supports `>=22.19`)
 - Optional backends: `gh`, `sg`/`ast-grep`, `rtk`, Serena, Chrome/Chromium, a Munin server, a Brave Search key, an OpenAI-compatible router, A2A peers
 
@@ -53,7 +53,7 @@ Send `release/ceulen-dsh-0.2.5.tgz` to your friend after building it. With Node
 24.9+ and the pinned DSH CLI installed, they can run (replace the tarball path):
 
 ```sh
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.19.0 file:/absolute/path/to/ceulen-dsh-0.2.5.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.0 file:/absolute/path/to/ceulen-dsh-0.2.5.tgz
 dsh --profile tui
 ```
 
@@ -67,7 +67,7 @@ directly from a Git URL: compiled `lib/` is not committed. See
 After `npm ci --include=dev` and `npm run build`, link this checkout instead:
 
 ```sh
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.19.0 link:"$PWD"
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.0 link:"$PWD"
 dsh --profile tui
 ```
 
@@ -88,7 +88,7 @@ You should see the release line (`ceulen-dsh 0.2.5 (stable)`), the pinned
 Ceulen version, and the mounted/native/planned modules.
 
 Installation is per machine and profile, not inherited from this checkout. The bundle composes
-31 rows. See `docs/live-verification.md` for the evidence.
+32 rows. See `docs/live-verification.md` for the evidence.
 
 ### Release line
 
@@ -136,6 +136,7 @@ committed, revoke/rotate it immediately; adding it to `.gitignore` is not enough
 | Rules | sticky `.dsh/RULES.md` + rulebook, `when-*` behaviour guards (`rules.guards`), read-only `AGENTS.md` / `.cursor/rules/*.mdc` / `.clinerules` sources, `rule_get`, `/rules` |
 | GitHub | read-only `github` tool over the `gh` CLI |
 | Ponytail | `/ponytail off|lite|full|ultra`, prompt discipline, skills |
+| Agent Mode | `/Agent-mode` (alias `/agent-mode`) loads `~/vietdo_workspace/DHS/agent_mode/AGENTS.md`; run again to reload edits, `off` to remove the role, `status` to inspect it. Starts off after restart; permissions and Plan Mode are unchanged. Override the file with the plugin's `path` config. |
 | Skills | all 19 bundled skill packs registered (15 ported from Ceulen) |
 | Evolve | Weekly audit with no model: `scripts/evo-weekly.mjs` (systemd timer) scans every session, gathers recurring tool errors into fix groups and writes an HTML report plus `report-<date>.md`; the review is a session the user starts on a strong model (skill `evo`, "evo weekly review"): diagnose, fix in a worktree with a test, then `evo-report.mjs --fixed` so later reports compare before and after; `/evo-status` names the newest report; `evo_notice` shows a 💾 Self-improvement block; `/evo` session postmortem → ledger → Munin; see `docs/evo.md` |
 | Cron | `cron` tool, `/cron`, persisted jobs fired into the live session |
@@ -343,7 +344,7 @@ Refresh defaults to every 5 minutes; `usage.intervalMinutes` and
 clears or shows `unavailable`) and never block a turn.
 
 dsh-tui 0.17.0+ has a native footer slot (`ctx.tuiStatus.setField`, shipped in
-the installed 0.19.0), so the `ceulen:usage` segment joins the head of the
+the installed 0.20.0), so the `ceulen:usage` segment joins the head of the
 footer's right group beside the model/effort/mode/cwd fields
 (`Go · 5h 86% · W 88% · M 94%`) with no patch. The 0.16.1 footer patch was
 deleted for this reason (plan 5.5); `/ceulen doctor` still prints
@@ -356,6 +357,17 @@ Advisor notes have the same gap: dsh-tui drops every user message whose
 and only the 15 s status line showed it. `node scripts/tui-advisor-patch.mjs`
 keeps the note's own source and renders it as a rounded block row
 (`check` and `revert` included, same version guard).
+
+For the separate `dsh-fff` 0.1.0 plugin, run
+`node scripts/fff-search-patch.mjs apply` (`check`/`revert` supported; use
+`--fff <package-dir>` for another profile). It uses ripgrep for ignore-aware
+filename indexing, accepts exact directory/file search scopes before fuzzy
+resolution, and reports unresolved scopes without pretending a search ran.
+Restart DSH after applying; reapply after reinstalling FFF. Without ripgrep,
+filename indexing retains the original walker and its hardcoded exclusions.
+Run its regression checks with `node --test scripts/fff-search-patch.test.mjs`.
+For routine code search, use scoped `grep`/`glob` first, FFF for vague filenames,
+and `jfind` when the behavior cannot be expressed as a literal search.
 
 Tool cards name an unmapped tool id by upper-casing its first letter, which
 turns the acronym `fff_grep` into `Fff_grep`.

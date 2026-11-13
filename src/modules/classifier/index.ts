@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import type { AgentLike, PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync, updateSettings } from '../../core/settings.js'
 import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerToolSafe } from '../../core/tools.js'
-import { extractJson, streamText, type LlmRoute } from '../../core/llm.js'
+import { extractJson, parseRoute, streamText, type LlmRoute } from '../../core/llm.js'
 import { logLine } from '../../core/log.js'
 
 export const name = 'ceulen-classifier'
@@ -160,12 +160,6 @@ export interface Question {
   type: 'noul' | 'choice' | 'score'
   instructions: string
   criteria?: unknown
-}
-
-function parseRoute(value: string): LlmRoute | undefined {
-  const slash = value.indexOf('/')
-  if (slash <= 0 || slash === value.length - 1) return undefined
-  return { provider: value.slice(0, slash), model: value.slice(slash + 1) }
 }
 
 /** Primary route first, then the configured fallbacks, in the order tried. */

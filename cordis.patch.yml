@@ -25,6 +25,8 @@
       name: 'ceulen-dsh/modules/agentmem'
     - id: ceulen-ponytail
       name: 'ceulen-dsh/modules/ponytail'
+    - id: ceulen-agent-mode
+      name: 'ceulen-dsh/modules/agent-mode'
     - id: ceulen-advisor
       name: 'ceulen-dsh/modules/advisor'
     - id: ceulen-todoview

@@ -41,9 +41,16 @@ export interface ConfigTab {
   readonly sections: readonly ConfigSection[]
 }
 
+export interface ConfigProvider {
+  readonly id: string
+  readonly name: string
+  readonly auth: 'api-key' | 'login' | 'unknown'
+}
+
 export interface ConfigContext {
   readonly settingsFile: string
   readonly routes?: readonly string[]
+  readonly providers?: readonly ConfigProvider[]
   /** `provider/model` for every model the registered providers advertise. */
   readonly modelRoutes?: () => Promise<readonly string[]>
   /** Whether the DSH PTC runtime is mounted for the codemode tool. */

@@ -1,3 +1,4 @@
+import { AsyncResource } from 'node:async_hooks'
 import type { AgentLike, PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { registerCommandSafe } from '../../core/tools.js'
@@ -70,11 +71,56 @@ export function apply(ctx: PluginContext): void {
   let statusCtx: PluginContext | undefined
   let disposeStatus: (() => void) | undefined
   let lastRepaintAt = 0
+  let inertDisposer: string | undefined
+  let retryTimer: ReturnType<typeof setTimeout> | undefined
+  let retryCount = 0
+  let inChild: ((fn: () => unknown) => unknown) | undefined
 
   const configured = (): UsageAdapter[] => {
     const all = configuredAdapters()
     const filter = settings.usage.providers
     return filter.length === 0 ? all : all.filter(adapter => filter.includes(adapter.id))
+  }
+
+  // dsh-tui accepts a footer field only from inside the writing plugin's own
+  // activation (an async-context token). A write that runs in another context,
+  // such as the fetch started by `agent/created` at startup, is refused with
+  // no error, so the line never appeared until a later event rewrote it. Every
+  // write therefore runs through `inChild`, captured in the inject callback.
+  // A refused write returns the same inert disposer the host returns for
+  // clearing a key that is not set; compare against that and retry.
+  const refused = (target: TuiStatusService, disposer: unknown): boolean => {
+    if (typeof target.setField !== 'function' || typeof disposer !== 'function') return false
+    try {
+      if (inertDisposer === undefined) {
+        const probe = (): unknown => target.setField?.('ceulen:usage-probe', undefined)
+        const inert = inChild === undefined ? probe() : inChild(probe)
+        inertDisposer = typeof inert === 'function' ? String(inert) : ''
+      }
+      return inertDisposer !== '' && String(disposer) === inertDisposer
+    } catch {
+      return false
+    }
+  }
+
+  const retryPaint = (): void => {
+    if (retryTimer !== undefined) clearTimeout(retryTimer)
+    retryTimer = undefined
+    if (snapshot === undefined || activeId === undefined) return
+    if (currentProvider !== undefined && adapterFor(currentProvider)?.id !== activeId) return
+    setStatus(compactLine(snapshot))
+  }
+
+  // Safety net only: a handful of spaced attempts, so a host that keeps
+  // refusing (its field cap, say) is not asked again every two seconds forever.
+  const scheduleRetry = (): void => {
+    if (retryTimer !== undefined || retryCount >= 5) return
+    retryCount += 1
+    retryTimer = setTimeout(() => {
+      retryTimer = undefined
+      retryPaint()
+    }, 2_000 * 2 ** (retryCount - 1))
+    retryTimer.unref?.()
   }
 
   const setStatus = (text: string | undefined): void => {
@@ -97,11 +143,18 @@ export function apply(ctx: PluginContext): void {
     let wrote = text === undefined
     if (text !== undefined) {
       try {
-        const disposer = typeof target.setField === 'function'
+        const write = (): unknown => typeof target.setField === 'function'
           ? target.setField('ceulen:usage', text, { slot: 'right-head', tone: 'dim', maxCells: 64 })
           : target.set('ceulen:usage', text)
-        if (typeof disposer === 'function') disposeStatus = disposer as () => void
-        wrote = true
+        const disposer = inChild === undefined ? write() : inChild(write)
+        if (refused(target, disposer)) {
+          // Nothing reached the footer: keep the old contribution and try again.
+          scheduleRetry()
+        } else {
+          if (typeof disposer === 'function') disposeStatus = disposer as () => void
+          wrote = true
+          retryCount = 0
+        }
       } catch {
         // Optional surface.
       }
@@ -191,6 +244,10 @@ export function apply(ctx: PluginContext): void {
       ctx.inject(['tuiStatus'], child => {
         if (statusService(child) === undefined) return
         statusCtx = child
+        // Bound here, inside the child activation, so later writes from timers
+        // and fetch continuations carry this activation's context.
+        inChild = AsyncResource.bind((fn: () => unknown): unknown => fn())
+        retryCount = 0
         if (snapshot !== undefined && activeId !== undefined) setStatus(compactLine(snapshot))
       })
     } catch {
@@ -208,6 +265,9 @@ export function apply(ctx: PluginContext): void {
   }, 1_500)
   initial.unref?.()
   ctx.effect(() => () => clearTimeout(initial), 'ceulen usage initial refresh')
+  ctx.effect(() => () => {
+    if (retryTimer !== undefined) clearTimeout(retryTimer)
+  }, 'ceulen usage footer retry')
   ctx.on('agent/status', () => repaint())
   ctx.on('session/created', () => repaint())
   ctx.on('agent/created', (payload: { agent?: AgentLike; source?: string }) => {
@@ -223,6 +283,9 @@ export function apply(ctx: PluginContext): void {
   // model/selection, so both events move the line, and only a provider change
   // refetches (request/context repeats each turn).
   ctx.on('session/event', (session: { id?: string } | undefined, event: { type?: string; data?: { provider?: string } } | undefined) => {
+    // Any event of the main session (a slash command, a model pick) is a sign
+    // the chat is on screen: land a refused footer write now, not on the timer.
+    if (retryTimer !== undefined && (mainSessionId === undefined || session?.id === undefined || session.id === mainSessionId)) retryPaint()
     if (event?.type !== 'model/selection' && event?.type !== 'request/context') return
     if (mainSessionId !== undefined && session?.id !== undefined && session.id !== mainSessionId) return
     const provider = event.data?.provider
