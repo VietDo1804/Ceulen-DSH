@@ -491,9 +491,9 @@ export function compactLine(snapshot: UsageSnapshot): string | undefined {
   if (snapshot.error !== undefined && account === undefined) return `${snapshot.providerDisplayName}: unavailable`
   if (account === undefined) return undefined
   const parts: string[] = [snapshot.providerDisplayName.replace(/^OpenCode Go$/, 'Go')]
-  if (account.fiveHour?.remaining !== undefined) parts.push(`5h ${account.fiveHour.remaining}%`)
-  if (account.weekly?.remaining !== undefined) parts.push(`W ${account.weekly.remaining}%${account.weekly.remainingLabel === undefined ? '' : ` ${account.weekly.remainingLabel}`}`)
-  if (account.monthly?.remaining !== undefined) parts.push(`M ${account.monthly.remaining}%`)
+  for (const [label, window] of [['5h', account.fiveHour], ['W', account.weekly], ['M', account.monthly]] as const) {
+    if (window?.remaining !== undefined) parts.push(`${label} ${window.remaining}%${window.remainingLabel === undefined ? '' : ` ${window.remainingLabel}`}`)
+  }
   if (account.monthlyCredits !== undefined) parts.push(formatMonthlyCredits(account.monthlyCredits, account.creditsCurrency))
   if (parts.length === 1) parts.push('no windows')
   return parts.join(' · ')

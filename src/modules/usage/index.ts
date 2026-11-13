@@ -98,7 +98,7 @@ export function apply(ctx: PluginContext): void {
     if (text !== undefined) {
       try {
         const disposer = typeof target.setField === 'function'
-          ? target.setField('ceulen:usage', text, { slot: 'right-head', tone: 'dim', maxCells: 32 })
+          ? target.setField('ceulen:usage', text, { slot: 'right-head', tone: 'dim', maxCells: 64 })
           : target.set('ceulen:usage', text)
         if (typeof disposer === 'function') disposeStatus = disposer as () => void
         wrote = true
