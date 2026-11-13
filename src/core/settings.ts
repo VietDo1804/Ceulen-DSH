@@ -114,6 +114,8 @@ export interface CeulenSettings {
     models: Record<string, string>
     /** Per-role reasoning-effort override; a matched chain suffix still wins. */
     thinking: Record<string, ReasoningEffort>
+    /** Per-role DSH agent preset; omission inherits the parent's composition. */
+    presets: Record<string, string>
   }
   /** Per-phase routes over the native plan mode: plan on one model, execute on another. */
   plan: {
@@ -195,7 +197,7 @@ export function defaultSettings(): CeulenSettings {
     codemode: { enabled: true, chainHintAfter: 2 },
     rtk: { enabled: true },
     // ponytail: `*` = inherit the parent route, so a fresh install assumes no provider.
-    subagent: { roles: { fast: ['*'], coder: ['*'], smart: ['*'] }, models: {}, thinking: {} },
+    subagent: { roles: { fast: ['*'], coder: ['*'], smart: ['*'] }, models: {}, thinking: {}, presets: {} },
     // Both phases inherit the client's model until a route is configured.
     plan: { model: '', implement: '' },
     usage: { enabled: true, showStatus: true, intervalMinutes: 5, providers: [] },
@@ -408,6 +410,7 @@ export function normalizeSettings(raw: unknown): CeulenSettings {
       roles: { ...base.subagent.roles, ...chainRecord(subagent.roles) },
       models: stringRecord(subagent.models),
       thinking: effortRecord(subagent.thinking),
+      presets: stringRecord(subagent.presets),
     },
     plan: {
       model: str(plan.model, base.plan.model).trim(),

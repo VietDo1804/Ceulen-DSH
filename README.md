@@ -195,6 +195,13 @@ Settings live at `$DSH_HOME/ceulen/settings.json` (mode `0600`):
 `subagent.thinking` overrides its effort. `/subagent` prints the effective
 route for every role. A role's effort is applied when it resolves to an
 explicit route; an inherited `*` route keeps the session's own effort.
+`subagent.presets` independently selects a DSH preset per role, for example
+`{"scout": "ptc", "worker": "standard", "planner": "standard", "reviewer": "standard"}`.
+Omitted roles inherit the parent's composition. Settings are re-read for each
+`delegate` spawn; existing children and native `subagent`/`subagent_fork` are unchanged.
+`/subagent <role>` shows the configured preset. Reviewers load `ponytail-review`
+for diffs or `ponytail-audit` for explicitly requested repo-wide audits, while
+retaining correctness/security checks and the structured reply contract.
 
 Secrets belong in the environment or the DSH credential store, never in this file:
 

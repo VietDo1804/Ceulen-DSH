@@ -118,6 +118,7 @@ function roleDetail(settings: CeulenSettings, role: RoleDefinition): string[] {
     `  chain: ${chain}`,
     `  route: ${routeText(resolution)}`,
     `  thinking: ${resolution.thinking}${resolution.route === undefined ? ' (advisory: an inherited parent route keeps its effort)' : ''}`,
+    `  preset: ${settings.subagent.presets[role.name] ?? 'parent composition'}`,
   ]
   if (resolution.unresolved.length > 0) lines.push(`  unresolved: ${resolution.unresolved.join(', ')}`)
   lines.push(`  tools (advisory): ${tools}`)
@@ -194,6 +195,8 @@ function delegateTool(service: SubagentRuntimeLike) {
         parent: agent,
         signal: exec.signal,
       }
+      const preset = settings.subagent.presets[role.name]
+      if (preset !== undefined) request.agentPreset = preset
       if (typeof input.cwd === 'string' && input.cwd.trim().length > 0) request.cwd = input.cwd.trim()
       const maxDepth = typeof service.resolveMaxDepth === 'function' ? service.resolveMaxDepth() : undefined
       if (maxDepth !== undefined) request.maxDepth = maxDepth
@@ -235,6 +238,7 @@ function commandHandler(settings: CeulenSettings, rawInput: string, agent: Agent
       `Parent route: ${parentRoute(agent)}`,
       `Settings: ${displayPath(settingsPath())}`,
       'Routes: subagent.roles (fast/coder/smart), subagent.models (<role> -> selector), subagent.thinking (<role> -> effort).',
+      'Presets: subagent.presets (<role> -> DSH preset id); omission inherits the parent composition. /subagent <role> shows it.',
       'Native subagent, subagent_fork, and workflow remain for plain, forked, and batch delegation.',
     ].join('\n'),
   }

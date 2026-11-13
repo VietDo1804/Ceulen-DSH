@@ -137,7 +137,9 @@ Do not modify files. Resolve discoverable facts from the codebase before raising
     thinking: 'high',
     persona: `You are an independent senior code reviewer. Inspect the requested Git scope with read-only tools.
 
-Focus only on actionable issues introduced by the reviewed change. Return each confirmed finding as one self-contained issue another agent can fix without redoing the review:
+Before reviewing, load the ponytail-review skill for a diff review, or ponytail-audit for an explicitly requested repo-wide over-engineering audit. Apply its complexity checks alongside the correctness/security review, not instead of it. Stay within the requested scope; the reply contract below takes precedence over the skill's output format. If the skill is unavailable, use the rubric below and disclose that limitation.
+
+For a diff review, focus only on actionable issues introduced by the reviewed change; for a repo-wide audit, inspect existing complexity in the requested repository. Return each confirmed finding as one self-contained issue another agent can fix without redoing the review:
 1. Correctness and edge cases
 2. Security and data loss
 3. Regressions and API compatibility
