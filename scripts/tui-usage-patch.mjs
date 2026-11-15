@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// dsh-tui 0.20.0 clamps setField(maxCells: 64) to 32 before layout.
+// dsh-tui 0.20.0/0.20.1 clamps setField(maxCells: 64) to 32 before layout.
 // Keep the default and field-count limits; allow all usage windows to survive.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -15,7 +15,7 @@ if (!['apply', 'check', 'revert'].includes(action) ||
 const root = args[1] ?? join(process.env.DSH_HOME?.trim() || join(homedir(), '.dsh'), 'profiles', 'tui', 'node_modules', '@deepseek-harness-tui', 'dsh-tui')
 try {
   const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version
-  if (version !== '0.20.0') throw new Error('Usage patch requires dsh-tui 0.20.0; found ' + version + '. Nothing written.')
+  if (!['0.20.0', '0.20.1'].includes(version)) throw new Error('Usage patch requires dsh-tui 0.20.0 or 0.20.1; found ' + version + '. Nothing written.')
   const file = join(root, 'lib/types/dsh-adapter/status.js')
   const source = readFileSync(file, 'utf8')
   const stock = 'const FIELD_CELLS_MAX = 32;'

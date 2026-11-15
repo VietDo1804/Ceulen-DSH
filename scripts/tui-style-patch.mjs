@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** UI layouts for dsh-tui 0.19.0/0.20.0. Usage: apply|check|revert [--tui <dir>]. */
+/** UI layouts for dsh-tui 0.19.0/0.20.0/0.20.1. Usage: apply|check|revert [--tui <dir>]. */
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
@@ -261,12 +261,14 @@ const swaps = [
   [CHAT, IMPORT, IMPORT + "\nimport { UI_STYLES, setUiStyle, useUiStyle } from '../uiStyle.js'; // ceulen-style"],
   [CHAT, '    const [themeName, setTheme] = useTheme();', '    const [themeName, setTheme] = useTheme();\n    const uiStyle = useUiStyle(); // ceulen-style'],
   [CHAT, THEME_PARTS, STYLE_COMMAND],
-  [CHAT, '_jsx(PromptInput, { channel: channel, suspended: promptReplacementOpen,', '_jsx(PromptInput, { channel: channel, styleFields: statusFields, styleBackendMode: backendModeStatus, suspended: promptReplacementOpen,'],
+  // 0.20.1 inserts mentionProviders before suspended; anchor on the stable prefix.
+  [CHAT, '_jsx(PromptInput, { channel: channel,', '_jsx(PromptInput, { channel: channel, styleFields: statusFields, styleBackendMode: backendModeStatus,'],
   [BORDER, "import { useContext, useEffect, useReducer, useState } from 'react';", "import { cloneElement, useContext, useEffect, useReducer, useState } from 'react';\nimport { useUiStyle, fitSegments, piBackground } from '../uiStyle.js';\nimport { formatTokens } from '../terminal-utils/format.js';\nimport { displayWorkingDirectory, formatProject } from '../sessions/format.js';\nimport { homeDir } from '../utils/paths.js';\nimport { channelContextOccupancy } from '../screens/StatusMetrics.js';"],
   [BORDER, 'export function EffortInputBorder({ effort, levels, columns, idleColor, topRightLabel, children, }) {', INPUT_HELPERS + 'export function EffortInputBorder({ effort, levels, columns, idleColor, topRightLabel, children, channel, styleFields, styleBackendMode, }) {\n    const uiStyle = useUiStyle();'],
   [BORDER, '    return (_jsxs(Box, { flexDirection: "column", alignItems: "flex-start", justifyContent: "flex-start", width: "100%", flexShrink: 0, children:', '    if (uiStyle === \'pi\') return renderPiInput({ channel, columns, idleColor, sweepColors, children, styleFields, styleBackendMode, themeName });\n    if (uiStyle === \'omp\') return renderOmpInput({ channel, columns, idleColor, sweepColors, children, styleFields, styleBackendMode, themeName });\n    return (_jsxs(Box, { flexDirection: "column", alignItems: "flex-start", justifyContent: "flex-start", width: "100%", flexShrink: 0, children:'],
   [PROMPT, "import { EffortInputBorder } from './EffortInputBorder.js';", "import { EffortInputBorder } from './EffortInputBorder.js';\nimport { useUiStyle } from '../uiStyle.js';"],
-  [PROMPT, 'export function PromptInput({ channel, toastSuppressed,', 'export function PromptInput({ channel, styleFields, styleBackendMode, toastSuppressed,'],
+  // 0.20.1 inserts mentionProviders after channel; anchor on the stable prefix.
+  [PROMPT, 'export function PromptInput({ channel,', 'export function PromptInput({ channel, styleFields, styleBackendMode,'],
   [PROMPT, '    const nativeCursor = useNativeCursor();', '    const uiStyle = useUiStyle();\n    const nativeCursor = useNativeCursor();'],
   [PROMPT, '    const homeButtonCols = onOpenSessions === undefined ? 0 : HOME_BUTTON_COLS;', "    const homeButtonCols = uiStyle === 'dsh' ? (onOpenSessions === undefined ? 0 : HOME_BUTTON_COLS) : uiStyle === 'pi' ? 3 : 2;"],
   [PROMPT, '    const inputWidth = expanded\n', "    const inputWidth = !expanded && uiStyle !== 'dsh' ? Math.max(1, columns - 5 - vimBadgeCols) : expanded\n"],
@@ -319,7 +321,7 @@ const fail = message => {
 const count = (text, anchor) => text.split(anchor).length - 1
 try {
   const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version
-  if (!['0.19.0', '0.20.0'].includes(version)) fail('UI style patch requires dsh-tui 0.19.0 or 0.20.0; found ' + version + '. Nothing written.')
+  if (!['0.19.0', '0.20.0', '0.20.1'].includes(version)) fail('UI style patch requires dsh-tui 0.19.0, 0.20.0 or 0.20.1; found ' + version + '. Nothing written.')
   swaps.push(toolCardSwap(readFileSync(join(root, TOOL), 'utf8')))
   const sources = new Map(swaps.map(([file]) => [file, readFileSync(join(root, file), 'utf8')]))
   const prefs = existsSync(join(root, PREFS)) ? readFileSync(join(root, PREFS), 'utf8') : undefined
@@ -334,7 +336,10 @@ try {
     console.log('UI style patch already ' + (applied ? 'applied' : 'stock'))
     process.exit(0)
   }
-  if (action === 'apply' ? prefs !== undefined && !stock : prefs !== UI_STYLE) fail('uiStyle.js does not match the expected state. Nothing written.')
+  // A prefix anchor matches its own patched form, so apply requires the whole
+  // tree to be stock: an interrupted apply (patched files, no uiStyle.js) must
+  // fail loudly instead of injecting a second copy of the props.
+  if (action === 'apply' ? !stock : prefs !== UI_STYLE) fail('the tree does not match the expected stock or patched state. Nothing written.')
   // Validate every anchor before writing any file, including the newly created module.
   for (const [file, original, patched] of swaps) {
     const from = action === 'apply' ? original : patched

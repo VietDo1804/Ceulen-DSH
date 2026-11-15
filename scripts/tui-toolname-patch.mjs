@@ -65,14 +65,17 @@ if (action !== 'apply' && action !== 'revert') {
   process.exit(2)
 }
 
+const files = new Map(EDITS.map(edit => [edit.file, readFileSync(join(root, edit.file), 'utf8')]))
 for (const edit of EDITS) {
-  const path = join(root, edit.file)
-  const before = readFileSync(path, 'utf8')
+  const before = files.get(edit.file)
+  if (action === 'apply' && count(before, edit.to) === 1) continue
   const [search, replacement] = action === 'apply' ? [edit.from, edit.to] : [edit.to, edit.from]
   if (count(before, search) !== 1) {
     console.error(`${action} failed: ${edit.file} does not match dsh-tui ${version}. Re-check the package version.`)
     process.exit(1)
   }
-  writeFileSync(path, before.replace(search, replacement))
+  files.set(edit.file, before.replace(search, replacement))
 }
+// Validate every edit before writing: a moved later anchor must leave no half patch.
+for (const [file, source] of files) writeFileSync(join(root, file), source)
 console.log(`${action === 'apply' ? 'applied' : 'reverted'} the tool-name aliases on dsh-tui ${version}. Restart the TUI.`)

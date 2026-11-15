@@ -29,11 +29,16 @@ test('usage cap: monthly text, idempotence, reversible writes and refusal gates'
     assert.equal(run('revert'), 0)
     assert.equal(readFileSync(file, 'utf8'), stock)
     assert.equal(run('revert'), 0)
-    for (const version of ['0.19.0', '99.0.0']) {
+    for (const version of ['0.19.0', '0.20.2', '99.0.0']) {
       writeFileSync(join(root, 'package.json'), JSON.stringify({ version }))
       assert.equal(run('apply'), 1)
       assert.equal(readFileSync(file, 'utf8'), stock)
     }
+    writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '0.20.1' }))
+    assert.equal(run('apply'), 0)
+    assert.equal(run('check'), 0)
+    assert.equal(run('revert'), 0)
+    assert.equal(readFileSync(file, 'utf8'), stock)
     writeFileSync(join(root, 'package.json'), JSON.stringify({ version: '0.20.0' }))
     for (const invalid of [stock.replace('32', '48'), stock + stock]) {
       writeFileSync(file, invalid)
