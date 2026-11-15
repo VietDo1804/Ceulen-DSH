@@ -1,39 +1,40 @@
- Native Agent Dashboard · session render-session
+ ⠋ CEULEN · Native Agent Dashboard · render-session
  lead · test/gpt-6-astra · idle · usage —
  Live native session · route and execution policy unchanged
  [Tasks] · Agents · Activity
- ┌─────────────────────────────────────┐┌─────────────────────────────────────┐┌──────────────────────────────────────┐
- │ > Tasks 0/25 [1-14]                 ││   Agents 1 [1-1]                    ││   Activity 1 [1-1]                   │
- │ > [pending] Task 0 你好 👩‍💻 long l…  ││   [running] worker                  ││   [running] read                     │
- │   owner worker · not ready · scop…  ││   native/test · tool read · durat…  ││   worker · tool                      │
- │   [pending] Task 1 你好 👩‍💻 long l…  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- │   [pending] Task 2 你好 👩‍💻 long l…  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- │   [pending] Task 3 你好 👩‍💻 long l…  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- │   [pending] Task 4 你好 👩‍💻 long l…  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- │   [pending] Task 5 你好 👩‍💻 long l…  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- │   [pending] Task 6 你好 👩‍💻 long l…  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- │   [pending] Task 7 你好 👩‍💻 long l…  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- │   [pending] Task 8 你好 👩‍💻 long l…  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- │   [pending] Task 9 你好 👩‍💻 long l…  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- │   [pending] Task 10 你好 👩‍💻 long …  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- │   [pending] Task 11 你好 👩‍💻 long …  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- │   [pending] Task 12 你好 👩‍💻 long …  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- │   [pending] Task 13 你好 👩‍💻 long …  ││                                     ││                                      │
- │   owner worker · not ready · scop…  ││                                     ││                                      │
- └─────────────────────────────────────┘└─────────────────────────────────────┘└──────────────────────────────────────┘
+ ╭─ TASKS ─────────────────────────────╮╭─ AGENTS ────────────────────────────╮╭─ TOKENS ────────────────────────────╮
+ │ 0/25                                ││ 1/1                                 ││ — / —                               │
+ │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ││ ▍░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ││ — no ratio reported                 │
+ │ 0% · 25 open                        ││ 100% · 1 child · 1 running          ││ total —                             │
+ ╰─────────────────────────────────────╯╰─────────────────────────────────────╯╰─────────────────────────────────────╯
+ ╭─ Tasks · 0/25 done · 1-13 ───────────────╮╭─ Agents · 1 · 1-1 ───────────────────╮╭─ Activity · 1 · 1-1 ───────────╮
+ │ >○ Task 0 你好 👩‍💻 long long long long l… ││  ⠋ worker                            ││ ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁           │
+ │    pending · owner worker · not ready ·… ││    running · native/test · tool rea… ││  ◐ read · worker · tool        │
+ │  ○ Task 1 你好 👩‍💻 long long long long l… ││                                      ││                                │
+ │    pending · owner worker · not ready ·… ││                                      ││                                │
+ │  ○ Task 2 你好 👩‍💻 long long long long l… ││                                      ││                                │
+ │    pending · owner worker · not ready ·… ││                                      ││                                │
+ │  ○ Task 3 你好 👩‍💻 long long long long l… ││                                      ││                                │
+ │    pending · owner worker · not ready ·… ││                                      ││                                │
+ │  ○ Task 4 你好 👩‍💻 long long long long l… ││                                      ││                                │
+ │    pending · owner worker · not ready ·… ││                                      ││                                │
+ │  ○ Task 5 你好 👩‍💻 long long long long l… ││                                      ││                                │
+ │    pending · owner worker · not ready ·… ││                                      ││                                │
+ │  ○ Task 6 你好 👩‍💻 long long long long l… ││                                      ││                                │
+ │    pending · owner worker · not ready ·… ││                                      ││                                │
+ │  ○ Task 7 你好 👩‍💻 long long long long l… ││                                      ││                                │
+ │    pending · owner worker · not ready ·… ││                                      ││                                │
+ │  ○ Task 8 你好 👩‍💻 long long long long l… ││                                      ││                                │
+ │    pending · owner worker · not ready ·… ││                                      ││                                │
+ │  ○ Task 9 你好 👩‍💻 long long long long l… ││                                      ││                                │
+ │    pending · owner worker · not ready ·… ││                                      ││                                │
+ │  ○ Task 10 你好 👩‍💻 long long long long … ││                                      ││                                │
+ │    pending · owner worker · not ready ·… ││                                      ││                                │
+ │  ○ Task 11 你好 👩‍💻 long long long long … ││                                      ││                                │
+ │    pending · owner worker · not ready ·… ││                                      ││                                │
+ │  ○ Task 12 你好 👩‍💻 long long long long … ││                                      ││                                │
+ │    pending · owner worker · not ready ·… ││                                      ││                                │
+ ╰──────────────────────────────────────────╯╰──────────────────────────────────────╯╰────────────────────────────────╯
  Tab/Shift+Tab: region · arrows/PgUp/PgDn: select/scroll · Enter: detail
  Esc: chat · assign work in the original composer
  Source: DSH channel/team/subagents · usage per source, not summed
-

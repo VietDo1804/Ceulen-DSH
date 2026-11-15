@@ -1,18 +1,18 @@
- Native Agent Dashboard · session render-se…
+ ⠋ CEULEN · Native Agent Dashboard · render…
  lead · test/gpt-6-astra · idle · usage —
  Live native session · route and execution …
  [Tasks] · Agents · Activity
- ┌─────────────────────────────────────────┐
- │ > Tasks 0/25 [1-3]                      │
- │ > [pending] Task 0 你好 👩‍💻 long long l… │
- │   owner worker · not ready · scope war… │
- │   [pending] Task 1 你好 👩‍💻 long long l… │
- │   owner worker · not ready · scope war… │
- │   [pending] Task 2 你好 👩‍💻 long long l… │
- │   owner worker · not ready · scope war… │
+ ╭─ Tasks · 0/25 done · 1-4 ───────────────╮
+ │ >○ Task 0 你好 👩‍💻 long long long long … │
+ │    pending · owner worker · not ready … │
+ │  ○ Task 1 你好 👩‍💻 long long long long … │
+ │    pending · owner worker · not ready … │
+ │  ○ Task 2 你好 👩‍💻 long long long long … │
+ │    pending · owner worker · not ready … │
+ │  ○ Task 3 你好 👩‍💻 long long long long … │
+ │    pending · owner worker · not ready … │
  │                                         │
- │                                         │
- └─────────────────────────────────────────┘
+ ╰─────────────────────────────────────────╯
  Tab/Shift+Tab: region · arrows/PgUp/PgDn: …
  Esc: chat · assign work in the original co…
  Source: DSH channel/team/subagents · usage…

@@ -37,6 +37,10 @@ for (const [columns, rows] of [[80, 24], [120, 40], [45, 18], [20, 8]]) {
   assert(lines.every(line => width(line) <= columns), `Cell overflow at ${columns}`)
   if (columns >= 30) {
     assert(frame.includes('Esc: chat'))
+    // The KPI strip is dropped below 80 columns, where one region card owns the body.
+    if (columns >= 80) assert(frame.includes('TASKS') && frame.includes('AGENTS') && frame.includes('TOKENS'), 'KPI block titles are missing')
+    // 120 columns lays the three region cards out side by side.
+    if (columns >= 120) assert(frame.includes('Tasks ·') && frame.includes('Agents ·') && frame.includes('Activity ·'), 'region cards are missing')
     stdin.write('\r'); await settle()
     const detail = stripVTControlCharacters(frames.at(-1) ?? '')
     assert(detail.includes('Esc: overview'), 'Detail did not open')

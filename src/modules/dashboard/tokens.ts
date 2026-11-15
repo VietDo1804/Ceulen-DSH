@@ -1,7 +1,16 @@
-/** Terminal-cell mapping of tui-dashboard/DESIGN.md; font belongs to the terminal. */
+/**
+ * Dashboard presentation tokens. Colours are host THEME KEYS, not hex: the
+ * terminal already owns a palette (light/dark/pink/claude + user themes), so a
+ * card surface borrowed from tui-dashboard/DESIGN.md would clash whenever the
+ * user switches theme. Cell metrics stay here; the terminal owns the font.
+ */
 export const tokens = {
-  page: '#0B0F12', panel: '#10151D', text: '#DEDDE6', muted: '#CACDD6',
-  lead: '#B9ADFF', builder: '#FFC09B', tester: '#A5D2FF', success: '#74E698',
-  warning: '#F0CF72', danger: '#FFC0C0', border: '#525967',
+  text: 'text', muted: 'subtle', focus: 'accent', card: 'inactive',
+  success: 'success', warning: 'warning', danger: 'error',
   inset: 1, wide: 120, stacked: 80, minColumns: 30, minRows: 10,
+  /** Rows the title/lead/banner/region strip and the three footer lines take. */
+  chrome: 7, kpiRows: 5, minCard: 5,
 } as const
+
+/** The one shared animation clock: 80ms is 12.5fps, measured ~3.5ms/frame at 120x40. */
+export const motion = { tickMs: 80, rampMs: 700 } as const

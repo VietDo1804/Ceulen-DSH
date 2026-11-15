@@ -58,6 +58,8 @@ export interface Item {
   status: string
   meta: string
   detail: readonly string[]
+  /** Native start time when the host reported one; 0/absent means unknown. */
+  at?: number
 }
 export interface Dashboard {
   sessionId: string
@@ -69,6 +71,8 @@ export interface Dashboard {
   tasks: readonly Item[]
   agents: readonly Item[]
   activity: readonly Item[]
+  /** Per-source parent usage exactly as the channel reported it, never summed. */
+  tokens?: { input?: number; output?: number }
 }
 
 /** Host Text owns Unicode cell measurement/truncation; strip control bytes first. */
@@ -137,6 +141,7 @@ export function project(channel: DashboardChannel, now = Date.now()): Dashboard 
     tasks,
     agents,
     activity: activity.sort((a, b) => b.at - a.at).slice(0, 200),
+    ...(channel.tokens === undefined ? {} : { tokens: channel.tokens }),
   }
 }
 

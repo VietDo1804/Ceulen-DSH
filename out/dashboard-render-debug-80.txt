@@ -1,47 +1,47 @@
-[?2004h[?1004h[?2026h[0m]8;; Native Agent Dashboard · session render-session
+[?2004h[?1004h[?2026h[0m]8;; · CEULEN · Native Agent Dashboard · render-session
  Loading native channel…
  Live native session · route and execution policy unchanged
  [Tasks] · Agents · Activity
- ┌────────────────────────────────────────────────────────────────────────────┐
- │ > Tasks 0/0 [0-0]                                                          │
+ ╭─ TASKS ────────────────╮╭─ AGENTS ───────────────╮╭─ TOKENS ───────────────╮
+ │ 0/0                    ││ 0/0                    ││ — / —                  │
+ │ — no ratio reported    ││ — no ratio reported    ││ — no ratio reported    │
+ │ 0 open                 ││ 0 children · 0 running ││ total —                │
+ ╰────────────────────────╯╰────────────────────────╯╰────────────────────────╯
+ ╭─ Tasks · 0/0 done · 0-0 ───────────────────────────────────────────────────╮
  │ No native team tasks. Nothing was created.                                 │
  │                                                                            │
- └────────────────────────────────────────────────────────────────────────────┘
- ┌────────────────────────────────────────────────────────────────────────────┐
- │   Agents 0 [0-0]                                                           │
- │ No native children in this session.                                        │
  │                                                                            │
- └────────────────────────────────────────────────────────────────────────────┘
- ┌────────────────────────────────────────────────────────────────────────────┐
- │   Activity 0 [0-0]                                                         │
- │ No public tool/output activity yet.                                        │
  │                                                                            │
- └────────────────────────────────────────────────────────────────────────────┘
+ │                                                                            │
+ │                                                                            │
+ │                                                                            │
+ │                                                                            │
+ │                                                                            │
+ │                                                                            │
+ ╰────────────────────────────────────────────────────────────────────────────╯
  Tab/Shift+Tab: region · arrows/PgUp/PgDn: select/scroll · Enter: detail
  Esc: chat · assign work in the original composer
- Source: DSH channel/team/subagents · usage per source, not summed
-
-[?2026l[>0q[c[?2026h[0m]8;; Native Agent Dashboard · session render-session
+ Source: DSH channel/team/subagents · usage per source, not summed[?2026l[?2026h[0m]8;; ⠋ CEULEN · Native Agent Dashboard · render-session
  lead · test/gpt-6-astra · idle · usage —
  Live native session · route and execution policy unchanged
  [Tasks] · Agents · Activity
- ┌────────────────────────────────────────────────────────────────────────────┐
- │ > Tasks 0/25 [1-1]                                                         │
- │ > [pending] Task 0 你好 👩‍💻 long long long long long long long long long l… │
- │   owner worker · not ready · scope warning                                 │
- └────────────────────────────────────────────────────────────────────────────┘
- ┌────────────────────────────────────────────────────────────────────────────┐
- │   Agents 1 [1-1]                                                           │
- │   [running] worker                                                         │
- │   native/test · tool read · duration — · usage —                           │
- └────────────────────────────────────────────────────────────────────────────┘
- ┌────────────────────────────────────────────────────────────────────────────┐
- │   Activity 1 [1-1]                                                         │
- │   [running] read                                                           │
- │   worker · tool                                                            │
- └────────────────────────────────────────────────────────────────────────────┘
+ ╭─ TASKS ────────────────╮╭─ AGENTS ───────────────╮╭─ TOKENS ───────────────╮
+ │ 0/25                   ││ 1/1                    ││ — / —                  │
+ │  ░░░░░░░░░░░░░░░░░░░░░ ││ ▋░░░░░░░░░░░░░░░░░░░░░ ││ — no ratio reported    │
+ │ 0% · 25 open           ││ 100% · 1 child · 1 ru… ││ total —                │
+ ╰────────────────────────╯╰────────────────────────╯╰────────────────────────╯
+ ╭─ Tasks · 0/25 done · 1-5 ──────────────────────────────────────────────────╮
+ │ >○ Task 0 你好 👩‍💻 long long long long long long long long long long long … │
+ │    pending · owner worker · not ready · scope warning                      │
+ │  ○ Task 1 你好 👩‍💻 long long long long long long long long long long long … │
+ │    pending · owner worker · not ready · scope warning                      │
+ │  ○ Task 2 你好 👩‍💻 long long long long long long long long long long long … │
+ │    pending · owner worker · not ready · scope warning                      │
+ │  ○ Task 3 你好 👩‍💻 long long long long long long long long long long long … │
+ │    pending · owner worker · not ready · scope warning                      │
+ │  ○ Task 4 你好 👩‍💻 long long long long long long long long long long long … │
+ │    pending · owner worker · not ready · scope warning                      │
+ ╰────────────────────────────────────────────────────────────────────────────╯
  Tab/Shift+Tab: region · arrows/PgUp/PgDn: select/scroll · Enter: detail
  Esc: chat · assign work in the original composer
- Source: DSH channel/team/subagents · usage per source, not summed
-
-[?2026l
+ Source: DSH channel/team/subagents · usage per source, not summed[?2026l[>0q[c
