@@ -29,7 +29,9 @@ for (const [columns, rows] of [[80, 24], [120, 40], [45, 18], [20, 8]]) {
   const settle = () => new Promise(resolve => setTimeout(resolve, 60))
   // Let the open gauge ramp finish so the committed capture does not depend on timing.
   await new Promise(resolve => setTimeout(resolve, 900))
-  writeFileSync(`out/dashboard-render-debug-${columns}.txt`, frames.join(''))
+  // Raw chunk stream, kept for debugging only: it embeds live animation frames, so writing it
+  // on every run would churn a tracked file. Opt in when you actually need it.
+  if (process.env.DASHBOARD_DEBUG_DUMP === '1') writeFileSync(`out/dashboard-render-debug-${columns}.txt`, frames.join(''))
   const frame = stripVTControlCharacters(frames.filter(frame => stripVTControlCharacters(frame).includes(columns < 30 ? 'Too small' : 'Native Agent Dashboard')).at(-1) ?? '')
   assert(frame, `No native frame at ${columns}x${rows}`)
   assert(!frame.includes('MUST_NOT_APPEAR'))
@@ -55,8 +57,9 @@ for (const [columns, rows] of [[80, 24], [120, 40], [45, 18], [20, 8]]) {
   }
   stdin.write('\x1b'); await settle()
   assert.equal(closed, 1, 'Esc did not return to chat')
-  // The header badge glyph is an animation frame; pin it so captures are deterministic.
-  writeFileSync(`out/dashboard-render-${columns}x${rows}.txt`, frame.replace(/^ [\u2800-\u28ff·]/m, ' ·'))
+  // Every braille cell is one animation frame (header badge, live run rows). A static capture
+  // cannot show motion, so pin them to one glyph instead of storing whichever frame came out.
+  writeFileSync(`out/dashboard-render-${columns}x${rows}.txt`, frame.replace(/[\u2800-\u28ff]/g, '⠋'))
   instance.unmount(); instance.cleanup(); stdin.destroy()
   assert.equal(disposed, columns >= 30 ? 4 : 2, 'Unmount leaked listeners')
   console.log(`PASS ${columns}x${rows}: Unicode cells, height, detail, escape, session rebind, cleanup`)

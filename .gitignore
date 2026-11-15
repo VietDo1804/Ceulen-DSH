@@ -6,6 +6,8 @@ coverage/
 *.log
 .DS_Store
 *.tmp
+# raw renderer chunk dumps: opt-in debug output, not reproducible evidence
+out/dashboard-render-debug-*.txt
 .ceulen-cache/
 .npm-cache/
 .upstream-cache/

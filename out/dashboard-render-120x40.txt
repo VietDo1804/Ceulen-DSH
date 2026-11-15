@@ -1,4 +1,4 @@
- · CEULEN · Native Agent Dashboard · render-session
+ ⠋ CEULEN · Native Agent Dashboard · render-session
  lead · test/gpt-6-astra · idle · usage —
  Live native session · route and execution policy unchanged
  [Tasks] · Agents · Activity
