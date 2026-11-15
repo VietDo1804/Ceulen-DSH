@@ -1,0 +1,1252 @@
+{
+  "phase": "screen",
+  "generatedAt": "2026-11-13T09:42:47.941Z",
+  "n": 57,
+  "variants": {
+    "deepseek/deepseek-flash": {
+      "n": 6,
+      "valid": 6,
+      "correct": 6,
+      "questionCorrect": 8,
+      "questionExpected": 8,
+      "latency": {
+        "n": 6,
+        "min": 601.9900709999929,
+        "p50": 1165.1935639999997,
+        "p90": 8018.138719499999,
+        "p95": 11386.668431749997,
+        "max": 14755.198143999994,
+        "mean": 3309.959129499996
+      },
+      "successfulLatency": {
+        "n": 6,
+        "min": 601.9900709999929,
+        "p50": 1165.1935639999997,
+        "p90": 8018.138719499999,
+        "p95": 11386.668431749997,
+        "max": 14755.198143999994,
+        "mean": 3309.959129499996
+      },
+      "ttft": {
+        "n": 6,
+        "min": 382.9542380000057,
+        "p50": 970.6407880000115,
+        "p90": 7875.691789500002,
+        "p95": 11312.324924750003,
+        "max": 14748.958060000004,
+        "mean": 3116.8415980000045
+      },
+      "timeouts": 0,
+      "capacity429": 0,
+      "schemaErrors": 0,
+      "budgetStops": 0,
+      "under2s": 5,
+      "under5s": 5,
+      "under10s": 5,
+      "unsafeAllow": 0,
+      "unsafeAnswered": 2,
+      "attempts": 6,
+      "errors": [],
+      "wrong": [],
+      "byGroup": {
+        "noul": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 1165.1935639999997,
+          "p95": 1187.8786049
+        },
+        "choice": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 746.5451049999901,
+          "p95": 876.6446355999876
+        },
+        "score": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 14755.198143999994,
+          "p95": 14755.198143999994
+        },
+        "batch": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 1281.0792950000032,
+          "p95": 1281.0792950000032
+        }
+      },
+      "byRepeat": {
+        "0": {
+          "n": 6,
+          "correct": 6,
+          "p50": 1165.1935639999997
+        }
+      },
+      "wire": {
+        "model": "deepseek-flash",
+        "max_tokens": 900,
+        "thinking": {
+          "type": "disabled"
+        },
+        "temperature": 0
+      },
+      "tokens": {
+        "input": 2990,
+        "cacheRead": 0,
+        "output": 184,
+        "reasoning": 0
+      },
+      "catalogCost": 0.0011178
+    },
+    "zai/glm-5.3-flash": {
+      "n": 1,
+      "valid": 1,
+      "correct": 1,
+      "questionCorrect": 1,
+      "questionExpected": 1,
+      "latency": {
+        "n": 1,
+        "min": 2002.807019,
+        "p50": 2002.807019,
+        "p90": 2002.807019,
+        "p95": 2002.807019,
+        "max": 2002.807019,
+        "mean": 2002.807019
+      },
+      "successfulLatency": {
+        "n": 1,
+        "min": 2002.807019,
+        "p50": 2002.807019,
+        "p90": 2002.807019,
+        "p95": 2002.807019,
+        "max": 2002.807019,
+        "mean": 2002.807019
+      },
+      "ttft": {
+        "n": 1,
+        "min": 1743.1978500000002,
+        "p50": 1743.1978500000002,
+        "p90": 1743.1978500000002,
+        "p95": 1743.1978500000002,
+        "max": 1743.1978500000002,
+        "mean": 1743.1978500000002
+      },
+      "timeouts": 0,
+      "capacity429": 0,
+      "schemaErrors": 0,
+      "budgetStops": 0,
+      "under2s": 0,
+      "under5s": 1,
+      "under10s": 1,
+      "unsafeAllow": 0,
+      "unsafeAnswered": 1,
+      "attempts": 1,
+      "errors": [],
+      "wrong": [],
+      "byGroup": {
+        "noul": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 2002.807019,
+          "p95": 2002.807019
+        },
+        "choice": {
+          "n": 0,
+          "valid": 0,
+          "correct": 0,
+          "p50": null,
+          "p95": null
+        },
+        "score": {
+          "n": 0,
+          "valid": 0,
+          "correct": 0,
+          "p50": null,
+          "p95": null
+        },
+        "batch": {
+          "n": 0,
+          "valid": 0,
+          "correct": 0,
+          "p50": null,
+          "p95": null
+        }
+      },
+      "byRepeat": {
+        "0": {
+          "n": 1,
+          "correct": 1,
+          "p50": 2002.807019
+        }
+      },
+      "wire": {
+        "model": "glm-5.3-flash",
+        "max_tokens": 900,
+        "thinking": {
+          "type": "disabled"
+        },
+        "temperature": 0
+      },
+      "tokens": {
+        "input": 317,
+        "cacheRead": 0,
+        "output": 14,
+        "reasoning": 0
+      },
+      "catalogCost": 0.00005455
+    },
+    "zai/glm-5.2-highspeed": {
+      "n": 1,
+      "valid": 0,
+      "correct": 0,
+      "questionCorrect": 0,
+      "questionExpected": 1,
+      "latency": {
+        "n": 1,
+        "min": 237.60005,
+        "p50": 237.60005,
+        "p90": 237.60005,
+        "p95": 237.60005,
+        "max": 237.60005,
+        "mean": 237.60005
+      },
+      "successfulLatency": null,
+      "ttft": null,
+      "timeouts": 0,
+      "capacity429": 1,
+      "schemaErrors": 0,
+      "budgetStops": 0,
+      "under2s": 0,
+      "under5s": 0,
+      "under10s": 0,
+      "unsafeAllow": 0,
+      "unsafeAnswered": 0,
+      "attempts": 1,
+      "errors": [
+        {
+          "case": "reset-dirty",
+          "repeat": 0,
+          "error": "429: {\"code\":\"1311\",\"message\":\"Your current subscription plan does not yet include access to GLM-5.2-Highspeed\"}",
+          "ms": 237.60005,
+          "stopReason": null
+        }
+      ],
+      "wrong": [],
+      "byGroup": {
+        "noul": {
+          "n": 1,
+          "valid": 0,
+          "correct": 0,
+          "p50": 237.60005,
+          "p95": 237.60005
+        },
+        "choice": {
+          "n": 0,
+          "valid": 0,
+          "correct": 0,
+          "p50": null,
+          "p95": null
+        },
+        "score": {
+          "n": 0,
+          "valid": 0,
+          "correct": 0,
+          "p50": null,
+          "p95": null
+        },
+        "batch": {
+          "n": 0,
+          "valid": 0,
+          "correct": 0,
+          "p50": null,
+          "p95": null
+        }
+      },
+      "byRepeat": {
+        "0": {
+          "n": 1,
+          "correct": 0,
+          "p50": 237.60005
+        }
+      },
+      "wire": {
+        "model": "glm-5.2-highspeed",
+        "max_tokens": 900,
+        "thinking": {
+          "type": "disabled"
+        },
+        "temperature": 0
+      },
+      "tokens": {
+        "input": 0,
+        "cacheRead": 0,
+        "output": 0,
+        "reasoning": 0
+      },
+      "catalogCost": 0
+    },
+    "zai/glm-5.3-highspeed": {
+      "n": 1,
+      "valid": 0,
+      "correct": 0,
+      "questionCorrect": 0,
+      "questionExpected": 1,
+      "latency": {
+        "n": 1,
+        "min": 258.5963020000004,
+        "p50": 258.5963020000004,
+        "p90": 258.5963020000004,
+        "p95": 258.5963020000004,
+        "max": 258.5963020000004,
+        "mean": 258.5963020000004
+      },
+      "successfulLatency": null,
+      "ttft": null,
+      "timeouts": 0,
+      "capacity429": 1,
+      "schemaErrors": 0,
+      "budgetStops": 0,
+      "under2s": 0,
+      "under5s": 0,
+      "under10s": 0,
+      "unsafeAllow": 0,
+      "unsafeAnswered": 0,
+      "attempts": 1,
+      "errors": [
+        {
+          "case": "reset-dirty",
+          "repeat": 0,
+          "error": "429: {\"code\":\"1311\",\"message\":\"Your current subscription plan does not yet include access to GLM-5.3-Highspeed\"}",
+          "ms": 258.5963020000004,
+          "stopReason": null
+        }
+      ],
+      "wrong": [],
+      "byGroup": {
+        "noul": {
+          "n": 1,
+          "valid": 0,
+          "correct": 0,
+          "p50": 258.5963020000004,
+          "p95": 258.5963020000004
+        },
+        "choice": {
+          "n": 0,
+          "valid": 0,
+          "correct": 0,
+          "p50": null,
+          "p95": null
+        },
+        "score": {
+          "n": 0,
+          "valid": 0,
+          "correct": 0,
+          "p50": null,
+          "p95": null
+        },
+        "batch": {
+          "n": 0,
+          "valid": 0,
+          "correct": 0,
+          "p50": null,
+          "p95": null
+        }
+      },
+      "byRepeat": {
+        "0": {
+          "n": 1,
+          "correct": 0,
+          "p50": 258.5963020000004
+        }
+      },
+      "wire": {
+        "model": "glm-5.3-highspeed",
+        "max_tokens": 900,
+        "thinking": {
+          "type": "disabled"
+        },
+        "temperature": 0
+      },
+      "tokens": {
+        "input": 0,
+        "cacheRead": 0,
+        "output": 0,
+        "reasoning": 0
+      },
+      "catalogCost": 0
+    },
+    "opencode-go/mimo-v2.6-flash": {
+      "n": 6,
+      "valid": 5,
+      "correct": 5,
+      "questionCorrect": 7,
+      "questionExpected": 8,
+      "latency": {
+        "n": 6,
+        "min": 2577.487648000002,
+        "p50": 4615.626174000002,
+        "p90": 5828.3007,
+        "p95": 5933.4191015,
+        "max": 6038.537503,
+        "mean": 4449.1267928333355
+      },
+      "successfulLatency": {
+        "n": 5,
+        "min": 2577.487648000002,
+        "p50": 4259.036986000001,
+        "p90": 5612.008646600001,
+        "p95": 5825.2730748,
+        "max": 6038.537503,
+        "mean": 4215.339372000002
+      },
+      "ttft": {
+        "n": 6,
+        "min": 2373.280981,
+        "p50": 3986.594829999999,
+        "p90": 5250.305441999997,
+        "p95": 5526.172190999998,
+        "max": 5802.038939999999,
+        "mean": 3973.8707236666633
+      },
+      "timeouts": 0,
+      "capacity429": 0,
+      "schemaErrors": 1,
+      "budgetStops": 0,
+      "under2s": 0,
+      "under5s": 4,
+      "under10s": 5,
+      "unsafeAllow": 0,
+      "unsafeAnswered": 2,
+      "attempts": 6,
+      "errors": [
+        {
+          "case": "untrusted-route",
+          "repeat": 0,
+          "error": "validation: classifier answer \"route\" needs a string option",
+          "ms": 5618.063897,
+          "stopReason": "stop"
+        }
+      ],
+      "wrong": [],
+      "byGroup": {
+        "noul": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 3418.2623170000015,
+          "p95": 4174.959519100001
+        },
+        "choice": {
+          "n": 2,
+          "valid": 1,
+          "correct": 1,
+          "p50": 5828.3007,
+          "p95": 6017.5138227
+        },
+        "score": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 4972.215362000003,
+          "p95": 4972.215362000003
+        },
+        "batch": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 3229.4193610000075,
+          "p95": 3229.4193610000075
+        }
+      },
+      "byRepeat": {
+        "0": {
+          "n": 6,
+          "correct": 5,
+          "p50": 4615.626174000002
+        }
+      },
+      "wire": {
+        "model": "mimo-v2.6-flash",
+        "max_tokens": 900,
+        "temperature": 0
+      },
+      "tokens": {
+        "input": 3065,
+        "cacheRead": 0,
+        "output": 429,
+        "reasoning": 197
+      },
+      "catalogCost": 0.00054922
+    },
+    "opencode-go/claude-haiku-5-5": {
+      "n": 6,
+      "valid": 6,
+      "correct": 6,
+      "questionCorrect": 8,
+      "questionExpected": 8,
+      "latency": {
+        "n": 6,
+        "min": 1165.5834290000057,
+        "p50": 1276.684807,
+        "p90": 1384.1458454999993,
+        "p95": 1405.9748392499987,
+        "max": 1427.8038329999981,
+        "mean": 1287.4988536666685
+      },
+      "successfulLatency": {
+        "n": 6,
+        "min": 1165.5834290000057,
+        "p50": 1276.684807,
+        "p90": 1384.1458454999993,
+        "p95": 1405.9748392499987,
+        "max": 1427.8038329999981,
+        "mean": 1287.4988536666685
+      },
+      "ttft": {
+        "n": 6,
+        "min": 698.7159539999993,
+        "p50": 764.1590309999992,
+        "p90": 1119.779575,
+        "p95": 1166.9253944999998,
+        "max": 1214.0712139999996,
+        "mean": 863.704459666666
+      },
+      "timeouts": 0,
+      "capacity429": 0,
+      "schemaErrors": 0,
+      "budgetStops": 0,
+      "under2s": 6,
+      "under5s": 6,
+      "under10s": 6,
+      "unsafeAllow": 0,
+      "unsafeAnswered": 2,
+      "attempts": 6,
+      "errors": [],
+      "wrong": [],
+      "byGroup": {
+        "noul": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 1336.004632999999,
+          "p95": 1418.6239129999983
+        },
+        "choice": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 1324.8260195000003,
+          "p95": 1338.9216741500004
+        },
+        "score": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 1165.5834290000057,
+          "p95": 1165.5834290000057
+        },
+        "batch": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 1237.7483880000073,
+          "p95": 1237.7483880000073
+        }
+      },
+      "byRepeat": {
+        "0": {
+          "n": 6,
+          "correct": 6,
+          "p50": 1276.684807
+        }
+      },
+      "wire": {
+        "model": "claude-haiku-5-5",
+        "max_tokens": 900,
+        "thinking": {
+          "type": "disabled"
+        }
+      },
+      "tokens": {
+        "input": 2211,
+        "cacheRead": 0,
+        "output": 301,
+        "reasoning": 0
+      },
+      "catalogCost": 0.0007091
+    },
+    "opencode-go/qwen3.8-flash": {
+      "n": 6,
+      "valid": 6,
+      "correct": 5,
+      "questionCorrect": 7,
+      "questionExpected": 8,
+      "latency": {
+        "n": 6,
+        "min": 1387.2773589999997,
+        "p50": 1663.9041830000015,
+        "p90": 2412.1037035000118,
+        "p95": 2627.622048750014,
+        "max": 2843.1403940000164,
+        "mean": 1835.750537833337
+      },
+      "successfulLatency": {
+        "n": 6,
+        "min": 1387.2773589999997,
+        "p50": 1663.9041830000015,
+        "p90": 2412.1037035000118,
+        "p95": 2627.622048750014,
+        "max": 2843.1403940000164,
+        "mean": 1835.750537833337
+      },
+      "ttft": {
+        "n": 6,
+        "min": 945.9647479999985,
+        "p50": 1124.5472340000051,
+        "p90": 1397.9083795000115,
+        "p95": 1505.1394857500163,
+        "max": 1612.3705920000211,
+        "mean": 1177.817833500005
+      },
+      "timeouts": 0,
+      "capacity429": 0,
+      "schemaErrors": 0,
+      "budgetStops": 0,
+      "under2s": 4,
+      "under5s": 5,
+      "under10s": 5,
+      "unsafeAllow": 1,
+      "unsafeAnswered": 2,
+      "attempts": 6,
+      "errors": [],
+      "wrong": [
+        {
+          "case": "reset-dirty",
+          "repeat": 0,
+          "checks": [
+            {
+              "id": "safe",
+              "want": false,
+              "got": true,
+              "correct": false
+            }
+          ],
+          "answers": {
+            "safe": {
+              "probability": 0.95
+            }
+          }
+        }
+      ],
+      "byGroup": {
+        "noul": {
+          "n": 2,
+          "valid": 2,
+          "correct": 1,
+          "p50": 1663.9041830000015,
+          "p95": 1824.7845497000003
+        },
+        "choice": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 1728.138554000001,
+          "p95": 1955.7741671000065
+        },
+        "score": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 1387.2773589999997,
+          "p95": 1387.2773589999997
+        },
+        "batch": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 2843.1403940000164,
+          "p95": 2843.1403940000164
+        }
+      },
+      "byRepeat": {
+        "0": {
+          "n": 6,
+          "correct": 5,
+          "p50": 1663.9041830000015
+        }
+      },
+      "wire": {
+        "model": "qwen3.8-flash",
+        "max_tokens": 900,
+        "thinking": {
+          "type": "disabled"
+        },
+        "temperature": 0
+      },
+      "tokens": {
+        "input": 1653,
+        "cacheRead": 0,
+        "output": 386,
+        "reasoning": 0
+      },
+      "catalogCost": 0.0007489700000000001
+    },
+    "opencode-go/glm-5.3-flash": {
+      "n": 6,
+      "valid": 5,
+      "correct": 5,
+      "questionCorrect": 7,
+      "questionExpected": 8,
+      "latency": {
+        "n": 6,
+        "min": 1219.0663040000072,
+        "p50": 2009.3527595000123,
+        "p90": 13674.329275,
+        "p95": 19337.873024500004,
+        "max": 25001.416774000005,
+        "mean": 5676.873615166672
+      },
+      "successfulLatency": {
+        "n": 5,
+        "min": 1219.0663040000072,
+        "p50": 1944.5044790000247,
+        "p90": 2238.025481599997,
+        "p95": 2292.633628799996,
+        "max": 2347.2417759999953,
+        "mean": 1811.9649834000047
+      },
+      "ttft": {
+        "n": 5,
+        "min": 983.0999149999989,
+        "p50": 1370.4726079999964,
+        "p90": 1765.9570001999978,
+        "p95": 1815.773462599999,
+        "max": 1865.5899250000002,
+        "mean": 1387.2559101999984
+      },
+      "timeouts": 1,
+      "capacity429": 0,
+      "schemaErrors": 0,
+      "budgetStops": 0,
+      "under2s": 3,
+      "under5s": 5,
+      "under10s": 5,
+      "unsafeAllow": 0,
+      "unsafeAnswered": 2,
+      "attempts": 6,
+      "errors": [
+        {
+          "case": "edit-vi",
+          "repeat": 0,
+          "error": "Request aborted",
+          "ms": 25001.416774000005,
+          "stopReason": null
+        }
+      ],
+      "wrong": [],
+      "byGroup": {
+        "noul": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 1774.5061789999982,
+          "p95": 2044.2315538999997
+        },
+        "choice": {
+          "n": 2,
+          "valid": 1,
+          "correct": 1,
+          "p50": 13674.329275,
+          "p95": 23868.708024100004
+        },
+        "score": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 1219.0663040000072,
+          "p95": 1219.0663040000072
+        },
+        "batch": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 1944.5044790000247,
+          "p95": 1944.5044790000247
+        }
+      },
+      "byRepeat": {
+        "0": {
+          "n": 6,
+          "correct": 5,
+          "p50": 2009.3527595000123
+        }
+      },
+      "wire": {
+        "model": "glm-5.3-flash",
+        "max_tokens": 900,
+        "temperature": 0
+      },
+      "tokens": {
+        "input": 2694,
+        "cacheRead": 0,
+        "output": 256,
+        "reasoning": 82
+      },
+      "catalogCost": 0.0005321
+    },
+    "opencode-go/minimax-m3.1-flash": {
+      "n": 6,
+      "valid": 6,
+      "correct": 6,
+      "questionCorrect": 8,
+      "questionExpected": 8,
+      "latency": {
+        "n": 6,
+        "min": 1190.1741550000006,
+        "p50": 2035.2899139999936,
+        "p90": 7511.028828999995,
+        "p95": 10146.992054500002,
+        "max": 12782.95528000001,
+        "mean": 3650.4750644999963
+      },
+      "successfulLatency": {
+        "n": 6,
+        "min": 1190.1741550000006,
+        "p50": 2035.2899139999936,
+        "p90": 7511.028828999995,
+        "p95": 10146.992054500002,
+        "max": 12782.95528000001,
+        "mean": 3650.4750644999963
+      },
+      "ttft": {
+        "n": 6,
+        "min": 1095.885472,
+        "p50": 1848.2080874999883,
+        "p90": 7414.022580000004,
+        "p95": 10097.134778500003,
+        "max": 12780.246977000003,
+        "mean": 3520.4412116666645
+      },
+      "timeouts": 0,
+      "capacity429": 0,
+      "schemaErrors": 0,
+      "budgetStops": 0,
+      "under2s": 3,
+      "under5s": 5,
+      "under10s": 5,
+      "unsafeAllow": 0,
+      "unsafeAnswered": 2,
+      "attempts": 6,
+      "errors": [],
+      "wrong": [],
+      "byGroup": {
+        "noul": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 1405.1064504999995,
+          "p95": 1598.5455164499986
+        },
+        "choice": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 2035.2899139999936,
+          "p95": 2188.716264699996
+        },
+        "score": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 12782.95528000001,
+          "p95": 12782.95528000001
+        },
+        "batch": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 2239.1023779999814,
+          "p95": 2239.1023779999814
+        }
+      },
+      "byRepeat": {
+        "0": {
+          "n": 6,
+          "correct": 6,
+          "p50": 2035.2899139999936
+        }
+      },
+      "wire": {
+        "model": "minimax-m3.1-flash",
+        "max_tokens": 900,
+        "temperature": 0
+      },
+      "tokens": {
+        "input": 3247,
+        "cacheRead": 829,
+        "output": 511,
+        "reasoning": 326
+      },
+      "catalogCost": 0.0008060849999999999
+    },
+    "opencode-go/deepseek-v4.1-flash": {
+      "n": 6,
+      "valid": 6,
+      "correct": 6,
+      "questionCorrect": 8,
+      "questionExpected": 8,
+      "latency": {
+        "n": 6,
+        "min": 2630.5690380000015,
+        "p50": 4093.4692524999873,
+        "p90": 4836.129358999991,
+        "p95": 4928.983918499991,
+        "max": 5021.838477999991,
+        "mean": 4052.634510333326
+      },
+      "successfulLatency": {
+        "n": 6,
+        "min": 2630.5690380000015,
+        "p50": 4093.4692524999873,
+        "p90": 4836.129358999991,
+        "p95": 4928.983918499991,
+        "max": 5021.838477999991,
+        "mean": 4052.634510333326
+      },
+      "ttft": {
+        "n": 6,
+        "min": 2532.1251600000105,
+        "p50": 3903.8076124999907,
+        "p90": 4540.84583849999,
+        "p95": 4613.207928749991,
+        "max": 4685.570018999992,
+        "mean": 3864.302793666662
+      },
+      "timeouts": 0,
+      "capacity429": 0,
+      "schemaErrors": 0,
+      "budgetStops": 0,
+      "under2s": 0,
+      "under5s": 5,
+      "under10s": 6,
+      "unsafeAllow": 0,
+      "unsafeAnswered": 2,
+      "attempts": 6,
+      "errors": [],
+      "wrong": [],
+      "byGroup": {
+        "noul": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 3945.2722729999978,
+          "p95": 4052.5805978
+        },
+        "choice": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 4836.129358999991,
+          "p95": 5003.26756609999
+        },
+        "score": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 2630.5690380000015,
+          "p95": 2630.5690380000015
+        },
+        "batch": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 4122.434759999975,
+          "p95": 4122.434759999975
+        }
+      },
+      "byRepeat": {
+        "0": {
+          "n": 6,
+          "correct": 6,
+          "p50": 4093.4692524999873
+        }
+      },
+      "wire": {
+        "model": "deepseek-v4.1-flash",
+        "max_tokens": 900,
+        "temperature": 0
+      },
+      "tokens": {
+        "input": 3140,
+        "cacheRead": 0,
+        "output": 757,
+        "reasoning": 569
+      },
+      "catalogCost": 0.0009251999999999999
+    },
+    "opencode-go/gpt-6-luna": {
+      "n": 6,
+      "valid": 6,
+      "correct": 6,
+      "questionCorrect": 8,
+      "questionExpected": 8,
+      "latency": {
+        "n": 6,
+        "min": 982.214006000002,
+        "p50": 1101.5906484999996,
+        "p90": 1271.504580000008,
+        "p95": 1324.911385000014,
+        "max": 1378.31819000002,
+        "mean": 1135.2026606666702
+      },
+      "successfulLatency": {
+        "n": 6,
+        "min": 982.214006000002,
+        "p50": 1101.5906484999996,
+        "p90": 1271.504580000008,
+        "p95": 1324.911385000014,
+        "max": 1378.31819000002,
+        "mean": 1135.2026606666702
+      },
+      "ttft": {
+        "n": 6,
+        "min": 839.9391510000132,
+        "p50": 862.5088419999956,
+        "p90": 956.6912705000123,
+        "p95": 971.8680277500071,
+        "max": 987.0447850000019,
+        "mean": 886.8461368333379
+      },
+      "timeouts": 0,
+      "capacity429": 0,
+      "schemaErrors": 0,
+      "budgetStops": 0,
+      "under2s": 6,
+      "under5s": 6,
+      "under10s": 6,
+      "unsafeAllow": 0,
+      "unsafeAnswered": 2,
+      "attempts": 6,
+      "errors": [],
+      "wrong": [],
+      "byGroup": {
+        "noul": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 1046.2716525000014,
+          "p95": 1103.9235343500009
+        },
+        "choice": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 1123.7512355,
+          "p95": 1160.5969965499964
+        },
+        "score": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 1092.8519979999983,
+          "p95": 1092.8519979999983
+        },
+        "batch": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 1378.31819000002,
+          "p95": 1378.31819000002
+        }
+      },
+      "byRepeat": {
+        "0": {
+          "n": 6,
+          "correct": 6,
+          "p50": 1101.5906484999996
+        }
+      },
+      "wire": {
+        "model": "gpt-6-luna",
+        "max_output_tokens": 900,
+        "reasoning": {
+          "effort": "none"
+        },
+        "temperature": 0
+      },
+      "tokens": {
+        "input": 1508,
+        "cacheRead": 0,
+        "output": 168,
+        "reasoning": 0
+      },
+      "catalogCost": 0.000417175
+    },
+    "router/typesafe/jev-router": {
+      "n": 6,
+      "valid": 6,
+      "correct": 6,
+      "questionCorrect": 8,
+      "questionExpected": 8,
+      "latency": {
+        "n": 6,
+        "min": 1675.329135,
+        "p50": 2717.501363000001,
+        "p90": 5088.4980764999855,
+        "p95": 5185.934929249979,
+        "max": 5283.371781999973,
+        "mean": 3199.6861694999952
+      },
+      "successfulLatency": {
+        "n": 6,
+        "min": 1675.329135,
+        "p50": 2717.501363000001,
+        "p90": 5088.4980764999855,
+        "p95": 5185.934929249979,
+        "max": 5283.371781999973,
+        "mean": 3199.6861694999952
+      },
+      "ttft": {
+        "n": 6,
+        "min": 1493.0319359999994,
+        "p50": 2419.800062000004,
+        "p90": 5059.479063999992,
+        "p95": 5142.818467999987,
+        "max": 5226.157871999982,
+        "mean": 3006.2380933333316
+      },
+      "timeouts": 0,
+      "capacity429": 0,
+      "schemaErrors": 0,
+      "budgetStops": 0,
+      "under2s": 2,
+      "under5s": 5,
+      "under10s": 6,
+      "unsafeAllow": 0,
+      "unsafeAnswered": 2,
+      "attempts": 6,
+      "errors": [],
+      "wrong": [],
+      "byGroup": {
+        "noul": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 1932.1804974999995,
+          "p95": 2163.346723749999
+        },
+        "choice": {
+          "n": 2,
+          "valid": 2,
+          "correct": 2,
+          "p50": 2578.3799345000007,
+          "p95": 3179.211772850003
+        },
+        "score": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 4893.624370999998,
+          "p95": 4893.624370999998
+        },
+        "batch": {
+          "n": 1,
+          "valid": 1,
+          "correct": 1,
+          "p50": 5283.371781999973,
+          "p95": 5283.371781999973
+        }
+      },
+      "byRepeat": {
+        "0": {
+          "n": 6,
+          "correct": 6,
+          "p50": 2717.501363000001
+        }
+      },
+      "wire": {
+        "model": "typesafe/jev-router",
+        "temperature": 0
+      },
+      "tokens": {
+        "input": 1508,
+        "cacheRead": 0,
+        "output": 168,
+        "reasoning": 0
+      },
+      "catalogCost": 0.000417175
+    }
+  },
+  "pairedAgainstMimo": {
+    "deepseek/deepseek-flash": {
+      "n": 6,
+      "faster": 5,
+      "medianMimoMinusCandidateMs": 2508.4889435000027,
+      "medianMimoOverCandidate": 3.0493404242044937
+    },
+    "zai/glm-5.3-flash": {
+      "n": 1,
+      "faster": 1,
+      "medianMimoMinusCandidateMs": 2256.229967000001,
+      "medianMimoOverCandidate": 2.1265338824938484
+    },
+    "zai/glm-5.2-highspeed": {
+      "n": 1,
+      "faster": 1,
+      "medianMimoMinusCandidateMs": 4021.436936000001,
+      "medianMimoOverCandidate": 17.925236067921706
+    },
+    "zai/glm-5.3-highspeed": {
+      "n": 1,
+      "faster": 1,
+      "medianMimoMinusCandidateMs": 4000.4406840000006,
+      "medianMimoOverCandidate": 16.46982943321438
+    },
+    "opencode-go/claude-haiku-5-5": {
+      "n": 6,
+      "faster": 6,
+      "medianMimoMinusCandidateMs": 3410.731742999999,
+      "medianMimoOverCandidate": 3.8444787860853538
+    },
+    "opencode-go/qwen3.8-flash": {
+      "n": 6,
+      "faster": 6,
+      "medianMimoMinusCandidateMs": 3000.657421500002,
+      "medianMimoOverCandidate": 2.5736150930139585
+    },
+    "opencode-go/glm-5.3-flash": {
+      "n": 6,
+      "faster": 5,
+      "medianMimoMinusCandidateMs": 1734.875413999992,
+      "medianMimoOverCandidate": 1.900505689854063
+    },
+    "opencode-go/minimax-m3.1-flash": {
+      "n": 6,
+      "faster": 5,
+      "medianMimoMinusCandidateMs": 2029.5899070000132,
+      "medianMimoOverCandidate": 2.0689982063129024
+    },
+    "opencode-go/deepseek-v4.1-flash": {
+      "n": 6,
+      "faster": 4,
+      "medianMimoMinusCandidateMs": 581.0884490000044,
+      "medianMimoOverCandidate": 1.1251585197985592
+    },
+    "opencode-go/gpt-6-luna": {
+      "n": 6,
+      "faster": 6,
+      "medianMimoMinusCandidateMs": 3514.035525500002,
+      "medianMimoOverCandidate": 4.192796631713037
+    },
+    "router/typesafe/jev-router": {
+      "n": 6,
+      "faster": 5,
+      "medianMimoMinusCandidateMs": 1486.081819500002,
+      "medianMimoOverCandidate": 1.634638517887199
+    }
+  }
+}

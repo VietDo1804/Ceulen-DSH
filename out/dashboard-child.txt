@@ -1,0 +1,77 @@
+
+   Native Agent Dashboard · session 24f406f0-8dff-4542-889c-e40433d32f1e
+   lead · openai-codex/gpt-6.1-sol · idle · in 18088 / out 280
+   Lead is not GPT-6-astra. Use /model in chat to select it; dashboard never switches models.
+   [Tasks] · Agents · Activity
+   ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+   │ > Tasks 0/0 [0-0]                                                                                                │
+   │ No native team tasks. Nothing was created.                                                                       │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+   ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+   │   Agents 1 [1-1]                                                                                                 │
+   │   [completed] dashboard-smoke                                                                                    │
+   │   openai-codex/gpt-6.1-sol · tool — · 14s · in 17366 / out 54                                                    │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+   ┌──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+   │   Activity 3 [1-3]                                                                                               │
+   │   [text] ⏵ Completing the dashboard delegation smoke test                                                        │
+   │   4075a04c-f8b9-4679-91aa-acac5a82a319 · run ab2651e1-6595-426e-b3aa-4756d75f085c                                │
+   │   [text] DASHBOARD_CHILD_OK                                                                                      │
+   │   4075a04c-f8b9-4679-91aa-acac5a82a319 · run ab2651e1-6595-426e-b3aa-4756d75f085c                                │
+   │   [ok] rule_get                                                                                                  │
+   │   lead · tool                                                                                                    │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   │                                                                                                                  │
+   └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+   Tab/Shift+Tab: region · arrows/PgUp/PgDn: select/scroll · Enter: detail
+   Esc: chat · assign work in the original composer
+   Source: DSH channel/team/subagents · usage per source, not summed

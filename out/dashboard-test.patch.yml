@@ -1,0 +1,3 @@
+- insert:
+    - id: ceulen-dashboard-test
+      name: '/home/vietdo/vietdo_workspace/DHS/ceulen_dhs/lib/modules/dashboard/index.js'

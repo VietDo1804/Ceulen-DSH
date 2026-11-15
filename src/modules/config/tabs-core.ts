@@ -127,6 +127,15 @@ export function buildCoreTabs(settings: CeulenSettings, context: ConfigContext, 
           label: 'Subagents',
           rows: subagentRows,
         },
+        {
+          id: 'agent-mode',
+          label: 'Agent Mode',
+          rows: [
+            text('agentMode.models', 'Default routes', settings.agentMode.models.join(', '), value => {
+              settings.agentMode.models = routeList(value)
+            }, { picker: true, pickerAppend: true, placeholder: 'manual only', description: 'provider/model routes that load Agent Mode by default; "-" clears. Explicit /Agent-mode on|off outranks the route default.' }),
+          ],
+        },
       ],
     },
     {

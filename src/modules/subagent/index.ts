@@ -15,6 +15,7 @@ import { displayPath, settingsPath } from '../../core/paths.js'
 import { logLine } from '../../core/log.js'
 import { describeRoute, resolveRole, roleByName, roleNames, REVIEWER_SCHEMA, ROLES, type RoleDefinition, type RoleResolution } from './roles.js'
 import { contractBlock, parseTypedReply, type SchemaNode } from './schema.js'
+import { installOrchestrator } from './orchestrator.js'
 import { getPonytailInstructions } from '../../vendor/ceulen/ponytail/instructions.js'
 import { composeRulesBlock, loadRules } from '../../vendor/ceulen/rules/rules.js'
 
@@ -246,6 +247,8 @@ function commandHandler(settings: CeulenSettings, rawInput: string, agent: Agent
 
 export function apply(ctx: PluginContext): void {
   if (!isModuleEnabled('subagent', loadSettingsSync())) return
+
+  installOrchestrator(ctx)
 
   registerPromptSection(ctx, {
     name: 'ceulen:subagent',

@@ -4,6 +4,34 @@ Ceulen's toolkit for **DeepSeek Harness** (DSH): reviewer, memory, rules with be
 
 Ceulen itself is a Pi extension bundle. DSH has a different plugin API, so this project is an independent port: UI-independent logic is vendored from Ceulen (MIT), and each feature gets a thin DSH adapter. The module-by-module status lives in `docs/parity.md` (kept with the source checkout, not published).
 
+## Native agent dashboard
+
+`/dashboard` opens a read-only scene in the current TUI session; `Esc` returns
+to chat. `Tab`/`Shift+Tab` selects tasks, agents or activity; arrows and page keys
+navigate, `Enter` opens detail, and `Esc` returns to overview first.
+`/dashboard status` prints a native projection summary without a scene host
+(child run metrics require the live TUI channel). See [dashboard integration](docs/dashboard.md).
+Opening the view never starts work, changes model, or changes approval policy.
+Disable with `/plugin disable ceulen-dashboard` if needed. Herdr is optional.
+
+## Orchestrator mode
+
+`/orchestrator <task>` enables coordination for the current live lead session
+and submits the task. The lead delegates execution through existing Ceulen
+role/model routes, receives native child feedback, verifies it, and summarizes
+the result. `/orchestrator` or `/orchestrator on` enables the mode for subsequent
+chat messages; `/orchestrator status` checks it; `/orchestrator off` exits without
+cancelling existing children. Restarting the session resets the mode. While the
+mode is active, the native TUI footer shows `Orchestrator`; `off`, plugin reload
+or session disposal clears it.
+
+Use `/dashboard` to watch delegated work under **Agents** and **Activity**;
+press `Esc` to return to chat and send another instruction. The **Tasks** panel
+is the native Team board, not the lead's `todo_write` checklist; ordinary
+delegation does not create Team tasks. `/subagent` shows the configured worker
+routes. Orchestrator mode requires the subagent module/runtime, does not open a
+second chat, and does not change the lead model, permissions, or approvals.
+
 ## Requirements
 
 - DSH `0.2.2-rc.1` (the `dsh` CLI and `dsh-tui` 0.20.0 profile)
@@ -88,7 +116,7 @@ You should see the release line (`ceulen-dsh 0.2.6 (stable)`), the pinned
 Ceulen version, and the mounted/native/planned modules.
 
 Installation is per machine and profile, not inherited from this checkout. The bundle composes
-32 rows. See `docs/live-verification.md` for the evidence.
+33 rows. See `docs/live-verification.md` and `docs/dashboard.md` for the evidence.
 
 ### Release line
 
@@ -136,7 +164,7 @@ committed, revoke/rotate it immediately; adding it to `.gitignore` is not enough
 | Rules | sticky `.dsh/RULES.md` + rulebook, `when-*` behaviour guards (`rules.guards`), read-only `AGENTS.md` / `.cursor/rules/*.mdc` / `.clinerules` sources, `rule_get`, `/rules` |
 | GitHub | read-only `github` tool over the `gh` CLI |
 | Ponytail | `/ponytail off|lite|full|ultra`, prompt discipline, skills |
-| Agent Mode | `/Agent-mode` (alias `/agent-mode`) loads `~/vietdo_workspace/DHS/agent_mode/AGENTS.md`; run again to reload edits, `off` to remove the role, `status` to inspect it. Starts off after restart; permissions and Plan Mode are unchanged. Override the file with the plugin's `path` config. |
+| Agent Mode | `/Agent-mode` (alias `/agent-mode`) loads `~/vietdo_workspace/DHS/agent_mode/AGENTS.md`; run again to reload edits, `off` to remove the role, `status` to inspect it. Starts off after restart; permissions and Plan Mode are unchanged. Default routes under `/ceulen-config` → Model → Agent Mode (`opencode-go/deepseek-v4.1-flash`, `deepseek/deepseek-flash`) load the role automatically; an explicit on/off outranks the route default. Override the file with the plugin's `path` config. |
 | Skills | all 19 bundled skill packs registered (15 ported from Ceulen) |
 | Evolve | Weekly audit with no model: `scripts/evo-weekly.mjs` (systemd timer) scans every session, gathers recurring tool errors into fix groups and writes an HTML report plus `report-<date>.md`; the review is a session the user starts on a strong model (skill `evo`, "evo weekly review"): diagnose, fix in a worktree with a test, then `evo-report.mjs --fixed` so later reports compare before and after; `/evo-status` names the newest report; `evo_notice` shows a 💾 Self-improvement block; `/evo` session postmortem → ledger → Munin; see `docs/evo.md` |
 | Cron | `cron` tool, `/cron`, persisted jobs fired into the live session |

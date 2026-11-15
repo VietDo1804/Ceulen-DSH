@@ -71,6 +71,8 @@
       name: 'ceulen-dsh/modules/serena'
     - id: ceulen-context
       name: 'ceulen-dsh/modules/context'
+    - id: ceulen-dashboard
+      name: 'ceulen-dsh/modules/dashboard'
     - id: ceulen-evo
       name: 'ceulen-dsh/modules/evo'
     - id: ceulen-plan

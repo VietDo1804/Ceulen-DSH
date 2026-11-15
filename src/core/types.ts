@@ -140,7 +140,7 @@ export interface CommandRegistration {
 export interface SystemPromptSection {
   readonly name: string
   readonly order?: number
-  readonly text: string | (() => string)
+  readonly text: string | ((context?: { readonly scope?: object }) => string)
   readonly complete?: boolean
   readonly interpolate?: boolean
 }

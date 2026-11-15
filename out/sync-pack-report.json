@@ -1,0 +1,2966 @@
+{
+  "ceulen-dsh": {
+    "id": "ceulen-dsh@0.2.6",
+    "name": "ceulen-dsh",
+    "version": "0.2.6",
+    "size": 831078,
+    "unpackedSize": 3496700,
+    "shasum": "870d6ea64820b575e256784fd3fd8496793a3411",
+    "integrity": "sha512-dL6ikpguACBGAOUs64RzZIrXk5VVuNON3ldAUVO8Xrm3ltv2EllkDyGqEQYZzejPxZp/Uk1Ru2Smvj4lSbwDfg==",
+    "filename": "ceulen-dsh-0.2.6.tgz",
+    "files": [
+      {
+        "path": "LICENSE",
+        "size": 1148,
+        "mode": 420
+      },
+      {
+        "path": "NOTICE",
+        "size": 646,
+        "mode": 420
+      },
+      {
+        "path": "README.md",
+        "size": 33457,
+        "mode": 420
+      },
+      {
+        "path": "cordis.patch.yml",
+        "size": 2596,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/credentials.d.ts",
+        "size": 548,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/credentials.d.ts.map",
+        "size": 457,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/credentials.js",
+        "size": 3220,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/credentials.js.map",
+        "size": 3080,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/fsx.d.ts",
+        "size": 1231,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/fsx.d.ts.map",
+        "size": 943,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/fsx.js",
+        "size": 2479,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/fsx.js.map",
+        "size": 2639,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/llm.d.ts",
+        "size": 1706,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/llm.d.ts.map",
+        "size": 1065,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/llm.js",
+        "size": 4075,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/llm.js.map",
+        "size": 4079,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/log.d.ts",
+        "size": 834,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/log.d.ts.map",
+        "size": 494,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/log.js",
+        "size": 2849,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/log.js.map",
+        "size": 2621,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/memory-text.d.ts",
+        "size": 383,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/memory-text.d.ts.map",
+        "size": 221,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/memory-text.js",
+        "size": 2358,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/memory-text.js.map",
+        "size": 2608,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/parity.d.ts",
+        "size": 1126,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/parity.d.ts.map",
+        "size": 1068,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/parity.js",
+        "size": 2180,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/parity.js.map",
+        "size": 2562,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/paths.d.ts",
+        "size": 1005,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/paths.d.ts.map",
+        "size": 646,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/paths.js",
+        "size": 1636,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/paths.js.map",
+        "size": 1654,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/settings.d.ts",
+        "size": 5943,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/settings.d.ts.map",
+        "size": 3533,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/settings.js",
+        "size": 15598,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/settings.js.map",
+        "size": 15521,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/toolguard.d.ts",
+        "size": 1663,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/toolguard.d.ts.map",
+        "size": 772,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/toolguard.js",
+        "size": 8046,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/toolguard.js.map",
+        "size": 7621,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/tools.d.ts",
+        "size": 5133,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/tools.d.ts.map",
+        "size": 3191,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/tools.js",
+        "size": 11006,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/tools.js.map",
+        "size": 9213,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/types.d.ts",
+        "size": 9179,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/types.d.ts.map",
+        "size": 8448,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/types.js",
+        "size": 501,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/types.js.map",
+        "size": 126,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/upstream.d.ts",
+        "size": 2735,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/upstream.d.ts.map",
+        "size": 2095,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/upstream.js",
+        "size": 11457,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/upstream.js.map",
+        "size": 10775,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/version.d.ts",
+        "size": 1553,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/version.d.ts.map",
+        "size": 991,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/version.js",
+        "size": 4055,
+        "mode": 420
+      },
+      {
+        "path": "lib/core/version.js.map",
+        "size": 4246,
+        "mode": 420
+      },
+      {
+        "path": "lib/index.d.ts",
+        "size": 716,
+        "mode": 420
+      },
+      {
+        "path": "lib/index.d.ts.map",
+        "size": 489,
+        "mode": 420
+      },
+      {
+        "path": "lib/index.js",
+        "size": 491,
+        "mode": 420
+      },
+      {
+        "path": "lib/index.js.map",
+        "size": 318,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/a2a/index.d.ts",
+        "size": 231,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/a2a/index.d.ts.map",
+        "size": 286,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/a2a/index.js",
+        "size": 7732,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/a2a/index.js.map",
+        "size": 7813,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/advisor/evidence.d.ts",
+        "size": 687,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/advisor/evidence.d.ts.map",
+        "size": 429,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/advisor/evidence.js",
+        "size": 6123,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/advisor/evidence.js.map",
+        "size": 6171,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/advisor/index.d.ts",
+        "size": 235,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/advisor/index.d.ts.map",
+        "size": 293,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/advisor/index.js",
+        "size": 19511,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/advisor/index.js.map",
+        "size": 16742,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/advisor/transcript.d.ts",
+        "size": 1158,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/advisor/transcript.d.ts.map",
+        "size": 602,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/advisor/transcript.js",
+        "size": 6233,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/advisor/transcript.js.map",
+        "size": 6583,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/agent-mode/index.d.ts",
+        "size": 271,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/agent-mode/index.d.ts.map",
+        "size": 345,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/agent-mode/index.js",
+        "size": 3370,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/agent-mode/index.js.map",
+        "size": 2695,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/agentmem/config.d.ts",
+        "size": 1045,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/agentmem/config.d.ts.map",
+        "size": 614,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/agentmem/config.js",
+        "size": 3168,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/agentmem/config.js.map",
+        "size": 2425,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/agentmem/index.d.ts",
+        "size": 987,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/agentmem/index.d.ts.map",
+        "size": 708,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/agentmem/index.js",
+        "size": 28842,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/agentmem/index.js.map",
+        "size": 22907,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/classifier/index.d.ts",
+        "size": 1460,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/classifier/index.d.ts.map",
+        "size": 846,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/classifier/index.js",
+        "size": 25555,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/classifier/index.js.map",
+        "size": 19769,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/bindings.d.ts",
+        "size": 1269,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/bindings.d.ts.map",
+        "size": 559,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/bindings.js",
+        "size": 5212,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/bindings.js.map",
+        "size": 3522,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/chain-hint.d.ts",
+        "size": 1920,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/chain-hint.d.ts.map",
+        "size": 984,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/chain-hint.js",
+        "size": 3535,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/chain-hint.js.map",
+        "size": 3173,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/index.d.ts",
+        "size": 1070,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/index.d.ts.map",
+        "size": 319,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/index.js",
+        "size": 16780,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/index.js.map",
+        "size": 11721,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/render.d.ts",
+        "size": 2101,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/render.d.ts.map",
+        "size": 1157,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/render.js",
+        "size": 7069,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/render.js.map",
+        "size": 6978,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/script.d.ts",
+        "size": 2260,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/script.d.ts.map",
+        "size": 952,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/script.js",
+        "size": 7710,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/script.js.map",
+        "size": 6101,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/types.d.ts",
+        "size": 2325,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/types.d.ts.map",
+        "size": 2224,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/types.js",
+        "size": 192,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/codemode/types.js.map",
+        "size": 231,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/edit.d.ts",
+        "size": 579,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/edit.d.ts.map",
+        "size": 432,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/edit.js",
+        "size": 2098,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/edit.js.map",
+        "size": 2268,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/helpers.d.ts",
+        "size": 2334,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/helpers.d.ts.map",
+        "size": 1323,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/helpers.js",
+        "size": 5019,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/helpers.js.map",
+        "size": 5188,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/index.d.ts",
+        "size": 2010,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/index.d.ts.map",
+        "size": 702,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/index.js",
+        "size": 10945,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/index.js.map",
+        "size": 8899,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/model.d.ts",
+        "size": 1187,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/model.d.ts.map",
+        "size": 503,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/model.js",
+        "size": 773,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/model.js.map",
+        "size": 795,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/rows.d.ts",
+        "size": 1423,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/rows.d.ts.map",
+        "size": 1454,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/rows.js",
+        "size": 2685,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/rows.js.map",
+        "size": 3521,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/scene.d.ts",
+        "size": 1829,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/scene.d.ts.map",
+        "size": 1814,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/scene.js",
+        "size": 21221,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/scene.js.map",
+        "size": 21655,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/tabs-core.d.ts",
+        "size": 501,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/tabs-core.d.ts.map",
+        "size": 440,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/tabs-core.js",
+        "size": 15435,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/tabs-core.js.map",
+        "size": 11206,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/tabs-extra.d.ts",
+        "size": 366,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/tabs-extra.d.ts.map",
+        "size": 383,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/tabs-extra.js",
+        "size": 8490,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/tabs-extra.js.map",
+        "size": 5206,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/types.d.ts",
+        "size": 2332,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/types.d.ts.map",
+        "size": 2118,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/types.js",
+        "size": 44,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/config/types.js.map",
+        "size": 123,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/collect.d.ts",
+        "size": 1571,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/collect.d.ts.map",
+        "size": 1360,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/collect.js",
+        "size": 4088,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/collect.js.map",
+        "size": 4081,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/dashboard.d.ts",
+        "size": 2294,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/dashboard.d.ts.map",
+        "size": 1622,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/dashboard.js",
+        "size": 10620,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/dashboard.js.map",
+        "size": 11943,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/dna-scene.d.ts",
+        "size": 1975,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/dna-scene.d.ts.map",
+        "size": 1707,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/dna-scene.js",
+        "size": 6323,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/dna-scene.js.map",
+        "size": 7135,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/dna.d.ts",
+        "size": 4613,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/dna.d.ts.map",
+        "size": 2642,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/dna.js",
+        "size": 11993,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/dna.js.map",
+        "size": 12258,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/index.d.ts",
+        "size": 1461,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/index.d.ts.map",
+        "size": 529,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/index.js",
+        "size": 4202,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/index.js.map",
+        "size": 2966,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/report.d.ts",
+        "size": 1745,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/report.d.ts.map",
+        "size": 1033,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/report.js",
+        "size": 1813,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/report.js.map",
+        "size": 1672,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/scene.d.ts",
+        "size": 672,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/scene.d.ts.map",
+        "size": 508,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/scene.js",
+        "size": 3056,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/context/scene.js.map",
+        "size": 2623,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/cron/index.d.ts",
+        "size": 232,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/cron/index.d.ts.map",
+        "size": 291,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/cron/index.js",
+        "size": 11116,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/cron/index.js.map",
+        "size": 11927,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/index.d.ts",
+        "size": 289,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/index.d.ts.map",
+        "size": 327,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/index.js",
+        "size": 4360,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/index.js.map",
+        "size": 4394,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/model.d.ts",
+        "size": 2867,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/model.d.ts.map",
+        "size": 3119,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/model.js",
+        "size": 6419,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/model.js.map",
+        "size": 8069,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/scene.d.ts",
+        "size": 1329,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/scene.d.ts.map",
+        "size": 1572,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/scene.js",
+        "size": 6886,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/scene.js.map",
+        "size": 9471,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/tokens.d.ts",
+        "size": 632,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/tokens.d.ts.map",
+        "size": 188,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/tokens.js",
+        "size": 431,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/dashboard/tokens.js.map",
+        "size": 505,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/commands.d.ts",
+        "size": 343,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/commands.d.ts.map",
+        "size": 338,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/commands.js",
+        "size": 2632,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/commands.js.map",
+        "size": 2431,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/index.d.ts",
+        "size": 429,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/index.d.ts.map",
+        "size": 426,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/index.js",
+        "size": 2165,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/index.js.map",
+        "size": 2196,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/notice.d.ts",
+        "size": 802,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/notice.d.ts.map",
+        "size": 672,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/notice.js",
+        "size": 3140,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/notice.js.map",
+        "size": 3506,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/paths.d.ts",
+        "size": 303,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/paths.d.ts.map",
+        "size": 266,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/paths.js",
+        "size": 509,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/paths.js.map",
+        "size": 548,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/tools.d.ts",
+        "size": 633,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/tools.d.ts.map",
+        "size": 578,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/tools.js",
+        "size": 2175,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/evo/tools.js.map",
+        "size": 1880,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/gh/index.d.ts",
+        "size": 230,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/gh/index.d.ts.map",
+        "size": 285,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/gh/index.js",
+        "size": 3844,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/gh/index.js.map",
+        "size": 2822,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/jfind/index.d.ts",
+        "size": 233,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/jfind/index.d.ts.map",
+        "size": 290,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/jfind/index.js",
+        "size": 6065,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/jfind/index.js.map",
+        "size": 5532,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/jfind/judge.d.ts",
+        "size": 382,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/jfind/judge.d.ts.map",
+        "size": 417,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/jfind/judge.js",
+        "size": 3055,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/jfind/judge.js.map",
+        "size": 2353,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/munin/index.d.ts",
+        "size": 833,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/munin/index.d.ts.map",
+        "size": 644,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/munin/index.js",
+        "size": 23854,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/munin/index.js.map",
+        "size": 21498,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/notebooklm/index.d.ts",
+        "size": 238,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/notebooklm/index.d.ts.map",
+        "size": 296,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/notebooklm/index.js",
+        "size": 4854,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/notebooklm/index.js.map",
+        "size": 3273,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/plan/index.d.ts",
+        "size": 2841,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/plan/index.d.ts.map",
+        "size": 1538,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/plan/index.js",
+        "size": 18108,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/plan/index.js.map",
+        "size": 12510,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ponytail/index.d.ts",
+        "size": 236,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ponytail/index.d.ts.map",
+        "size": 293,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ponytail/index.js",
+        "size": 2816,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ponytail/index.js.map",
+        "size": 2198,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/providers/index.d.ts",
+        "size": 1871,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/providers/index.d.ts.map",
+        "size": 1216,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/providers/index.js",
+        "size": 7929,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/providers/index.js.map",
+        "size": 6171,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/repair/index.d.ts",
+        "size": 234,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/repair/index.d.ts.map",
+        "size": 292,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/repair/index.js",
+        "size": 27542,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/repair/index.js.map",
+        "size": 28016,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/rtk/index.d.ts",
+        "size": 946,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/rtk/index.d.ts.map",
+        "size": 776,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/rtk/index.js",
+        "size": 10319,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/rtk/index.js.map",
+        "size": 8854,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/rules/index.d.ts",
+        "size": 873,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/rules/index.d.ts.map",
+        "size": 499,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/rules/index.js",
+        "size": 9984,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/rules/index.js.map",
+        "size": 9169,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/serena/index.d.ts",
+        "size": 234,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/serena/index.d.ts.map",
+        "size": 291,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/serena/index.js",
+        "size": 2840,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/serena/index.js.map",
+        "size": 2311,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/sg/index.d.ts",
+        "size": 230,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/sg/index.d.ts.map",
+        "size": 284,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/sg/index.js",
+        "size": 4878,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/sg/index.js.map",
+        "size": 4850,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/skills/index.d.ts",
+        "size": 234,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/skills/index.d.ts.map",
+        "size": 291,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/skills/index.js",
+        "size": 4070,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/skills/index.js.map",
+        "size": 4224,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/status/index.d.ts",
+        "size": 1013,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/status/index.d.ts.map",
+        "size": 426,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/status/index.js",
+        "size": 24533,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/status/index.js.map",
+        "size": 21655,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/steering/index.d.ts",
+        "size": 855,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/steering/index.d.ts.map",
+        "size": 504,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/steering/index.js",
+        "size": 5044,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/steering/index.js.map",
+        "size": 3412,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/subagent/index.d.ts",
+        "size": 733,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/subagent/index.d.ts.map",
+        "size": 312,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/subagent/index.js",
+        "size": 14220,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/subagent/index.js.map",
+        "size": 10999,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/subagent/roles.d.ts",
+        "size": 2790,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/subagent/roles.d.ts.map",
+        "size": 1966,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/subagent/roles.js",
+        "size": 11066,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/subagent/roles.js.map",
+        "size": 5651,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/subagent/schema.d.ts",
+        "size": 1301,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/subagent/schema.d.ts.map",
+        "size": 678,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/subagent/schema.js",
+        "size": 4527,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/subagent/schema.js.map",
+        "size": 3767,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/themes/index.d.ts",
+        "size": 233,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/themes/index.d.ts.map",
+        "size": 290,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/themes/index.js",
+        "size": 1599,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/themes/index.js.map",
+        "size": 1553,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/todoview/index.d.ts",
+        "size": 1203,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/todoview/index.d.ts.map",
+        "size": 647,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/todoview/index.js",
+        "size": 4499,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/todoview/index.js.map",
+        "size": 4082,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/tools/index.d.ts",
+        "size": 829,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/tools/index.d.ts.map",
+        "size": 311,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/tools/index.js",
+        "size": 13122,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/tools/index.js.map",
+        "size": 11218,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/usage/index.d.ts",
+        "size": 233,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/usage/index.d.ts.map",
+        "size": 290,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/usage/index.js",
+        "size": 15005,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/usage/index.js.map",
+        "size": 11963,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/usage/providers.d.ts",
+        "size": 1970,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/usage/providers.d.ts.map",
+        "size": 1910,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/usage/providers.js",
+        "size": 20635,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/usage/providers.js.map",
+        "size": 19342,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ux/fix.d.ts",
+        "size": 992,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ux/fix.d.ts.map",
+        "size": 779,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ux/fix.js",
+        "size": 5579,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ux/fix.js.map",
+        "size": 6962,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ux/index.d.ts",
+        "size": 2312,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ux/index.d.ts.map",
+        "size": 1447,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ux/index.js",
+        "size": 22210,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ux/index.js.map",
+        "size": 15801,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ux/review.d.ts",
+        "size": 5833,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ux/review.d.ts.map",
+        "size": 2316,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ux/review.js",
+        "size": 59707,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/ux/review.js.map",
+        "size": 59165,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/args.d.ts",
+        "size": 1700,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/args.d.ts.map",
+        "size": 532,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/args.js",
+        "size": 7401,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/args.js.map",
+        "size": 7998,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/capture.d.ts",
+        "size": 760,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/capture.d.ts.map",
+        "size": 626,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/capture.js",
+        "size": 3119,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/capture.js.map",
+        "size": 3453,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/fetch.d.ts",
+        "size": 2048,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/fetch.d.ts.map",
+        "size": 850,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/fetch.js",
+        "size": 5241,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/fetch.js.map",
+        "size": 3919,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/index.d.ts",
+        "size": 1028,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/index.d.ts.map",
+        "size": 490,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/index.js",
+        "size": 1750,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/index.js.map",
+        "size": 1604,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/providers.d.ts",
+        "size": 601,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/providers.d.ts.map",
+        "size": 433,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/providers.js",
+        "size": 3568,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/providers.js.map",
+        "size": 3241,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/text.d.ts",
+        "size": 209,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/text.d.ts.map",
+        "size": 306,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/text.js",
+        "size": 1714,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/text.js.map",
+        "size": 2086,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/tools.d.ts",
+        "size": 241,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/tools.d.ts.map",
+        "size": 239,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/tools.js",
+        "size": 17662,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/tools.js.map",
+        "size": 14131,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/types.d.ts",
+        "size": 1348,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/types.d.ts.map",
+        "size": 1446,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/types.js",
+        "size": 44,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/types.js.map",
+        "size": 120,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/url-guard.d.ts",
+        "size": 1956,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/url-guard.d.ts.map",
+        "size": 658,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/url-guard.js",
+        "size": 6404,
+        "mode": 420
+      },
+      {
+        "path": "lib/modules/web/url-guard.js.map",
+        "size": 4953,
+        "mode": 420
+      },
+      {
+        "path": "lib/themes/generated.d.ts",
+        "size": 377,
+        "mode": 420
+      },
+      {
+        "path": "lib/themes/generated.d.ts.map",
+        "size": 412,
+        "mode": 420
+      },
+      {
+        "path": "lib/themes/generated.js",
+        "size": 135739,
+        "mode": 420
+      },
+      {
+        "path": "lib/themes/generated.js.map",
+        "size": 76238,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/advisor/emission-guard.d.ts",
+        "size": 3243,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/advisor/emission-guard.d.ts.map",
+        "size": 1504,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/advisor/emission-guard.js",
+        "size": 6647,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/advisor/emission-guard.js.map",
+        "size": 4695,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/advisor/system-prompt.d.ts",
+        "size": 3631,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/advisor/system-prompt.d.ts.map",
+        "size": 197,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/advisor/system-prompt.js",
+        "size": 3554,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/advisor/system-prompt.js.map",
+        "size": 226,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/cron/jobs.d.ts",
+        "size": 2224,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/cron/jobs.d.ts.map",
+        "size": 1681,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/cron/jobs.js",
+        "size": 6874,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/cron/jobs.js.map",
+        "size": 6956,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/cron/schedule.d.ts",
+        "size": 527,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/cron/schedule.d.ts.map",
+        "size": 517,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/cron/schedule.js",
+        "size": 5849,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/cron/schedule.js.map",
+        "size": 5825,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/gh/gh-cli.d.ts",
+        "size": 4614,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/gh/gh-cli.d.ts.map",
+        "size": 3037,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/gh/gh-cli.js",
+        "size": 12009,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/gh/gh-cli.js.map",
+        "size": 11524,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/gh/ops.d.ts",
+        "size": 5873,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/gh/ops.d.ts.map",
+        "size": 5984,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/gh/ops.js",
+        "size": 32578,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/gh/ops.js.map",
+        "size": 34990,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/cascade.d.ts",
+        "size": 1632,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/cascade.d.ts.map",
+        "size": 1340,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/cascade.js",
+        "size": 13576,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/cascade.js.map",
+        "size": 14423,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/format.d.ts",
+        "size": 154,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/format.d.ts.map",
+        "size": 200,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/format.js",
+        "size": 479,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/format.js.map",
+        "size": 711,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/lexical.d.ts",
+        "size": 2812,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/lexical.d.ts.map",
+        "size": 1356,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/lexical.js",
+        "size": 8637,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/lexical.js.map",
+        "size": 8472,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/questions.d.ts",
+        "size": 2455,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/questions.d.ts.map",
+        "size": 1832,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/questions.js",
+        "size": 7390,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/questions.js.map",
+        "size": 5775,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/tree.d.ts",
+        "size": 2980,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/tree.d.ts.map",
+        "size": 1597,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/tree.js",
+        "size": 14250,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/jfind/tree.js.map",
+        "size": 14578,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/munin/helpers.d.ts",
+        "size": 5288,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/munin/helpers.d.ts.map",
+        "size": 3030,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/munin/helpers.js",
+        "size": 22376,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/munin/helpers.js.map",
+        "size": 19640,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/munin/retry.d.ts",
+        "size": 199,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/munin/retry.d.ts.map",
+        "size": 243,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/munin/retry.js",
+        "size": 903,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/munin/retry.js.map",
+        "size": 907,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/munin/sdk.d.ts",
+        "size": 3452,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/munin/sdk.d.ts.map",
+        "size": 3231,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/munin/sdk.js",
+        "size": 8435,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/munin/sdk.js.map",
+        "size": 6973,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/notebooklm/notebooklm-cli.d.ts",
+        "size": 1286,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/notebooklm/notebooklm-cli.d.ts.map",
+        "size": 819,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/notebooklm/notebooklm-cli.js",
+        "size": 4078,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/notebooklm/notebooklm-cli.js.map",
+        "size": 3275,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/notebooklm/ops.d.ts",
+        "size": 1887,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/notebooklm/ops.d.ts.map",
+        "size": 968,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/notebooklm/ops.js",
+        "size": 7697,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/notebooklm/ops.js.map",
+        "size": 6209,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/ponytail/config.d.ts",
+        "size": 1003,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/ponytail/config.d.ts.map",
+        "size": 779,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/ponytail/config.js",
+        "size": 4787,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/ponytail/config.js.map",
+        "size": 4815,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/ponytail/instructions.d.ts",
+        "size": 197,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/ponytail/instructions.d.ts.map",
+        "size": 282,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/ponytail/instructions.js",
+        "size": 4260,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/ponytail/instructions.js.map",
+        "size": 2304,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/rules/rules.d.ts",
+        "size": 3992,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/rules/rules.d.ts.map",
+        "size": 2286,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/rules/rules.js",
+        "size": 20176,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/rules/rules.js.map",
+        "size": 16522,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/sg/ops.d.ts",
+        "size": 1389,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/sg/ops.d.ts.map",
+        "size": 1081,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/sg/ops.js",
+        "size": 4987,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/sg/ops.js.map",
+        "size": 4875,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/sg/sg-cli.d.ts",
+        "size": 1225,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/sg/sg-cli.d.ts.map",
+        "size": 731,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/sg/sg-cli.js",
+        "size": 3522,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/sg/sg-cli.js.map",
+        "size": 2910,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/ux/audit.d.ts",
+        "size": 4321,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/ux/audit.d.ts.map",
+        "size": 3570,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/ux/audit.js",
+        "size": 40185,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/ux/audit.js.map",
+        "size": 37334,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/cdp.d.ts",
+        "size": 5061,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/cdp.d.ts.map",
+        "size": 4079,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/cdp.js",
+        "size": 28983,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/cdp.js.map",
+        "size": 24380,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/chatapi.d.ts",
+        "size": 786,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/chatapi.d.ts.map",
+        "size": 901,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/chatapi.js",
+        "size": 3330,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/chatapi.js.map",
+        "size": 3478,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/chatgpt.d.ts",
+        "size": 4661,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/chatgpt.d.ts.map",
+        "size": 3610,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/chatgpt.js",
+        "size": 33267,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/chatgpt.js.map",
+        "size": 28874,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/chrome.d.ts",
+        "size": 1838,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/chrome.d.ts.map",
+        "size": 1685,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/chrome.js",
+        "size": 13682,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/chrome.js.map",
+        "size": 11625,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/config.d.ts",
+        "size": 480,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/config.d.ts.map",
+        "size": 510,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/config.js",
+        "size": 3121,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/config.js.map",
+        "size": 2366,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/gemini-auth.d.ts",
+        "size": 3742,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/gemini-auth.d.ts.map",
+        "size": 2716,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/gemini-auth.js",
+        "size": 11793,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/gemini-auth.js.map",
+        "size": 8508,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/gemini-dr.d.ts",
+        "size": 2751,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/gemini-dr.d.ts.map",
+        "size": 1794,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/gemini-dr.js",
+        "size": 14988,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/gemini-dr.js.map",
+        "size": 15398,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/gemini.d.ts",
+        "size": 4918,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/gemini.d.ts.map",
+        "size": 4367,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/gemini.js",
+        "size": 20586,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/gemini.js.map",
+        "size": 14135,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/imageapi.d.ts",
+        "size": 4626,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/imageapi.d.ts.map",
+        "size": 3704,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/imageapi.js",
+        "size": 20531,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/imageapi.js.map",
+        "size": 18680,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/retry.d.ts",
+        "size": 595,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/retry.d.ts.map",
+        "size": 583,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/retry.js",
+        "size": 2702,
+        "mode": 420
+      },
+      {
+        "path": "lib/vendor/ceulen/web/retry.js.map",
+        "size": 2248,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 2145,
+        "mode": 420
+      },
+      {
+        "path": "parity.json",
+        "size": 20743,
+        "mode": 420
+      },
+      {
+        "path": "scripts/analyze-agent-efficiency.mjs",
+        "size": 13879,
+        "mode": 420
+      },
+      {
+        "path": "scripts/analyze-codemode-tokens.mjs",
+        "size": 5223,
+        "mode": 420
+      },
+      {
+        "path": "scripts/analyze-tool-use.mjs",
+        "size": 11824,
+        "mode": 420
+      },
+      {
+        "path": "scripts/bench-search.mjs",
+        "size": 7784,
+        "mode": 420
+      },
+      {
+        "path": "scripts/ceulen-sync.mjs",
+        "size": 27032,
+        "mode": 493
+      },
+      {
+        "path": "scripts/check-bundle.mjs",
+        "size": 8104,
+        "mode": 493
+      },
+      {
+        "path": "scripts/check-pack.mjs",
+        "size": 2053,
+        "mode": 420
+      },
+      {
+        "path": "scripts/check-web-regressions.mjs",
+        "size": 3558,
+        "mode": 420
+      },
+      {
+        "path": "scripts/convert-themes.mjs",
+        "size": 5772,
+        "mode": 493
+      },
+      {
+        "path": "scripts/dev-profile.sh",
+        "size": 1548,
+        "mode": 493
+      },
+      {
+        "path": "scripts/evo-assets/motion.css",
+        "size": 7779,
+        "mode": 420
+      },
+      {
+        "path": "scripts/evo-assets/motion.js",
+        "size": 28076,
+        "mode": 420
+      },
+      {
+        "path": "scripts/evo-assets/report.css",
+        "size": 6291,
+        "mode": 420
+      },
+      {
+        "path": "scripts/evo-distill.mjs",
+        "size": 9929,
+        "mode": 420
+      },
+      {
+        "path": "scripts/evo-redact.mjs",
+        "size": 1020,
+        "mode": 384
+      },
+      {
+        "path": "scripts/evo-report.mjs",
+        "size": 23916,
+        "mode": 420
+      },
+      {
+        "path": "scripts/evo-weekly.mjs",
+        "size": 17462,
+        "mode": 420
+      },
+      {
+        "path": "scripts/fff-search-patch.mjs",
+        "size": 6922,
+        "mode": 384
+      },
+      {
+        "path": "scripts/fff-search-patch.test.mjs",
+        "size": 9618,
+        "mode": 384
+      },
+      {
+        "path": "scripts/tui-advisor-patch.mjs",
+        "size": 4321,
+        "mode": 420
+      },
+      {
+        "path": "scripts/tui-context-patch.mjs",
+        "size": 8221,
+        "mode": 420
+      },
+      {
+        "path": "scripts/tui-effort-patch.mjs",
+        "size": 8458,
+        "mode": 420
+      },
+      {
+        "path": "scripts/tui-plan-patch.mjs",
+        "size": 11847,
+        "mode": 420
+      },
+      {
+        "path": "scripts/tui-style-patch.mjs",
+        "size": 27625,
+        "mode": 384
+      },
+      {
+        "path": "scripts/tui-toolname-patch.mjs",
+        "size": 3113,
+        "mode": 420
+      },
+      {
+        "path": "scripts/typecheck-strict.mjs",
+        "size": 2853,
+        "mode": 420
+      },
+      {
+        "path": "scripts/ux-bench.mjs",
+        "size": 16332,
+        "mode": 420
+      },
+      {
+        "path": "scripts/ux-bench/briefs/_rules.txt",
+        "size": 402,
+        "mode": 420
+      },
+      {
+        "path": "scripts/ux-bench/briefs/dashboard.md",
+        "size": 375,
+        "mode": 420
+      },
+      {
+        "path": "scripts/ux-bench/briefs/explainer.md",
+        "size": 387,
+        "mode": 420
+      },
+      {
+        "path": "scripts/ux-bench/briefs/landing.md",
+        "size": 360,
+        "mode": 420
+      },
+      {
+        "path": "scripts/ux-bench/lib.mjs",
+        "size": 14875,
+        "mode": 420
+      },
+      {
+        "path": "skills/a2a/SKILL.md",
+        "size": 3174,
+        "mode": 420
+      },
+      {
+        "path": "skills/contract-first/SKILL.md",
+        "size": 10457,
+        "mode": 420
+      },
+      {
+        "path": "skills/cron/SKILL.md",
+        "size": 2734,
+        "mode": 420
+      },
+      {
+        "path": "skills/dsh-update/SKILL.md",
+        "size": 15455,
+        "mode": 420
+      },
+      {
+        "path": "skills/evo/SKILL.md",
+        "size": 6224,
+        "mode": 420
+      },
+      {
+        "path": "skills/munin/SKILL.md",
+        "size": 6299,
+        "mode": 420
+      },
+      {
+        "path": "skills/notebooklm/SKILL.md",
+        "size": 5580,
+        "mode": 420
+      },
+      {
+        "path": "skills/ponytail-audit/SKILL.md",
+        "size": 1658,
+        "mode": 420
+      },
+      {
+        "path": "skills/ponytail-debt/SKILL.md",
+        "size": 1709,
+        "mode": 420
+      },
+      {
+        "path": "skills/ponytail-gain/SKILL.md",
+        "size": 2028,
+        "mode": 420
+      },
+      {
+        "path": "skills/ponytail-help/SKILL.md",
+        "size": 2543,
+        "mode": 420
+      },
+      {
+        "path": "skills/ponytail-review/SKILL.md",
+        "size": 2389,
+        "mode": 420
+      },
+      {
+        "path": "skills/ponytail/SKILL.md",
+        "size": 7683,
+        "mode": 420
+      },
+      {
+        "path": "skills/review/SKILL.md",
+        "size": 2433,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-capture/SKILL.md",
+        "size": 12523,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-design/kit/motion.css",
+        "size": 7779,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-design/kit/motion.js",
+        "size": 28076,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-design/references/banned.md",
+        "size": 2640,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-design/references/direction.md",
+        "size": 8502,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-design/references/motion.md",
+        "size": 10327,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-design/references/review.md",
+        "size": 3421,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-design/SKILL.md",
+        "size": 10351,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/bauhaus/DESIGN.md",
+        "size": 4159,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/bauhaus/example.html",
+        "size": 10635,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/bento/DESIGN.md",
+        "size": 4176,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/bento/example.html",
+        "size": 11320,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/care/DESIGN.md",
+        "size": 4159,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/care/example.html",
+        "size": 11652,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/civic/DESIGN.md",
+        "size": 4395,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/civic/example.html",
+        "size": 9355,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/editorial/DESIGN.md",
+        "size": 3566,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/editorial/example.html",
+        "size": 9756,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/instrument-panel/DESIGN.md",
+        "size": 4324,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/instrument-panel/example.html",
+        "size": 11219,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/kinetic-type/DESIGN.md",
+        "size": 4064,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/kinetic-type/example.html",
+        "size": 8741,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/ledger/DESIGN.md",
+        "size": 4322,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/ledger/example.html",
+        "size": 11056,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/luxury/DESIGN.md",
+        "size": 3722,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/luxury/example.html",
+        "size": 10650,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/memphis/DESIGN.md",
+        "size": 4014,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/memphis/example.html",
+        "size": 11660,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/nature/DESIGN.md",
+        "size": 4447,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/nature/example.html",
+        "size": 11946,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/neubrutalism/DESIGN.md",
+        "size": 4228,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/neubrutalism/example.html",
+        "size": 11652,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/NOTICE",
+        "size": 1366,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/pipeline-desk/DESIGN.md",
+        "size": 5073,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/pipeline-desk/example.html",
+        "size": 12912,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/retro-film/DESIGN.md",
+        "size": 4002,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/retro-film/example.html",
+        "size": 12412,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/storefront/DESIGN.md",
+        "size": 4311,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/storefront/example.html",
+        "size": 12447,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/swiss/DESIGN.md",
+        "size": 3954,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/presets/swiss/example.html",
+        "size": 10956,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-presets/SKILL.md",
+        "size": 9019,
+        "mode": 420
+      },
+      {
+        "path": "skills/ux-routing/SKILL.md",
+        "size": 3726,
+        "mode": 420
+      },
+      {
+        "path": "skills/web/SKILL.md",
+        "size": 6242,
+        "mode": 420
+      },
+      {
+        "path": "upstream.lock.json",
+        "size": 14068,
+        "mode": 420
+      },
+      {
+        "path": "vendor.manifest.json",
+        "size": 7712,
+        "mode": 420
+      }
+    ],
+    "entryCount": 590,
+    "bundled": []
+  }
+}

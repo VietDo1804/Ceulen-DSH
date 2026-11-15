@@ -92,6 +92,11 @@ export interface CeulenSettings {
   ux: {
     mode: UxMode
   }
+  /** Model routes that switch a session mode on by default. */
+  agentMode: {
+    /** `provider/model[:effort]` routes that load Agent Mode without a command. */
+    models: string[]
+  }
   web: Record<string, unknown>
   a2a: {
     peers: unknown[]
@@ -191,6 +196,8 @@ export function defaultSettings(): CeulenSettings {
     rules: { projectFile: '.dsh/RULES.md', userFile: 'RULES.md', maxBytes: 20_000, guards: 'audit' },
     ponytail: { level: 'full' },
     ux: { mode: 'off' },
+    // DeepSeek V4.1 Flash is the agent-mode default on both provider routes.
+    agentMode: { models: ['opencode-go/deepseek-v4.1-flash', 'deepseek/deepseek-flash'] },
     web: {},
     a2a: { peers: [] },
     gh: { enabled: true },
@@ -334,6 +341,7 @@ export function normalizeSettings(raw: unknown): CeulenSettings {
   const subagent = isRecord(raw.subagent) ? raw.subagent : {}
   const plan = isRecord(raw.plan) ? raw.plan : {}
   const usage = isRecord(raw.usage) ? raw.usage : {}
+  const agentMode = isRecord(raw.agentMode) ? raw.agentMode : {}
 
   const settings: CeulenSettings = {
     ...base,
@@ -398,6 +406,10 @@ export function normalizeSettings(raw: unknown): CeulenSettings {
     },
     ponytail: { level: level(ponytail.level, base.ponytail.level) },
     ux: { mode: uxMode(ux.mode, base.ux.mode) },
+    agentMode: {
+      // An explicit [] turns the default off; absent keeps the shipped routes.
+      models: Array.isArray(agentMode.models) ? dedupeRoutes(strArray(agentMode.models)) : base.agentMode.models,
+    },
     web: isRecord(raw.web) ? raw.web : {},
     a2a: { peers: Array.isArray(a2a.peers) ? a2a.peers : [] },
     gh: { enabled: bool(gh.enabled, base.gh.enabled) },

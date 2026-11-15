@@ -111,6 +111,13 @@ Repeat for every profile with an installed TUI, passing `--tui <resolved-dir>`
 to every patch script. Finish all profile package changes before applying
 patches: another add/remove can rewrite the dependency tree again.
 
+Preserve the existing `~/.dsh-tui/effort-by-model.json` (resolved from the
+actual TUI user's home), including each `provider/model` level. Do not replace
+it with the global default or historical example values. A missing `effort`
+patch silently makes model switches use the global default (often `max`), even
+when this file still contains the correct per-model choices. Verified on
+0.20.0: the existing effort patch applied without changes.
+
 If a patch refuses a new version or moved anchor, inspect its source, callers,
 tests and installed upstream files. Adapt the smallest compatible change;
 never bypass a gate blindly or broaden it to untested future versions. Keep
@@ -181,6 +188,13 @@ do not assume a trimmed or full bundle. Missing/unused profiles need no setup.
 Run one read-only independent review of the compatibility delta, distinguishing
 pre-existing user edits; fix blockers and rerun affected checks before reporting.
 
+After review and any resulting fixes/package operations, run all six patch
+`check` commands again for every installed TUI profile. This is the final gate,
+not just a step-4 check: bundle installs or reinstalls later in the task can
+replace patched files even when the TUI version is unchanged. If any check
+fails, reapply the compatible patches and recheck before declaring success.
+Compare per-model effort preferences with the pre-update values; preserve them.
+
 ## 6. Restart and verify
 
 ```sh
@@ -216,6 +230,11 @@ Verify after restart:
   segment means that patch is missing — run its script and restart again.
 - `/context` renders the colour dashboard (that is `context-redirect applied`
   proving itself).
+- Switch model A → B → A using existing per-model preferences: reasoning must
+  return to A's saved level, not the global `max`; the model picker must preview
+  that level too. Do not overwrite user preferences to test this. Resumed
+  sessions intentionally preserve their existing effort pin, so verify an
+  explicit model switch. Leave this live check pending if restart is pending.
 - One turn on a subscription route → the usage segment appears in the footer.
 - `dsh --profile web --help` exits 0; `dsh --profile acp --dump-config` still
   composes if that profile is used.

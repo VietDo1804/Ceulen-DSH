@@ -1,0 +1,15 @@
+[?2004h[?1004h[?2026h[0m]8;;Too small: resize
+Esc: chat
+
+
+
+
+
+[?2026l[>0q[c[?2026h[0m]8;;Too small: resize
+Esc: chat
+
+
+
+
+
+[?2026l

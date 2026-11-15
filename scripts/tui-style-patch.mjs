@@ -324,16 +324,17 @@ try {
   const sources = new Map(swaps.map(([file]) => [file, readFileSync(join(root, file), 'utf8')]))
   const prefs = existsSync(join(root, PREFS)) ? readFileSync(join(root, PREFS), 'utf8') : undefined
   const applied = prefs === UI_STYLE && swaps.every(([file, , patched]) => count(sources.get(file), patched) === 1)
-  const stock = prefs === undefined && swaps.every(([file, original, patched]) => count(sources.get(file), original) === 1 && count(sources.get(file), patched) === 0)
+  const stock = (prefs === undefined || prefs === UI_STYLE) && swaps.every(([file, original, patched]) => count(sources.get(file), original) === 1 && count(sources.get(file), patched) === 0)
   if (action === 'check') {
     console.log('dsh-tui ' + version + ' UI style patch ' + (applied ? 'applied' : 'NOT applied'))
     process.exit(applied ? 0 : 1)
   }
   if ((action === 'apply' && applied) || (action === 'revert' && stock)) {
+    if (action === 'revert' && prefs === UI_STYLE) unlinkSync(join(root, PREFS))
     console.log('UI style patch already ' + (applied ? 'applied' : 'stock'))
     process.exit(0)
   }
-  if (action === 'apply' ? prefs !== undefined : prefs !== UI_STYLE) fail('uiStyle.js does not match the expected state. Nothing written.')
+  if (action === 'apply' ? prefs !== undefined && !stock : prefs !== UI_STYLE) fail('uiStyle.js does not match the expected state. Nothing written.')
   // Validate every anchor before writing any file, including the newly created module.
   for (const [file, original, patched] of swaps) {
     const from = action === 'apply' ? original : patched

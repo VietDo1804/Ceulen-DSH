@@ -1,0 +1,78 @@
+
+
+                                            ✦ dsh-TUI  v0.20.0
+                                            ██▀▀▄▄ ██▀▀▀▀ ██▀▀▀▀ ██▀▀▄▄ ██▀▀▀▀ ██▀▀▀▀ ██▀▀▀▀ ██  ██
+                                            ██  ██ ██     ██     ██  ██ ██     ██     ██     ██ ██
+                                            ██  ██ ██▀▀▀  ██▀▀▀  ██▄▄▀▀  ▀▀▀▀▄ ██▀▀▀  ██▀▀▀  ███
+                        ▄▀▄       ▄         ██  ██ ██     ██     ██         ██ ██     ██     ██ ██
+                        ▀▀▀▀▄  ▄▄▀▀▀        ██▄▄▀▀ ██▄▄▄▄ ██▄▄▄▄ ██     ██▄▄▄▀ ██▄▄▄▄ ██▄▄▄▄ ██  ██
+        ▄▄▄▄▄▄▄▄▄       ▀▀▀▀▀▀▀▀▀▀▀▀
+      ▄▀▀▀▀▀▀▀▀▀▀▀▀▄▄     ▀▀▀▀▀▀▀▀▀         ██  ██   ▄▀▀▄   ██▀▀▄▄  ██  ██  ██▀▀▀▀  ██▀▀▀▀  ██▀▀▀▀
+    ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▄  ▄▀▀▀▀▀            ██  ██  ██  ██  ██  ██  ███ ██  ██      ██      ██
+    ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀            ██▀▀██  ██▀▀██  ██▄▄▀▀  ██ ███  ██▀▀▀    ▀▀▀▀▄   ▀▀▀▀▄
+    ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀             ██  ██  ██  ██  ██ ██   ██  ██  ██          ██      ██
+    ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀              ██  ██  ██  ██  ██  ██  ██  ██  ██▄▄▄▄  ██▄▄▄▀  ██▄▄▄▀
+     ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀               gpt-6.1-sol · High effort
+       ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▄              /home/vietdo/vietdo_workspace/DHS/ceulen_dhs
+          ▀▀▀▀▀▀▀▀▀▀▀  ▀▀▀▀▀▀▀              Tip: /plugin installs, removes and switches plugins; check <manifest> diagnos…
+
+           Explore the uncharted!
+
+
+  ! /dashboard
+    Dashboard · session 24f406f0-8dff-4542-889c-e40433d32f1e
+    lead · openai-codex/gpt-6.1-sol · idle · usage —
+    Lead is not GPT-6-astra. Use /model in chat to select it; dashboard never switches models.
+    Tasks 0/0
+    Agents 0
+    Source: native DSH projections; no parent/child usage aggregation.
+    Headless catalog: child run/status/route/usage require the live TUI channel.
+    Team projection unavailable in this composition.
+
+  ❯ Dashboard smoke only: call the native subagent tool exactly once, with description dashboard-smoke and a prompt
+    asking it to reply DASHBOARD_CHILD_OK without tools or file changes. Inherit the current provider/model;
+    reasoning_effort low. After its result arrives reply DASHBOARD_PARENT_OK. Do not use other tools, create tasks,
+    alter settings or change models.
+
+  ● ⏵ Checking the required delegation rule before running the dashboard smoke child.
+
+  • Rule_get({"name":"subagent-budget"}) · 0s
+   ⎿ subagent-budget (/home/vietdo/.dsh/ceulen/RULES.md)
+
+     - Name the benefit before spawning; another provider or a smaller parent context alone is not a saving. Prefer one
+     child with a concrete question and disjoint work over broad reconnaissance.
+     … +4 lines (ctrl+o to expand)
+
+  ⚓ Thinking (ctrl+o to expand)
+
+  ● ⏵ Running one child to verify dashboard delegation and result delivery.
+
+    🟢 Subagent: dashboard-smoke · gpt-6.1-sol · 14s · 17420 tok · 0 tools · completed  ⤢
+
+  ⚓ Thinking (ctrl+o to expand)
+
+  ● ⏵ Waiting for the dashboard smoke child’s result.
+
+  ● DASHBOARD_PARENT_OK
+
+  ! /dashboard
+    Dashboard · session 24f406f0-8dff-4542-889c-e40433d32f1e
+    lead · openai-codex/gpt-6.1-sol · idle · usage —
+    Lead is not GPT-6-astra. Use /model in chat to select it; dashboard never switches models.
+    Tasks 0/0
+    Agents 1
+    [unknown] dashboard-smoke · —/— · tool — · duration — · usage —
+    Source: native DSH projections; no parent/child usage aggregation.
+    Headless catalog: child run/status/route/usage require the live TUI channel.
+    Team projection unavailable in this composition.
+
+
+
+
+
+
+  ╭──────────────────────────────────────────────────────────────────────────────────── Dashboard Subagent Smoke Tes ──╮
+  ⌸ ❯                                                                                                                  ⛶
+  ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                                                                                          18k/500k 3.6%
+   gpt-6.1-sol … ▅ 23 … … hi… … full acc… … cache 98…  … Codex · 5h 28% 7M · W 34 …  ma …  ceulen…  ctx 3.6% (18k/500k)

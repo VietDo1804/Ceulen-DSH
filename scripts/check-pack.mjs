@@ -32,6 +32,10 @@ const required = [
   'lib/index.js',
   'lib/modules/skills/index.js',
   'lib/modules/web/index.js',
+  'lib/modules/dashboard/index.js',
+  'lib/modules/dashboard/model.js',
+  'lib/modules/dashboard/scene.js',
+  'lib/modules/dashboard/tokens.js',
   'lib/themes/generated.js',
 ]
 for (const path of required) {

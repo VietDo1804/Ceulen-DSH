@@ -1,0 +1,23 @@
+ Native Agent Dashboard · session render-session
+ lead · test/gpt-6-astra · idle · usage —
+ Live native session · route and execution policy unchanged
+ [Tasks] · Agents · Activity
+ ┌────────────────────────────────────────────────────────────────────────────┐
+ │ > Tasks 0/25 [1-1]                                                         │
+ │ > [pending] Task 0 你好 👩‍💻 long long long long long long long long long l… │
+ │   owner worker · not ready · scope warning                                 │
+ └────────────────────────────────────────────────────────────────────────────┘
+ ┌────────────────────────────────────────────────────────────────────────────┐
+ │   Agents 1 [1-1]                                                           │
+ │   [running] worker                                                         │
+ │   native/test · tool read · duration — · usage —                           │
+ └────────────────────────────────────────────────────────────────────────────┘
+ ┌────────────────────────────────────────────────────────────────────────────┐
+ │   Activity 1 [1-1]                                                         │
+ │   [running] read                                                           │
+ │   worker · tool                                                            │
+ └────────────────────────────────────────────────────────────────────────────┘
+ Tab/Shift+Tab: region · arrows/PgUp/PgDn: select/scroll · Enter: detail
+ Esc: chat · assign work in the original composer
+ Source: DSH channel/team/subagents · usage per source, not summed
+

@@ -93,7 +93,7 @@ cd release && sha256sum -c SHA256SUMS
 
 `lib/` (compiled modules + 104 themes + vendored Ceulen files), `skills/`
 (19 skill packs), `scripts/` (TUI patches, sync/parity tooling),
-`cordis.patch.yml` (32 composed rows), `parity.json`, `docs/`, `README.md`,
+`cordis.patch.yml` (33 composed rows), `parity.json`, `docs/`, `README.md`,
 LICENSE/NOTICE. `devDependencies` are not needed at runtime and are not
 installed. `node scripts/check-pack.mjs` asserts that the tarball holds these.
 

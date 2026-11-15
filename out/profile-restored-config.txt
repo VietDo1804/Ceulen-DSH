@@ -1,0 +1,1092 @@
+# == @deepseek-ai/dsh-base
+- id: tool-plugin-manager
+  name: '@deepseek-ai/dsh-plugin-manager/tools'
+  disabled: true
+- id: plugin-manager
+  name: '@deepseek-ai/dsh-plugin-manager'
+  disabled: !!js '!ctx.get(''profileContext'')'
+- id: timer
+  name: '@deepseek-ai/cordis-plugin-timer'
+- id: hmr
+  name: '@deepseek-ai/dsh-hmr'
+  disabled: !!js '!ctx.get(''profileContext'')'
+  config:
+    root: []
+- id: llm
+  name: '@deepseek-ai/dsh-llm'
+- id: deepseek-llm-api-extensions
+  name: '@deepseek-ai/dsh-deepseek-llm-api-extensions'
+- id: session
+  name: '@deepseek-ai/dsh-session'
+- id: session-log-deepseek
+  name: '@deepseek-ai/dsh-session-log-deepseek'
+- id: typert
+  name: '@deepseek-ai/dsh-typert-registry'
+- id: typert-loader
+  name: '@deepseek-ai/dsh-typert-loader'
+- id: typert-gateway
+  name: '@deepseek-ai/dsh-api-gateway'
+- id: remote-access
+  name: '@deepseek-ai/dsh-api-remote-access'
+- id: session-title
+  name: '@deepseek-ai/dsh-session-title'
+  config:
+    fallbackMaxWords: 5
+    fallbackMaxBytes: 40
+    maxTitleBytes: 80
+- id: session-title-llm
+  name: '@deepseek-ai/dsh-session-title-first-prompt-llm'
+  config:
+    targetWords: 5
+    targetCjkCharacters: 10
+    maxInputBytes: 4096
+    maxOutputTokens: 4096
+    timeoutMs: 60000
+- id: user-questions
+  name: '@deepseek-ai/dsh-user-questions'
+- id: agent
+  name: '@deepseek-ai/dsh-agent'
+- id: plugin-package-inventory-deepseek
+  name: '@deepseek-ai/dsh-plugin-package-inventory-deepseek'
+# == @deepseek-ai/dsh-base, patched by /home/vietdo/.dsh/profiles/tui/cordis.patch.yml
+- id: agent-default-model
+  name: '@deepseek-ai/dsh-agent-default-model'
+  config:
+    provider: opencode-go
+    model: deepseek-v4-pro
+# == @deepseek-ai/dsh-base
+- id: jobs
+  name: '@deepseek-ai/dsh-jobs-local'
+- id: llm-retry
+  name: '@deepseek-ai/dsh-llm-retry'
+- id: config-editor
+  name: '@deepseek-ai/dsh-config-editor'
+  disabled: !!js '!ctx.get(''profileContext'')'
+- id: settings
+  name: '@deepseek-ai/dsh-settings'
+  disabled: !!js '!ctx.get(''profileContext'')'
+- id: authorization
+  name: '@deepseek-ai/dsh-authorization'
+- id: deepseek-account
+  name: '@deepseek-ai/dsh-deepseek-account-platform'
+  config:
+    desktopPlatform: !!js >-
+      ctx.get('profileContext')?.name === 'desktop' && ['darwin',
+      'win32'].includes(process.platform) ? process.platform : null
+- id: credentials
+  name: '@deepseek-ai/dsh-credentials-local'
+# == @deepseek-ai/dsh-base, patched by /home/vietdo/.dsh/profiles/tui/cordis.patch.yml
+- id: llm-pi-ai
+  name: '@deepseek-ai/dsh-llm-pi-ai'
+  config:
+    providers:
+      opencode-go:
+        apiKeyEnv: OPENCODE_GO_API_KEY
+        retryPolicy:
+          mode: normal
+          maxRetries: 9
+          backoff:
+            initialDelayMs: 5000
+            maxDelayMs: 45000
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - STREAM_CLOSED
+            - MALFORMED_RESPONSE
+      zai:
+        apiKeyEnv: ZAI_ANTHROPIC_API_KEY
+        retryPolicy:
+          mode: normal
+          maxRetries: 9
+          backoff:
+            initialDelayMs: 5000
+            maxDelayMs: 45000
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - STREAM_CLOSED
+            - MALFORMED_RESPONSE
+      router:
+        api: openai-completions
+        baseURL: https://openrouter.ai/api/v1
+        apiKeyEnv: OPENROUTER_API_KEY
+        models:
+          - id: typesafe/jev-router
+            contextWindow: 1000000
+        retryPolicy:
+          mode: normal
+          maxRetries: 2
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - STREAM_CLOSED
+            - MALFORMED_RESPONSE
+      deepseek:
+        apiKeyEnv: DEEPSEEK_API_KEY
+        models:
+          - id: deepseek-flash
+        retryPolicy:
+          mode: normal
+          maxRetries: 9
+          backoff:
+            initialDelayMs: 5000
+            maxDelayMs: 45000
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - STREAM_CLOSED
+            - MALFORMED_RESPONSE
+      commandcode:
+        displayName: Command Code
+        api: openai-completions
+        baseURL: https://api.commandcode.ai/provider/v1
+        apiKeyEnv: COMMAND_CODE_API_KEY
+        models:
+          - id: gpt-6-astra
+            name: GPT-6 Astra
+            contextWindow: 1050000
+          - id: gpt-6.1-sol
+            name: GPT-6.1 Sol
+            contextWindow: 1050000
+          - id: gpt-6.1-terra
+            name: GPT-6.1 Terra
+            contextWindow: 1050000
+          - id: gpt-6-sol
+            name: GPT-6 Sol
+            contextWindow: 1050000
+          - id: gpt-6-luna
+            name: GPT-6 Luna
+            contextWindow: 1050000
+          - id: gpt-5.6-sol
+            name: GPT-5.6 Sol
+            contextWindow: 1050000
+          - id: gpt-5.6-terra
+            name: GPT-5.6 Terra
+            contextWindow: 1050000
+          - id: gpt-5.6-luna
+            name: GPT-5.6 Luna
+            contextWindow: 1050000
+          - id: gpt-5.5
+            name: GPT-5.5
+            contextWindow: 400000
+          - id: gpt-5.4
+            name: GPT-5.4
+            contextWindow: 400000
+          - id: gpt-5.3-codex
+            name: GPT-5.3 Codex
+            contextWindow: 400000
+          - id: gpt-5.4-mini
+            name: GPT-5.4 Mini
+            contextWindow: 400000
+          - id: deepseek/deepseek-v4-pro
+            name: DeepSeek V4 Pro (latest)
+            contextWindow: 1000000
+          - id: deepseek/deepseek-v4-flash
+            name: DeepSeek V4 Flash (latest)
+            contextWindow: 1000000
+          - id: deepseek/deepseek-v4-flash-vision-exp
+            name: DeepSeek V4 Flash Vision (exp)
+            contextWindow: 1000000
+          - id: deepseek/deepseek-v4-flash-fast
+            name: DeepSeek V4 Flash Fast
+            contextWindow: 1000000
+          - id: deepseek/deepseek-v4.1-flash
+            name: DeepSeek V4.1 Flash (latest)
+            contextWindow: 1000000
+          - id: deepseek/deepseek-v4.1-flash-fast
+            name: DeepSeek V4.1 Flash Fast (latest)
+            contextWindow: 1000000
+          - id: moonshotai/Kimi-K3.1-Pro
+            name: Kimi K3.1 Pro
+            contextWindow: 1048576
+          - id: moonshotai/Kimi-K3
+            name: Kimi K3
+            contextWindow: 1000000
+          - id: moonshotai/Kimi-K2.7-Code
+            name: Kimi K2.7 Code
+            contextWindow: 256000
+          - id: moonshotai/Kimi-K2.7-Code-Highspeed
+            name: Kimi K2.7 Code HighSpeed
+            contextWindow: 262000
+          - id: moonshotai/Kimi-K2.6
+            name: Kimi K2.6
+            contextWindow: 256000
+          - id: moonshotai/Kimi-K2.5
+            name: Kimi K2.5
+            contextWindow: 256000
+          - id: z-ai/glm-5.3-flash
+            name: GLM-5.3 Flash
+            contextWindow: 1048576
+          - id: z-ai/glm-5.3-flashx
+            name: GLM-5.3 FlashX
+            contextWindow: 1000000
+          - id: zai-org/GLM-5.3
+            name: GLM-5.3
+            contextWindow: 1000000
+          - id: zai-org/GLM-5.2
+            name: GLM-5.2
+            contextWindow: 1000000
+          - id: zai-org/GLM-5.2-Fast
+            name: GLM-5.2 Fast
+            contextWindow: 1000000
+          - id: zai-org/GLM-5.1
+            name: GLM-5.1
+            contextWindow: 200000
+          - id: zai-org/GLM-5
+            name: GLM-5
+            contextWindow: 200000
+          - id: minimax/minimax-m3.1-flash
+            name: MiniMax M3.1 Flash
+            contextWindow: 1000000
+          - id: MiniMaxAI/MiniMax-M3
+            name: MiniMax M3
+            contextWindow: 1000000
+          - id: MiniMaxAI/MiniMax-M2.7
+            name: MiniMax M2.7
+            contextWindow: 200000
+          - id: MiniMaxAI/MiniMax-M2.5
+            name: MiniMax M2.5
+            contextWindow: 200000
+          - id: ornith/ornith-1.5-122b
+            name: Ornith 1.5 122B
+            contextWindow: 262144
+          - id: xiaomi/mimo-v2.6-pro
+            name: MiMo V2.6 Pro
+            contextWindow: 1048576
+          - id: xiaomi/mimo-v2.6-pro-ultraspeed
+            name: MiMo V2.6 Pro UltraSpeed
+            contextWindow: 1048576
+          - id: xiaomi/mimo-v2.6-flash
+            name: MiMo V2.6 Flash
+            contextWindow: 1048576
+          - id: Qwen/Qwen3.8-Omni-Flash
+            name: Qwen 3.8 Omni Flash
+            contextWindow: 1000000
+          - id: Qwen/Qwen3.8-Max-Prime
+            name: Qwen 3.8 Max Prime
+            contextWindow: 1000000
+          - id: Qwen/Qwen3.8-Max-0902
+            name: Qwen 3.8 Max 0902
+            contextWindow: 1000000
+          - id: Qwen/Qwen3.8-Max
+            name: Qwen 3.8 Max
+            contextWindow: 1000000
+          - id: Qwen/Qwen3.8-27B
+            name: Qwen 3.8 27B
+            contextWindow: 262144
+          - id: Qwen/Qwen3.8-Flash
+            name: Qwen 3.8 Flash
+            contextWindow: 1000000
+          - id: Qwen/Qwen3.7-Max
+            name: Qwen 3.7 Max
+            contextWindow: 1000000
+          - id: Qwen/Qwen3.7-Plus
+            name: Qwen 3.7 Plus
+            contextWindow: 1000000
+          - id: Qwen/Qwen3.7-Flash
+            name: Qwen 3.7 Flash
+            contextWindow: 1000000
+          - id: Qwen/Qwen3.6-Max-Preview
+            name: Qwen 3.6 Max Preview
+            contextWindow: 200000
+          - id: Qwen/Qwen3.6-Plus
+            name: Qwen 3.6 Plus
+            contextWindow: 200000
+          - id: meituan/LongCat-2.0
+            name: LongCat 2.0
+            contextWindow: 1048576
+          - id: stepfun/Step-5-Preview
+            name: Step 5 Preview
+            contextWindow: 1000000
+          - id: stepfun/Step-3.7-Flash
+            name: Step 3.7 Flash
+            contextWindow: 256000
+          - id: stepfun/Step-3.5-Flash
+            name: Step 3.5 Flash
+            contextWindow: 262144
+          - id: tencent/hy3-paid
+            name: Tencent Hy3
+            contextWindow: 262144
+          - id: tencent/hy4-preview
+            name: Tencent Hy4 Preview
+            contextWindow: 1048576
+          - id: google/gemini-4-argon
+            name: Gemini 4 Argon
+            contextWindow: 1000000
+          - id: google/gemini-3.8-flash
+            name: Gemini 3.8 Flash
+            contextWindow: 1000000
+          - id: google/gemini-3.7-flash
+            name: Gemini 3.7 Flash
+            contextWindow: 1048576
+          - id: google/gemini-3.6-flash
+            name: Gemini 3.6 Flash
+            contextWindow: 1000000
+          - id: google/gemini-3.5-flash
+            name: Gemini 3.5 Flash
+            contextWindow: 1000000
+          - id: google/gemini-3.5-flash-lite
+            name: Gemini 3.5 Flash Lite
+            contextWindow: 1000000
+          - id: google/gemini-3.1-flash-lite
+            name: Gemini 3.1 Flash Lite
+            contextWindow: 1000000
+          - id: sakana/fugu-ultra
+            name: Fugu Ultra
+            contextWindow: 1000000
+          - id: nvidia/nemotron-3-ultra-550b-a55b
+            name: Nemotron 3 Ultra
+            contextWindow: 1000000
+          - id: nvidia/nemotron-3.5-super-vl
+            name: Nemotron 3.5 Super VL
+            contextWindow: 262144
+          - id: thinkingmachines/inkling
+            name: Inkling
+            contextWindow: 256000
+          - id: thinkingmachines/inkling-small
+            name: Inkling Small
+            contextWindow: 1000000
+          - id: stealth/glyph-cluster:free
+            name: Glyph Cluster
+            contextWindow: 256000
+          - id: reflection/beam:free
+            name: Beam 1.0
+            contextWindow: 1048576
+          - id: poolside/laguna-s-2.1-free
+            name: Laguna S 2.1
+            contextWindow: 256000
+          - id: inclusionai/ling-3.1-flash
+            name: Ling 3.1 Flash
+            contextWindow: 262144
+          - id: meta/muse-spark-1.1
+            name: Muse Spark 1.1
+            contextWindow: 1048576
+          - id: meta/muse-spark-1.2
+            name: Muse Spark 1.2
+            contextWindow: 1048576
+          - id: meta/muse-spark-1.2-contributor
+            name: Muse Spark 1.2 Contributor
+            contextWindow: 1048576
+          - id: meta/muse-spark-1.3
+            name: Muse Spark 1.3
+            contextWindow: 1048576
+          - id: meta/muse-spark-1.3-contributor
+            name: Muse Spark 1.3 Contributor
+            contextWindow: 1048576
+          - id: meta/muse-spark-open
+            name: Muse Spark Open
+            contextWindow: 1048576
+          - id: meta/muse-wonder-1.0
+            name: Muse Wonder
+            contextWindow: 1048576
+          - id: xai/grok-4.5
+            name: Grok 4.5
+            contextWindow: 500000
+          - id: xai/grok-4.6
+            name: Grok 4.6
+            contextWindow: 500000
+          - id: xai/grok-4.7
+            name: Grok 4.7
+            contextWindow: 500000
+          - id: mistral/mistral-large-4
+            name: Mistral Large 4
+            contextWindow: 524288
+        retryPolicy:
+          mode: normal
+          maxRetries: 9
+          backoff:
+            initialDelayMs: 5000
+            maxDelayMs: 45000
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - STREAM_CLOSED
+            - MALFORMED_RESPONSE
+      commandcode-anthropic:
+        displayName: Command Code (Anthropic)
+        api: anthropic-messages
+        baseURL: https://api.commandcode.ai/provider
+        apiKeyEnv: COMMAND_CODE_API_KEY
+        models:
+          - id: claude-sonnet-5-5
+            name: Claude Sonnet 5.5
+            contextWindow: 1000000
+          - id: claude-sonnet-5
+            name: Claude Sonnet 5
+            contextWindow: 1000000
+          - id: claude-sonnet-4-6
+            name: Claude Sonnet 4.6
+            contextWindow: 1000000
+          - id: claude-fable-5-1
+            name: Claude Fable 5.1
+            contextWindow: 1000000
+          - id: claude-fable-5
+            name: Claude Fable 5
+            contextWindow: 1000000
+          - id: claude-opus-5-5
+            name: Claude Opus 5.5
+            contextWindow: 1000000
+          - id: claude-opus-5
+            name: Claude Opus 5
+            contextWindow: 1000000
+          - id: claude-opus-4-8
+            name: Claude Opus 4.8
+            contextWindow: 1000000
+          - id: claude-opus-4-7
+            name: Claude Opus 4.7
+            contextWindow: 1000000
+          - id: claude-haiku-5-5
+            name: Claude Haiku 5.5
+            contextWindow: 1000000
+          - id: claude-haiku-4-5-20251001
+            name: Claude Haiku 4.5
+            contextWindow: 200000
+        retryPolicy:
+          mode: normal
+          maxRetries: 9
+          backoff:
+            initialDelayMs: 5000
+            maxDelayMs: 45000
+          retryableCodes:
+            - EMPTY_RESPONSE
+            - RATE_LIMIT
+            - SERVER
+            - TIMEOUT
+            - TRANSPORT
+            - STREAM_CLOSED
+            - MALFORMED_RESPONSE
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: session-persistence-jsonl
+  name: '@deepseek-ai/dsh-session-persistence-jsonl'
+  config:
+    root: !!js process.env.DSH_TUI_SESSION_ROOT ?? dshHomePath('sessions')
+# == @deepseek-ai/dsh-base
+- id: attachment-local
+  name: '@deepseek-ai/dsh-attachment-local'
+- id: session-query-sqlite
+  name: '@deepseek-ai/dsh-session-query-sqlite'
+  config:
+    path: ':memory:'
+    openAt: never
+- id: working-directory
+  name: '@deepseek-ai/dsh-working-directory'
+- id: tool-working-directory
+  name: '@deepseek-ai/dsh-tool-working-directory'
+- id: session-projection
+  name: '@deepseek-ai/dsh-session-projection'
+- id: storage
+  name: '@deepseek-ai/dsh-storage'
+- id: storage-json
+  name: '@deepseek-ai/dsh-storage-json'
+  config:
+    root: !!js dshHomePath('storages')
+- id: storage-domain
+  name: '@deepseek-ai/dsh-storage-domain'
+  config:
+    backend: json
+- id: session-projection-cache
+  name: '@deepseek-ai/dsh-session-projection-cache'
+  config:
+    writeEveryEvents: 200
+    writeIntervalMs: 5000
+- id: otel
+  name: '@deepseek-ai/dsh-otel'
+- id: session-telemetry-otel
+  name: '@deepseek-ai/dsh-session-telemetry-otel'
+  config:
+    mode: !!js process.env.DSH_TELEMETRY_MODE || 'FEEDBACK_ONLY'
+    shutdownTimeoutMillis: 3000
+    maxRequestBytes: 4000000
+    exporter:
+      url: !!js >-
+        process.env.DSH_TELEMETRY_OTLP_URL ??
+        'https://dsh-otel-collector.deepseeksvc.com/v1/logs'
+      compression: gzip
+      timeoutMillis: 1000
+    processor:
+      scheduledDelayMillis: 10000
+      maxQueueSize: 2048
+      maxExportBatchSize: 2048
+      exportTimeoutMillis: 1500
+- id: subprocess
+  name: '@deepseek-ai/dsh-subprocess-local'
+- id: sandbox
+  name: '@deepseek-ai/dsh-sandbox-local'
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: sandbox-policy
+  name: '@deepseek-ai/dsh-sandbox-policy'
+  config:
+    mode: !!js >-
+      process.platform === 'win32' ? 'danger-full-access' :
+      (process.env.DSH_PERMISSION_MODE ?? 'workspace-write')
+    workspaceRoot: !!js process.cwd()
+# == @deepseek-ai/dsh-base
+- id: bash-sandbox
+  name: '@deepseek-ai/dsh-bash-sandbox'
+  disabled: !!js process.platform === 'win32'
+  config:
+    timeoutMs: 60000
+- id: pwsh-sandbox
+  name: '@deepseek-ai/dsh-pwsh-sandbox'
+  disabled: !!js process.platform !== 'win32'
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: approval
+  name: '@deepseek-ai/dsh-user-approval'
+  config:
+    policy: !!js >-
+      process.platform === 'win32' ? 'never' : ((process.env.DSH_PERMISSION_MODE
+      ?? 'workspace-write') === 'danger-full-access' ? 'never' : 'ask')
+# == @deepseek-ai/dsh-base
+- id: permission
+  name: '@deepseek-ai/dsh-permission-presets'
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+- id: shell-env
+  name: '@deepseek-ai/dsh-shell-env'
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: true
+- id: tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+  disabled: true
+- id: tool-jobs
+  name: '@deepseek-ai/dsh-tool-jobs'
+  disabled: true
+# == @deepseek-ai/dsh-base
+- id: fs-observation-policy
+  name: '@deepseek-ai/dsh-fs-observation-policy'
+  disabled: true
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+  config:
+    applyPatch: false
+  disabled: true
+- id: tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+  disabled: true
+- id: agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+  disabled: true
+# == @deepseek-ai/dsh-base
+- id: skill
+  name: '@deepseek-ai/dsh-skill'
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+  disabled: true
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+  disabled: true
+# == @deepseek-ai/dsh-base
+- id: commands
+  name: '@deepseek-ai/dsh-commands'
+- id: command-feedback
+  name: '@deepseek-ai/dsh-command-feedback'
+- id: goal
+  name: '@deepseek-ai/dsh-goal'
+- id: goal-round-driver
+  name: '@deepseek-ai/dsh-goal-round-driver'
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: command-goal
+  name: '@deepseek-ai/dsh-command-goal'
+  disabled: !!js |-
+    (() => {
+      const require = process.getBuiltinModule('node:module').createRequire(ctx.baseUrl)
+      const fs = process.getBuiltinModule('node:fs')
+      const path = process.getBuiltinModule('node:path')
+      try {
+        require.resolve('@deepseek-ai/dsh-agent-preset-registry/package.json')
+        return true
+      } catch {}
+      try {
+        const manifest = require.resolve('@deepseek-ai/dsh-agent-presets/package.json')
+        const preset = path.join(path.dirname(manifest), 'presets', 'standard', 'agent.cordis.yml')
+        return fs.readFileSync(preset, 'utf8')
+          .split(/\r?\n/u)
+          .some(line => line.trim() === '- id: command-goal')
+      } catch {
+        return false
+      }
+    })()
+- id: plan-mode
+  name: '@deepseek-ai/dsh-plan-mode'
+  config:
+    section: >
+      You are in plan mode. Stay in plan mode until the user approves your plan
+      through exit_plan_mode or switches the session mode. Imperative language
+      to implement changes means plan the implementation, not execute it. A
+      user's conversational agreement — including an answer confirming something
+      you asked — approves nothing and does not end plan mode; fold the
+      confirmed decision into the plan and submit it through exit_plan_mode.
+
+
+      Explore first. Use non-mutating reads, searches, static analysis, and
+      checks to ground the plan in the actual repository. Do not edit or write
+      files, change configuration, run formatters or code generation that
+      rewrites tracked files, commit, or otherwise carry out the plan. Prefer
+      existing functions and patterns over new machinery.
+
+
+      The tool catalog stays the same across modes for request-cache stability.
+      These plan-mode rules override any later tool description or guidance that
+      suggests using mutation tools; those tools remain listed only to keep the
+      request shape stable. Do not use todo_write to track this planning phase:
+      it tracks implementation after an approved plan, while the plan itself
+      belongs in exit_plan_mode.
+
+
+      Resolve discoverable facts by inspection. Use ask_user_question only for
+      user-owned choices or material ambiguity that inspection cannot answer. Do
+      not ask the user where code lives or how current behavior works when you
+      can find out.
+
+
+      Make the plan decision-complete: state the goal and success criteria;
+      group implementation changes by subsystem; identify public API, schema,
+      and data-flow changes; cover edge cases, failure modes, tests, acceptance
+      criteria, and explicit assumptions. Keep it concise enough to review but
+      detailed enough that another engineer can implement it without making
+      design decisions.
+
+
+      When ready, call exit_plan_mode with the complete plan markdown, starting
+      with a # title. Make exit_plan_mode the only and final tool call in that
+      assistant response: it presents the plan for approval, and implementation
+      begins only in a later step after approval. Do not paste the final plan as
+      a plain reply or ask "should I proceed?" through prose or
+      ask_user_question. If review rejects it, incorporate the feedback and
+      present again. If the review channel is unavailable or aborted, stay in
+      plan mode and ask the user to switch modes manually; do not proceed with
+      implementation.
+  disabled: true
+# == @deepseek-ai/dsh-base
+- id: token-meter
+  name: '@deepseek-ai/dsh-token-meter'
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: compaction-basic
+  name: '@deepseek-ai/dsh-compaction-basic'
+  disabled: true
+- id: command-compact
+  name: '@deepseek-ai/dsh-command-compact'
+  disabled: true
+# == @deepseek-ai/dsh-base
+- id: subagent
+  name: '@deepseek-ai/dsh-subagent'
+- id: subagent-spawn-in-process
+  name: '@deepseek-ai/dsh-subagent-spawn-in-process'
+  config:
+    providerName: spawn
+- id: subagent-fork-in-process
+  name: '@deepseek-ai/dsh-subagent-fork-in-process'
+  config:
+    providerName: fork
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: tool-subagent-control
+  name: '@deepseek-ai/dsh-tool-subagent-control'
+  disabled: true
+- id: tool-subagent
+  name: '@deepseek-ai/dsh-tool-subagent'
+  config:
+    provider: spawn
+    toolName: subagent
+  disabled: true
+- id: tool-subagent-fork
+  name: '@deepseek-ai/dsh-tool-subagent'
+  config:
+    provider: fork
+    toolName: subagent_fork
+  disabled: true
+# == @deepseek-ai/dsh-base
+- id: ptc-runtime
+  name: '@deepseek-ai/dsh-ptc-runtime-node'
+- id: workflow-ptc
+  name: '@deepseek-ai/dsh-workflow-ptc'
+  config:
+    provider: spawn
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: tool-workflow
+  name: '@deepseek-ai/dsh-tool-workflow'
+  disabled: true
+# == @deepseek-ai/dsh-base
+- id: timeout-policy
+  name: '@deepseek-ai/dsh-tool-call-timeout-policy'
+- id: spill-local
+  name: '@deepseek-ai/dsh-spill-local'
+- id: spill-policy
+  name: '@deepseek-ai/dsh-spill-policy'
+  config:
+    maxInlineTokens: 12500
+- id: session-checkpoint-policy
+  name: '@deepseek-ai/dsh-session-checkpoint-policy'
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: tool-result-pruner
+  name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+  config:
+    thresholdChars: 8192
+    headChars: 4096
+    tailChars: 1024
+  disabled: true
+# == @deepseek-ai/dsh-base
+- id: image-offload
+  name: '@deepseek-ai/dsh-compaction-image-offload'
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: tool-todo
+  name: '@deepseek-ai/dsh-tool-todo'
+  config:
+    allowParallelInProgress: true
+  disabled: true
+- id: tool-goal
+  name: '@deepseek-ai/dsh-tool-goal'
+  disabled: true
+# == @deepseek-ai/dsh-base
+- id: repeat-tool-reminder
+  name: '@deepseek-ai/dsh-repeat-tool-reminder'
+  config:
+    thresholds:
+      - 3
+      - 5
+      - 8
+    argumentsPreviewChars: 500
+# == @deepseek-ai/dsh-base, patched by /home/vietdo/.dsh/profiles/tui/cordis.patch.yml
+- id: web
+  name: '@deepseek-ai/dsh-web'
+  config:
+    searchProvider: brave
+    fetchProvider: deepseek-fetch-fallback
+# == @deepseek-ai/dsh-base
+- id: web-search-deepseek
+  name: '@deepseek-ai/dsh-web-search-deepseek'
+  config:
+    apiKeyEnv: DEEPSEEK_API_KEY
+- id: web-deepseek-api
+  name: '@deepseek-ai/dsh-web-deepseek-api'
+  config:
+    apiKeyEnv: DEEPSEEK_API_KEY
+- id: web-fetch-http
+  name: '@deepseek-ai/dsh-web-fetch-http'
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: true
+    searchTimeoutMs: 60000
+  disabled: true
+# == @deepseek-ai/dsh-base
+- id: mcp-resources
+  name: '@deepseek-ai/dsh-mcp-resources'
+- id: tools
+  name: '@deepseek-ai/dsh-tools'
+- id: tool-executor-native
+  name: '@deepseek-ai/dsh-tool-executor-native'
+- id: tool-executor-ptc
+  name: '@deepseek-ai/dsh-tool-executor-ptc'
+  disabled: true
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui
+- id: system-prompt
+  name: '@deepseek-ai/dsh-system-prompt'
+  config: !!js |-
+    (() => {
+      const persona = process.env.DSH_TUI_PERSONA ?? 'You are a coding agent.'
+      try {
+        const require = process.getBuiltinModule('node:module').createRequire(ctx.baseUrl)
+        const fs = process.getBuiltinModule('node:fs')
+        const manifest = require.resolve('@deepseek-ai/dsh-system-prompt/package.json')
+        const version = String(JSON.parse(fs.readFileSync(manifest, 'utf8')).version ?? '')
+        const match = /^(\d+)\.(\d+)\.(\d+)/u.exec(version)
+        const [major, minor, patch] = match === null ? [0, 0, 0] : [Number(match[1]), Number(match[2]), Number(match[3])]
+        if (major > 0 || minor > 1 || (minor === 1 && patch >= 3)) return { personaPrefix: persona }
+        return { persona }
+      } catch {
+        return { personaPrefix: persona }
+      }
+    })()
+# == @deepseek-ai/dsh-base
+- id: agent-loop
+  name: '@deepseek-ai/dsh-agent-loop'
+  config:
+    agents: []
+- id: fs-sandbox
+  name: '@deepseek-ai/dsh-fs-sandbox'
+# == @deepseek-ai/dsh-base, patched by @deepseek-harness-tui/dsh-tui, /home/vietdo/.dsh/profiles/tui/cordis.patch.yml
+- id: llm-deepseek
+  name: '@deepseek-ai/dsh-llm-deepseek-api-key'
+  config:
+    apiKeyEnv: DEEPSEEK_API_KEY
+    baseURL: !!js process.env.DEEPSEEK_BASE_URL
+    thinking: enabled
+    reasoningEffort: max
+  disabled: true
+# == @deepseek-ai/dsh-base
+- id: llm-deepseek-account
+  name: '@deepseek-ai/dsh-llm-deepseek-account'
+# == @deepseek-harness-tui/dsh-tui
+- id: dsh-tui-storage
+  name: '@deepseek-ai/dsh-storage'
+  disabled: !!js >-
+    [...ctx.loader.entries()].some(entry => entry.options.id === 'storage' &&
+    entry.options.name === '@deepseek-ai/dsh-storage' && !entry.disabled)
+- id: dsh-tui-storage-json
+  name: '@deepseek-ai/dsh-storage-json'
+  disabled: !!js >-
+    [...ctx.loader.entries()].some(entry => entry.options.id === 'storage-json'
+    && entry.options.name === '@deepseek-ai/dsh-storage-json' &&
+    !entry.disabled)
+  config:
+    root: !!js dshHomePath('storages')
+- id: dsh-tui-storage-domain
+  name: '@deepseek-ai/dsh-storage-domain'
+  disabled: !!js >-
+    [...ctx.loader.entries()].some(entry => entry.options.id ===
+    'storage-domain' && entry.options.name === '@deepseek-ai/dsh-storage-domain'
+    && !entry.disabled)
+  config:
+    backend: json
+- id: dsh-tui-workspace
+  name: '@deepseek-ai/dsh-workspace'
+  disabled: !!js >-
+    [...ctx.loader.entries()].some(entry => entry.options.id === 'workspace' &&
+    entry.options.name === '@deepseek-ai/dsh-workspace' && !entry.disabled)
+- id: dsh-tui-code-runtime
+  name: '@deepseek-ai/dsh-code-runtime-worker-thread'
+  disabled: !!js |-
+    (() => {
+      const require = process.getBuiltinModule('node:module').createRequire(ctx.baseUrl)
+      try { require.resolve('@deepseek-ai/dsh-ptc-runtime-node/package.json'); return true } catch {}
+      return [...ctx.loader.entries()].some(entry => entry.options.id === 'code-runtime' && entry.options.name === '@deepseek-ai/dsh-code-runtime-worker-thread' && !entry.disabled)
+    })()
+- id: dsh-tui-subagent-model-selection-settings
+  name: '@deepseek-ai/dsh-tool-subagent/model-selection-settings'
+  disabled: !!js |-
+    (() => {
+      const require = process.getBuiltinModule('node:module').createRequire(ctx.baseUrl)
+      try {
+        require.resolve('@deepseek-ai/dsh-tool-subagent/model-selection-settings')
+      } catch {
+        return true
+      }
+      return [...ctx.loader.entries()].some(entry => entry.options.id === 'subagent-model-selection-settings' && entry.options.name === '@deepseek-ai/dsh-tool-subagent/model-selection-settings' && !entry.disabled)
+    })()
+- id: dsh-tui-workspaces
+  name: '@deepseek-harness-tui/dsh-tui/workspaces'
+- id: dsh-tui-command-trees
+  name: '@deepseek-harness-tui/dsh-tui/command-trees'
+- id: dsh-tui-settings-sections
+  name: '@deepseek-harness-tui/dsh-tui/settings-sections'
+- id: dsh-tui-scenes
+  name: '@deepseek-harness-tui/dsh-tui/scenes'
+- id: dsh-tui-panels
+  name: '@deepseek-harness-tui/dsh-tui/panels'
+- id: dsh-tui-plugin-host
+  name: '@deepseek-harness-tui/dsh-tui/plugin-host'
+- id: dsh-tui-extensions
+  name: '@deepseek-harness-tui/dsh-tui/extensions'
+- id: dsh-tui-agent-presets
+  name: '@deepseek-ai/dsh-agent-presets'
+  disabled: !!js |-
+    (() => {
+      const require = process.getBuiltinModule('node:module').createRequire(ctx.baseUrl)
+      try { require.resolve('@deepseek-ai/dsh-agent-preset-registry/package.json'); return true } catch {}
+      return [...ctx.loader.entries()].some(entry => entry.options.id === 'agent-presets' && entry.options.name === '@deepseek-ai/dsh-agent-presets' && !entry.disabled)
+    })()
+  config: !!js |-
+    (() => {
+      const require = process.getBuiltinModule('node:module').createRequire(ctx.baseUrl)
+      const fs = process.getBuiltinModule('node:fs')
+      const path = process.getBuiltinModule('node:path')
+      try {
+        const manifest = require.resolve('@deepseek-ai/dsh-agent-presets/package.json')
+        if (fs.existsSync(path.join(path.dirname(manifest), 'presets'))) {
+          return { default: 'standard' }
+        }
+      } catch {
+        // Let the roster import report a missing package; preserve the rc
+        // root fallback below for every package generation without one.
+      }
+      const base = ctx.baseUrl
+      if (!base) return { default: 'standard' }
+      const root = new URL('../node_modules/@deepseek-ai/dsh/config/agent-presets/', base)
+      let rootPath = decodeURIComponent(root.pathname)
+      if (/^\/[A-Za-z]:/.test(rootPath)) rootPath = rootPath.slice(1)
+      return { default: 'standard', roots: [{ path: rootPath, trust: 'system' }] }
+    })()
+- id: dsh-tui-agent-preset-registry
+  name: '@deepseek-ai/dsh-agent-preset-registry'
+  disabled: !!js |-
+    (() => {
+      const require = process.getBuiltinModule('node:module').createRequire(ctx.baseUrl)
+      try { require.resolve('@deepseek-ai/dsh-agent-preset-registry/package.json') } catch { return true }
+      return [...ctx.loader.entries()].some(entry => entry.options.id === 'agent-preset-registry' && entry.options.name === '@deepseek-ai/dsh-agent-preset-registry' && !entry.disabled)
+    })()
+  config:
+    default: standard
+- id: dsh-tui-cordis-host-runner
+  name: '@deepseek-ai/dsh-cordis-host-runner'
+  disabled: !!js >-
+    [...ctx.loader.entries()].some(entry => entry.options.id ===
+    'cordis-host-runner' && entry.options.name ===
+    '@deepseek-ai/dsh-cordis-host-runner' && !entry.disabled)
+- id: dsh-tui-webserver
+  name: '@deepseek-ai/dsh-host-webserver'
+  disabled: !!js |-
+    (() => {
+      const require = process.getBuiltinModule('node:module').createRequire(ctx.baseUrl)
+      try { require.resolve('@deepseek-ai/dsh-host-webserver/package.json') } catch { return true }
+      const entries = [...ctx.loader.entries()]
+      return !entries.some(entry => (entry.options.name === '@deepseek-ai/dsh-deepseek-account'
+        || entry.options.name === '@deepseek-ai/dsh-deepseek-account-platform') && !entry.disabled)
+        || entries.some(entry => entry.options.id === 'webserver' && entry.options.name === '@deepseek-ai/dsh-host-webserver' && !entry.disabled)
+    })()
+  config:
+    host: 127.0.0.1
+    port: 0
+- id: dsh-tui-auth
+  name: '@deepseek-harness-tui/dsh-tui/oauth'
+  inject:
+    - llm
+    - commands
+# == @deepseek-harness-tui/dsh-tui, patched by /home/vietdo/.dsh/profiles/tui/cordis.patch.yml
+- id: dsh-tui
+  name: '@deepseek-harness-tui/dsh-tui'
+  inject:
+    - workspaceRegistry
+    - agents
+    - tuiWorkspaces
+    - tuiScenes
+    - tuiPanels
+    - tuiDialogs
+    - tuiStatus
+    - tuiShortcuts
+    - tuiRenderers
+    - tuiThemes
+  config:
+    provider: opencode-go
+    model: deepseek-v4-pro
+    statusBar:
+      mode: true
+# == @deepseek-harness-tui/dsh-tui
+- id: working-activity
+  name: '@deepseek-harness-tui/dsh-tui/working-activity'
+  config:
+    publish: false
+    publishIntervalMs: 500
+# == ceulen-dsh
+- id: ceulen-status
+  name: ceulen-dsh/modules/status
+- id: ceulen-tools
+  name: ceulen-dsh/modules/tools
+- id: ceulen-skills
+  name: ceulen-dsh/modules/skills
+- id: ceulen-rules
+  name: ceulen-dsh/modules/rules
+- id: ceulen-gh
+  name: ceulen-dsh/modules/gh
+- id: ceulen-munin
+  name: ceulen-dsh/modules/munin
+- id: ceulen-agentmem
+  name: ceulen-dsh/modules/agentmem
+- id: ceulen-ponytail
+  name: ceulen-dsh/modules/ponytail
+- id: ceulen-agent-mode
+  name: ceulen-dsh/modules/agent-mode
+- id: ceulen-advisor
+  name: ceulen-dsh/modules/advisor
+- id: ceulen-todoview
+  name: ceulen-dsh/modules/todoview
+- id: ceulen-subagent
+  name: ceulen-dsh/modules/subagent
+- id: ceulen-cron
+  name: ceulen-dsh/modules/cron
+- id: ceulen-classifier
+  name: ceulen-dsh/modules/classifier
+- id: ceulen-repair
+  name: ceulen-dsh/modules/repair
+- id: ceulen-themes
+  name: ceulen-dsh/modules/themes
+- id: ceulen-router
+  name: ceulen-dsh/modules/providers
+  config:
+    target: router
+- id: ceulen-zai
+  name: ceulen-dsh/modules/providers
+  config:
+    target: zai
+- id: ceulen-web
+  name: ceulen-dsh/modules/web
+- id: ceulen-a2a
+  name: ceulen-dsh/modules/a2a
+- id: ceulen-ux
+  name: ceulen-dsh/modules/ux
+- id: ceulen-sg
+  name: ceulen-dsh/modules/sg
+- id: ceulen-steering
+  name: ceulen-dsh/modules/steering
+- id: ceulen-usage
+  name: ceulen-dsh/modules/usage
+- id: ceulen-jfind
+  name: ceulen-dsh/modules/jfind
+- id: ceulen-rtk
+  name: ceulen-dsh/modules/rtk
+- id: ceulen-codemode
+  name: ceulen-dsh/modules/codemode
+- id: ceulen-serena
+  name: ceulen-dsh/modules/serena
+- id: ceulen-context
+  name: ceulen-dsh/modules/context
+- id: ceulen-dashboard
+  name: ceulen-dsh/modules/dashboard
+- id: ceulen-evo
+  name: ceulen-dsh/modules/evo
+- id: ceulen-plan
+  name: ceulen-dsh/modules/plan
+- id: ceulen-notebooklm
+  name: ceulen-dsh/modules/notebooklm
+# == dsh-fff
+- id: dsh-fff
+  name: dsh-fff
+# == /home/vietdo/.dsh/profiles/tui/cordis.patch.yml
+- id: mcp-200lab
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: 200lab
+    transport: streamable-http
+    url: http://127.0.0.1:8770/mcp/learner
+    toolCallTimeoutMs: 120000
+    failOnStartupError: false
+- id: mcp-renesas
+  name: '@deepseek-ai/dsh-mcp-client'
+  config:
+    serverName: renesas
+    transport: streamable-http
+    url: https://api.renesas.com/mcp
+    toolCallTimeoutMs: 120000
+    failOnStartupError: false

@@ -11,9 +11,9 @@
       "name": "agent-mode",
       "category": "Workflow",
       "status": "native",
-      "dsh": "/Agent-mode [on|off|status] (alias /agent-mode) loads an external AGENTS.md role without changing permissions",
+      "dsh": "/Agent-mode [on|off|status] (alias /agent-mode) loads an external AGENTS.md role without changing permissions; configured model routes load it by default",
       "phase": 0,
-      "notes": "Ceulen-DSH-only role command. Defaults to ~/vietdo_workspace/DHS/agent_mode/AGENTS.md; the plugin path config overrides it. Starts inactive on plugin activation; on reloads the file, off removes the prompt section contents. Missing or empty files disable the role with an error.",
+      "notes": "Ceulen-DSH-only role command. Defaults to ~/vietdo_workspace/DHS/agent_mode/AGENTS.md; the plugin path config overrides it. Starts inactive on plugin activation; on reloads the file, off removes the prompt section contents. Missing or empty files disable the role with an error. /ceulen-config -> Model -> Agent Mode lists the provider/model routes that auto-activate it (default opencode-go/deepseek-v4.1-flash and deepseek/deepseek-flash); a /model switch follows the route default until an explicit on/off wins for the live session.",
       "rowId": "ceulen-agent-mode"
     },
     {
@@ -332,6 +332,15 @@
       "phase": 0,
       "notes": "DSH-only; upstream ceulen has no /context. TUI intercepts /context locally, so scripts/tui-context-patch.mjs redirects the built-in to this registry command when present. DNA mode ports the dsh-context web fingerprint: bands are priced with token-meter's own chars/4 heuristic from the session log (request/header + surface events), so the replay needs no host tokens service; the scene colours through tuiScenes' semantic <Text color>, not the SGR-sanitized command path.",
       "rowId": "ceulen-context"
+    },
+    {
+      "name": "dashboard",
+      "category": "Appearance",
+      "status": "native",
+      "dsh": "/dashboard same-session native task/agent/activity scene; /dashboard status for headless projection summary",
+      "phase": 0,
+      "notes": "Read-only host channel projection through tuiScenes. No Herdr dependency, model switching, scheduler, composer or server. Team failures retain host last-valid data; headless child catalog explicitly reports unavailable run metrics.",
+      "rowId": "ceulen-dashboard"
     },
     {
       "name": "evo",
