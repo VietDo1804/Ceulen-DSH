@@ -144,9 +144,13 @@ not replace a literal old version that becomes a no-op after an upgrade.
   the loop now covers all six, not the two this section used to list.
 - `/ceulen doctor` prints all six states (`advisor-block`, `context-redirect`,
   `tool-names`, `plan-mode`, `effort-per-model`, `ui-style`); a `stock (…)` segment names the script to run.
-- The usage footer needs no patch on **dsh-tui >= 0.17.0** (native
-  `tuiStatus.setField`). The 0.16.1 footer patch was deleted (plan 5.5), and the
-  usage module prefers `setField`.
+- Usage uses native `tuiStatus.setField` on **dsh-tui >= 0.17.0**; the old
+  0.16.1 footer patch is obsolete. On **0.20.0**, the host still clamps
+  `maxCells: 64` to 32, cutting off monthly usage. After the last package
+  mutation, additionally run `node scripts/tui-usage-patch.mjs apply --tui <resolved-dir>`
+  and `check` on every installed 0.20.0 TUI. Repeat this usage-cap check at the
+  final six-patch gate. It raises the bounded cap to 64, preserving the default
+  16 and field-count limits; do not apply it to unverified versions.
 - Re-apply all six after every `dsh plugin add/remove`/`update` — pnpm rewrites
   the package tree and the patch files live inside it.
 
