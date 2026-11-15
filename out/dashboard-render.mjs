@@ -27,7 +27,8 @@ for (const [columns, rows] of [[80, 24], [120, 40], [45, 18], [20, 8]]) {
   }
   const instance = ui.renderSync(React.createElement(Scene, { React, ui, channel, close() { closed++ } }), { stdout, stdin, stderr: stdout, debug: true, patchConsole: false, exitOnCtrlC: false, terminalImages: false })
   const settle = () => new Promise(resolve => setTimeout(resolve, 60))
-  await settle()
+  // Let the open gauge ramp finish so the committed capture does not depend on timing.
+  await new Promise(resolve => setTimeout(resolve, 900))
   writeFileSync(`out/dashboard-render-debug-${columns}.txt`, frames.join(''))
   const frame = stripVTControlCharacters(frames.filter(frame => stripVTControlCharacters(frame).includes(columns < 30 ? 'Too small' : 'Native Agent Dashboard')).at(-1) ?? '')
   assert(frame, `No native frame at ${columns}x${rows}`)
@@ -54,7 +55,8 @@ for (const [columns, rows] of [[80, 24], [120, 40], [45, 18], [20, 8]]) {
   }
   stdin.write('\x1b'); await settle()
   assert.equal(closed, 1, 'Esc did not return to chat')
-  writeFileSync(`out/dashboard-render-${columns}x${rows}.txt`, frame)
+  // The header badge glyph is an animation frame; pin it so captures are deterministic.
+  writeFileSync(`out/dashboard-render-${columns}x${rows}.txt`, frame.replace(/^ [\u2800-\u28ff·]/m, ' ·'))
   instance.unmount(); instance.cleanup(); stdin.destroy()
   assert.equal(disposed, columns >= 30 ? 4 : 2, 'Unmount leaked listeners')
   console.log(`PASS ${columns}x${rows}: Unicode cells, height, detail, escape, session rebind, cleanup`)

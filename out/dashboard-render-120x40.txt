@@ -1,10 +1,10 @@
- ⠋ CEULEN · Native Agent Dashboard · render-session
+ · CEULEN · Native Agent Dashboard · render-session
  lead · test/gpt-6-astra · idle · usage —
  Live native session · route and execution policy unchanged
  [Tasks] · Agents · Activity
  ╭─ TASKS ─────────────────────────────╮╭─ AGENTS ────────────────────────────╮╭─ TOKENS ────────────────────────────╮
  │ 0/25                                ││ 1/1                                 ││ — / —                               │
- │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ││ ▍░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ││ — no ratio reported                 │
+ │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ││ ███████████████████████████████████ ││ — no ratio reported                 │
  │ 0% · 25 open                        ││ 100% · 1 child · 1 running          ││ total —                             │
  ╰─────────────────────────────────────╯╰─────────────────────────────────────╯╰─────────────────────────────────────╯
  ╭─ Tasks · 0/25 done · 1-13 ───────────────╮╭─ Agents · 1 · 1-1 ───────────────────╮╭─ Activity · 1 · 1-1 ───────────╮
