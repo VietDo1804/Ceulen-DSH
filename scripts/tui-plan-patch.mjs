@@ -36,6 +36,7 @@ const CHAT = 'lib/types/screens/Chat.js'
 const MODE = 'lib/types/dsh-adapter/channel/mode-actions.js'
 const PERMISSION_MODE = 'lib/types/dsh-adapter/channel/mode-permission-actions.js'
 const PLAN_REVIEW = 'lib/types/components/questions/PlanReviewPanel.js'
+const LAUNCHPAD = 'lib/types/screens/Launchpad.js'
 
 const commandEdge = [
   {
@@ -190,6 +191,58 @@ const commandEdge = [
     };`,
   },
 ]
+
+// ponytail: reuse the existing footer name and launchpad row; no new picker or preference.
+commandEdge.push(
+  {
+    file: 'lib/types/sessionModes.js',
+    label: 'explicit PLAN MODE label',
+    stock: "    if (spec.id === 'plan')\n        return t('mode-plan');",
+    patched: "    if (spec.id === 'plan')\n        return 'PLAN MODE';",
+  },
+  {
+    file: CHAT,
+    label: 'launchpad live plan state',
+    stock: 'effort: channel.reasoningEffort, preset: channel.agentPreset === undefined',
+    patched: 'effort: channel.reasoningEffort, planActive: channel.mode.plan === true, preset: channel.agentPreset === undefined',
+  },
+  {
+    file: LAUNCHPAD,
+    label: 'launchpad plan state input',
+    stock: 'onParamPick, model, effort, preset, permission, commands,',
+    patched: 'onParamPick, model, effort, planActive = false, preset, permission, commands,',
+  },
+  {
+    file: LAUNCHPAD,
+    label: 'launchpad plan badge width',
+    stock: 'const paramBudget = Math.max(24, Math.min(columns - 4, 72)) - 2;',
+    patched: 'const paramBudget = Math.max(24, Math.min(columns - 4, 72)) - 2 - (planActive ? 12 : 0);',
+  },
+  {
+    file: LAUNCHPAD,
+    label: 'launchpad retains permission beside plan badge',
+    stock: "if (preset !== undefined && preset !== '') {",
+    patched: "if (!planActive && preset !== undefined && preset !== '') {",
+  },
+  {
+    file: LAUNCHPAD,
+    label: 'launchpad plan badge survives narrow widths',
+    stock: 'const hasParams = fittedParams.length > 0;',
+    patched: 'const hasParams = planActive || fittedParams.length > 0;',
+  },
+  {
+    file: LAUNCHPAD,
+    label: 'launchpad PLAN MODE badge',
+    stock: 'hasParams && (_jsx(Box, { paddingLeft: 2, height: 1, flexDirection: "row", children: fittedParams.map((part, index)',
+    patched: 'hasParams && (_jsxs(Box, { paddingLeft: 2, height: 1, flexDirection: "row", children: [planActive && _jsx(Text, { color: "planMode", bold: true, children: "PLAN MODE" + PARAM_SEPARATOR }), ...fittedParams.map((part, index)',
+  },
+  {
+    file: LAUNCHPAD,
+    label: 'launchpad badge row closure',
+    stock: '} }))] }, part.segment))) })), overlayPanel !== undefined',
+    patched: '} }))] }, part.segment)))] })), overlayPanel !== undefined',
+  },
+)
 
 const args = process.argv.slice(2)
 const action = args.find(arg => !arg.startsWith('--')) ?? 'check'
