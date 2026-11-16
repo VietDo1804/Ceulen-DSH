@@ -116,7 +116,7 @@ You should see the release line (`ceulen-dsh 0.2.6 (stable)`), the pinned
 Ceulen version, and the mounted/native/planned modules.
 
 Installation is per machine and profile, not inherited from this checkout. The bundle composes
-33 rows. See `docs/live-verification.md` and `docs/dashboard.md` for the evidence.
+34 rows. See `docs/live-verification.md` and `docs/dashboard.md` for the evidence.
 
 ### Release line
 
@@ -432,6 +432,31 @@ the footer while it is active — a bare `/plan` writes no sandbox/approval
 atoms, so the stock indicator fell back to the base mode (or kept the
 permission preset's "Full access" label). `/ceulen doctor` reports
 `plan-mode applied|stock`.
+
+### Goal mode: automatic recovery
+
+DSH's goal driver stops for good when a turn dies outside the model's control:
+it disarms the goal on `agent/error` and pauses a cancelled goal round (Esc)
+once the agent goes idle. The `goal-retry` module adds the missing recovery
+over the public services — the harness stays untouched:
+
+- the same active goal is re-armed after 5/10/20/40/60 s, at most 5 times per
+  consecutive failure streak, and `agent/error` + `turn/end` for one turn count
+  as a single failure;
+- re-arming is `goals.resume()`: the driver's own `goal/changed` listener starts
+  the next round in the same session, so no prompt is injected and the round
+  budget, revision fence and checkpoint keep working;
+- a completed turn resets the streak and cancels a pending retry;
+  `/goal pause|edit|complete|block|clear` cancels it and is never undone;
+- Esc is recovered by reading the harness's own pause (it lands right after the
+  cancelled turn) instead of treating it as a human stop;
+- after 5 recoveries the goal is blocked with `recovery-exhausted` and
+  `/goal resume` restarts it with a fresh 5-attempt budget (only a human resume
+  refreshes the streak; the module's own re-arm must not, or the cap never
+  binds). `max-tokens`, a disposed session and an exhausted round budget still
+  stop the goal.
+
+`/ceulen module off goal-retry` restores stock behaviour.
 
 ### Memory: Munin cloud first, opimem bridge as failover
 

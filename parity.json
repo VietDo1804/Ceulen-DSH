@@ -115,6 +115,15 @@
       "rowId": "ceulen-plan"
     },
     {
+      "name": "goal-retry",
+      "category": "Tasks",
+      "status": "native",
+      "dsh": "automatic recovery of a same-session goal after a provider error or an Esc cancellation (5 retries, exponential backoff)",
+      "phase": 0,
+      "notes": "Ceulen-DSH-only recovery over the native goal services. DSH's goal-round driver stops for good on agent/error and pauses a cancelled goal round; this module re-arms the same goal after 5/10/20/40/60 s, at most 5 times per failure streak, and counts agent/error + turn/end of one turn as one failure. Re-arming is goals.resume(), which the driver's own goal/changed listener turns into the next round, so round budget, revision fence and checkpoint stay native. A completed turn resets the streak; /goal pause|edit|complete|block|clear cancels the pending retry; exhaustion blocks with recovery-exhausted, and a human /goal resume grants a fresh 5-attempt budget (the module's own re-arm keeps the streak, or the cap would never bind). The harness is never patched. /ceulen module off goal-retry restores stock behaviour.",
+      "rowId": "ceulen-goal-retry"
+    },
+    {
       "name": "a2a",
       "category": "Tasks",
       "status": "partial",
