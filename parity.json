@@ -11,7 +11,7 @@
       "name": "agent-mode",
       "category": "Workflow",
       "status": "native",
-      "dsh": "/Agent-mode [on|off|status] (alias /agent-mode) loads an external AGENTS.md role without changing permissions; configured model routes load it by default",
+      "dsh": "/agent-mode [on|off|status] loads an external AGENTS.md role without changing permissions; configured model routes load it by default",
       "phase": 0,
       "notes": "Ceulen-DSH-only role command. Defaults to ~/vietdo_workspace/DHS/agent_mode/AGENTS.md; the plugin path config overrides it. Starts inactive on plugin activation; on reloads the file, off removes the prompt section contents. Missing or empty files disable the role with an error. /ceulen-config -> Model -> Agent Mode lists the provider/model routes that auto-activate it (default opencode-go/deepseek-v4.1-flash and deepseek/deepseek-flash); a /model switch follows the route default until an explicit on/off wins for the live session.",
       "rowId": "ceulen-agent-mode"
@@ -198,9 +198,9 @@
       "name": "web",
       "category": "Tools",
       "status": "partial",
-      "dsh": "web_extract/map, web_screenshot, web_pdf, web_interact (headless Chrome/CDP), web_chat (ChatGPT web via codex login / CHATGPT_WEB_AUTH_KEY, or an OpenAI-compatible gateway via WEB_CHAT_API_BASE_URL), Brave search provider, DeepSeek Fetch provider with local HTTP fallback",
+      "dsh": "web_extract/map, web_screenshot, web_pdf, web_interact (headless Chrome/CDP), web_chat (ChatGPT web via codex login / CHATGPT_WEB_AUTH_KEY, or an OpenAI-compatible gateway via WEB_CHAT_API_BASE_URL), web_image (ChatGPT web image generation on the same subscription credential, Z.AI via ZAI_API_KEY, or any OpenAI-compatible images endpoint via WEB_IMAGE_API_BASE_URL), Brave search provider, DeepSeek Fetch provider with local HTTP fallback",
       "phase": 4,
-      "notes": "Browser capture is ported; Brave registers as a native search provider and deepseek-fetch-fallback serves page Markdown with a local HTTP fallback. web_chat is ported: the ChatGPT web tier is the default when ~/.codex/auth.json (codex login) or CHATGPT_WEB_AUTH_KEY resolves, the model defaults to the Codex-configured model (~/.codex/config.toml) instead of the upstream gpt-5.5 default, and the OpenAI-compatible gateway is the fallback. Gemini research and image generation remain gaps (research ask works with the optional gemini-reverse package; image legs are TLS-gated or quota-blocked here). web_interact, web_map, web_pdf, web_screenshot, web_chat and web_status are in tools.cold by default: they cost no prompt bytes and are reachable through ceulen_tools.",
+      "notes": "Browser capture is ported; Brave registers as a native search provider and deepseek-fetch-fallback serves page Markdown with a local HTTP fallback. web_chat is ported: the ChatGPT web tier is the default when ~/.codex/auth.json (codex login) or CHATGPT_WEB_AUTH_KEY resolves, the model defaults to the Codex-configured model (~/.codex/config.toml) instead of the upstream gpt-5.5 default, and the OpenAI-compatible gateway is the fallback. web_image exposes the vendored image chain: the chatgpt leg generates real images through chatgpt.com/backend-api/codex/responses with the subscription OAuth credential (no API key, metered against Codex usage; verified 2026-11-16 at ~25-30s per image), zai/custom legs cover keyed gateways, and the gemini image leg stays unverified. Gemini research remains a gap (the optional gemini-reverse package covers the ask). web_interact, web_map, web_pdf, web_screenshot, web_chat and web_status are in tools.cold by default: they cost no prompt bytes and are reachable through ceulen_tools.",
       "rowId": "ceulen-web"
     },
     {

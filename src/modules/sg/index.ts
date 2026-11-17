@@ -1,6 +1,6 @@
 import type { PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
-import { ceulenTool, clampText, objectSchema, registerToolSafe } from '../../core/tools.js'
+import { ceulenTool, clampText, objectSchema, registerToolSafe, cwdOf } from '../../core/tools.js'
 import { sgAvailable, realSg } from '../../vendor/ceulen/sg/sg-cli.js'
 import { buildRunArgs, formatMatches, mergeMatches, parseSearch } from '../../vendor/ceulen/sg/ops.js'
 
@@ -16,8 +16,6 @@ export function apply(ctx: PluginContext): void {
   if (!isModuleEnabled('sg', settings)) return
   if (!sgAvailable()) return
 
-  const cwdOf = (exec: { agent?: { session: { header?: { cwd?: string } } } }) => exec.agent?.session.header?.cwd ?? process.cwd()
-
   registerToolSafe(ctx, ceulenTool({
     name: 'ast_grep',
     description: 'Structural code search through the ast-grep CLI. Patterns are real code with $VAR (one node) and $$$ALL (many nodes) meta-variables; use for syntax-aware searches that regex mangles.',
@@ -28,7 +26,6 @@ export function apply(ctx: PluginContext): void {
       globs: GLOBS,
       paths: PATHS,
     }, ['pattern']),
-    outputSchema: { type: 'string' },
     async execute(raw, exec) {
       const args = raw as { pattern: string; patterns?: string[]; language?: string; globs?: string[]; paths?: string[] }
       const all = [args.pattern, ...(args.patterns ?? [])]
@@ -54,7 +51,6 @@ export function apply(ctx: PluginContext): void {
       paths: PATHS,
       write: { type: 'boolean', description: 'false (default) = dry-run; true = rewrite files on disk.' },
     }, ['pattern', 'rewrite']),
-    outputSchema: { type: 'string' },
     concurrencySafe: false,
     async execute(raw, exec) {
       const args = raw as { pattern: string; rewrite: string; language?: string; globs?: string[]; paths?: string[]; write?: boolean }

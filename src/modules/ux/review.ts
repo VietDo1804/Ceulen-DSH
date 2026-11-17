@@ -8,6 +8,7 @@
 
 import { runInteraction } from '../../vendor/ceulen/web/cdp.js'
 import { assertCaptureScope } from '../web/index.js'
+import { errorMessage } from '../../core/tools.js'
 
 export type Severity = 'high' | 'medium' | 'low'
 
@@ -932,7 +933,7 @@ export async function runRuntimeAudit(options: { url: string; cwd: string; viewp
       })
     } catch (error) {
       // No browser is an INCOMPLETE audit, never a passing one.
-      const message = error instanceof Error ? error.message : String(error)
+      const message = errorMessage(error)
       if (/No local Chrome|DevTools websocket|Failed to launch|spawn /i.test(message)) {
         return { url: options.url, viewports, findings: [], shots: [], inconclusive: message }
       }
@@ -947,18 +948,14 @@ export async function runRuntimeAudit(options: { url: string; cwd: string; viewp
       ...(Array.isArray(step.value) ? (step.value as RuntimeFinding[]) : []),
       ...(vietnamese?.ok === true && Array.isArray(vietnamese.value) ? (vietnamese.value as RuntimeFinding[]) : []),
     ]
-    for (const finding of found) {
+    const note = (finding: RuntimeFinding): void => {
       const key = `${finding.check}|${finding.message}`
       const hit = merged.get(key)
       if (hit === undefined) merged.set(key, { ...finding, seenAt: [width] })
       else hit.seenAt.push(width)
     }
-    for (const message of result.consoleErrors ?? []) {
-      const key = `console-error|${message}`
-      const hit = merged.get(key)
-      if (hit === undefined) merged.set(key, { severity: 'medium', check: 'console-error', message, seenAt: [width] })
-      else hit.seenAt.push(width)
-    }
+    for (const finding of found) note(finding)
+    for (const message of result.consoleErrors ?? []) note({ severity: 'medium', check: 'console-error', message })
     if (wanted.has(width) && result.screenshot !== undefined) shots.push({ width, base64: result.screenshot })
   }
 

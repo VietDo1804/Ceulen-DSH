@@ -92,7 +92,8 @@ export function createConfigScene(options: ConfigSceneOptions): (props: ScenePro
     const ui = props.ui
     const h = React.createElement as (type: unknown, properties?: Record<string, unknown> | null, ...children: unknown[]) => unknown
 
-    const [draft] = React.useState(() => loadSettingsSync())
+    // The saved document, not the env-overridden view: the draft is written back.
+    const [draft] = React.useState(() => loadSettingsSync(false))
     const [context] = React.useState(() => options.context())
     const [tabIndex, setTabIndex] = React.useState(0)
     const [rowIndex, setRowIndex] = React.useState(0)

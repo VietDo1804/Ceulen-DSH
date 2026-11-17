@@ -84,7 +84,3 @@ export function logLine(name: string, message: string): void {
 export async function flushLogs(): Promise<void> {
   while (inflight.size > 0) await Promise.allSettled([...inflight])
 }
-
-export function logJson(name: string, value: unknown): void {
-  logLine(name, JSON.stringify(value))
-}

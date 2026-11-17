@@ -10,7 +10,7 @@
  * here instead of registered as a deferred schema.
  */
 import type { AgentLike, PluginContext, ToolDefinition } from '../../core/types.js'
-import { coldTool, coldToolEntries, ceulenTool, holdNativeTool, jsonText, nativeTool, nativeToolEntries, objectSchema, registerCommandSafe, registerToolSafe, text } from '../../core/tools.js'
+import { coldTool, coldToolEntries, ceulenTool, holdNativeTool, jsonText, nativeTool, nativeToolEntries, objectSchema, registerCommandSafe, registerToolSafe, text, errorMessage } from '../../core/tools.js'
 import type { ToolBudgetEntry } from '../../core/tools.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { logLine } from '../../core/log.js'
@@ -85,7 +85,7 @@ function search(query: string): string {
   try {
     pattern = new RegExp(query, 'i')
   } catch (error) {
-    throw new Error(`invalid query regex: ${error instanceof Error ? error.message : String(error)}`)
+    throw new Error(`invalid query regex: ${errorMessage(error)}`)
   }
   const matches = entries().filter(entry => {
     const definition = definitionFor(entry.name)
@@ -188,7 +188,7 @@ export function apply(ctx: PluginContext): void {
       try {
         return await definition.execute(toolArgs, exec)
       } catch (error) {
-        throw new Error(coldCallError(toolName, error instanceof Error ? error.message : String(error)), { cause: error })
+        throw new Error(coldCallError(toolName, errorMessage(error)), { cause: error })
       }
     },
   }))

@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import type { AgentLike, PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync, updateSettings } from '../../core/settings.js'
-import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerToolSafe } from '../../core/tools.js'
+import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerToolSafe, errorMessage } from '../../core/tools.js'
 import { extractJson, parseRoute, streamText, type LlmRoute } from '../../core/llm.js'
 import { logLine } from '../../core/log.js'
 
@@ -314,7 +314,7 @@ async function askClassifier(ctx: PluginContext, agent: AgentLike | undefined, s
       return answers
     } catch (error) {
       lastError = error
-      failures.push(`${route.provider}/${route.model}: ${error instanceof Error ? error.message : String(error)}`)
+      failures.push(`${route.provider}/${route.model}: ${errorMessage(error)}`)
     } finally {
       clearTimeout(timer)
     }
@@ -348,7 +348,7 @@ async function gateCommand(ctx: PluginContext, command: string, cwd: string, age
     const answer = answers.safe as { probability?: unknown } | undefined
     return { probability: typeof answer?.probability === 'number' ? answer.probability : null }
   } catch (error) {
-    return { probability: null, error: error instanceof Error ? error.message : String(error) }
+    return { probability: null, error: errorMessage(error) }
   }
 }
 
@@ -381,7 +381,6 @@ export function apply(ctx: PluginContext): void {
         description: 'One entry per independent judgment.',
       },
     }, ['state', 'questions']),
-    outputSchema: { type: 'string' },
     concurrencySafe: true,
     async execute(raw, exec) {
       const args = raw as { state: unknown; questions: Question[] }
@@ -438,7 +437,7 @@ export function apply(ctx: PluginContext): void {
               auditVerdict(command, { static: 'ok', model: extractJson(text) ?? { raw: clampText(text, 300) } })
             }).catch((error: unknown) => {
               // Log the real failure — a bare "unavailable" hid the system-one routing bug for weeks.
-              auditVerdict(command, { static: 'ok', model: `unavailable: ${error instanceof Error ? error.message : String(error)}` })
+              auditVerdict(command, { static: 'ok', model: `unavailable: ${errorMessage(error)}` })
             }).finally(() => clearTimeout(timer))
           } else {
             auditVerdict(command, { static: 'ok', model: 'no-route' })

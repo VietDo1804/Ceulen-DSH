@@ -225,31 +225,16 @@ export function apply(ctx: PluginContext): void {
     if (agent === undefined) return
     const reason = event.data?.reason
     const kind = reason?.kind
-    if (kind === 'completed') {
+    if (kind === 'completed' || kind === 'max-tokens' || (kind === 'aborted' && reason?.reason?.kind === 'disposed')) {
       reset(agent)
       return
     }
-    if (kind === 'max-tokens') {
-      reset(agent)
-      return
-    }
-    if (kind === 'aborted') {
-      if (reason?.reason?.kind === 'disposed') {
-        reset(agent)
-        return
-      }
-      const state = stateOf(agent)
-      // The harness cancels the turn itself for an explicit `/goal pause`; that
-      // stop already happened, so this abort must not revive the goal.
-      if (stoppedByHuman(state, Date.now())) return
-      state.abortedAt = Date.now()
-      schedule(agent)
-      return
-    }
-    if (kind === 'error') {
-      const state = stateOf(agent)
-      if (stoppedByHuman(state, Date.now())) return
-      schedule(agent)
-    }
+    if (kind !== 'aborted' && kind !== 'error') return
+    const state = stateOf(agent)
+    // The harness cancels the turn itself for an explicit `/goal pause`; that
+    // stop already happened, so this abort must not revive the goal.
+    if (stoppedByHuman(state, Date.now())) return
+    if (kind === 'aborted') state.abortedAt = Date.now()
+    schedule(agent)
   })
 }

@@ -1,5 +1,5 @@
 import type { ContentBlock, MessageLike } from '../../core/types.js'
-import { clampText } from '../../core/tools.js'
+import { clampText, toolArgs } from '../../core/tools.js'
 
 export const WATCH_BUDGET = 20_000
 export const CONSULT_BUDGET = 16_000
@@ -38,13 +38,7 @@ function promptText(message: MessageLike): string {
 
 /** Count tool calls since the last turn boundary. */
 export function toolCallsInTurn(messages: readonly MessageLike[]): number {
-  let start = 0
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (isTurnBoundary(messages[index]!)) {
-      start = index
-      break
-    }
-  }
+  const start = Math.max(0, messages.findLastIndex(isTurnBoundary))
   let count = 0
   for (const message of messages.slice(start)) {
     for (const block of message.content) if ((block as { type?: string }).type === 'tool-call') count += 1
@@ -55,17 +49,8 @@ export function toolCallsInTurn(messages: readonly MessageLike[]): number {
 const NESTED_CALL = /tools(?:\.(\w+)|\[['"]([^'"]+)['"]\])\s*\(/g
 
 function codemodeCall(value: Record<string, unknown>): string {
-  let args: unknown = value.arguments
-  if (typeof args === 'string') {
-    try {
-      args = JSON.parse(args)
-    } catch {
-      args = undefined
-    }
-  }
-  const code = args !== null && typeof args === 'object' && typeof (args as { code?: unknown }).code === 'string'
-    ? (args as { code: string }).code
-    : ''
+  const raw = toolArgs(value.arguments).code
+  const code = typeof raw === 'string' ? raw : ''
   const counts = new Map<string, number>()
   for (const match of code.matchAll(NESTED_CALL)) {
     const name = match[1] ?? match[2] ?? ''
@@ -118,20 +103,8 @@ const OMITTED_TURN = '[…earlier steps of this turn omitted…]'
  * the end — while the pinned request is never clipped for budget reasons.
  */
 export function renderTurn(messages: readonly MessageLike[], budget: number): { text: string; pinned: boolean } {
-  let lastPrompt = -1
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (isUserPrompt(messages[index]!)) {
-      lastPrompt = index
-      break
-    }
-  }
-  let previousPrompt = -1
-  for (let index = lastPrompt - 1; index >= 0; index -= 1) {
-    if (isUserPrompt(messages[index]!)) {
-      previousPrompt = index
-      break
-    }
-  }
+  const lastPrompt = messages.findLastIndex(isUserPrompt)
+  const previousPrompt = messages.findLastIndex((message, index) => index < lastPrompt && isUserPrompt(message))
   const pinned: string[] = []
   if (lastPrompt >= 0) {
     pinned.push('USER REQUEST (latest, always shown):', clampText(promptText(messages[lastPrompt]!), REQUEST_CHARS))

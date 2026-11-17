@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve as resolvePath }
 import type { AgentLike, PluginContext, ToolContent, ToolDefinition } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { logLine } from '../../core/log.js'
-import { ceulenTool, clampText, coldTool, nativeTool, objectSchema, registerToolSafe } from '../../core/tools.js'
+import { ceulenTool, clampText, coldTool, editDistance, nativeTool, objectSchema, registerToolSafe, cwdOf, errorMessage } from '../../core/tools.js'
 import { missingRequired, synthesizeUsage } from '../../core/toolguard.js'
 
 export const name = 'ceulen-repair'
@@ -25,11 +25,7 @@ interface FileOp {
   hunks?: Hunk[]
 }
 
-interface ParsedPatch {
-  ops: FileOp[]
-}
-
-function parsePatch(patch: string): ParsedPatch {
+function parsePatch(patch: string): FileOp[] {
   const lines = patch.replace(/\r\n/g, '\n').trim().split('\n')
   if (lines[0]?.trim() !== '*** Begin Patch') throw new Error('invalid patch at line 1: expected *** Begin Patch')
   if (lines.at(-1)?.trim() !== '*** End Patch') throw new Error(`invalid patch at line ${lines.length}: expected *** End Patch`)
@@ -113,7 +109,7 @@ function parsePatch(patch: string): ParsedPatch {
   for (const op of ops) {
     if (op.kind === 'update' && op.hunks?.length === 0) invalid(`update in ${op.path} has no hunks`)
   }
-  return { ops }
+  return ops
 }
 
 /**
@@ -153,14 +149,7 @@ function matchPreview(lines: string[], hits: number[]): string {
 function countMatches(lines: string[], pattern: string[]): number[] {
   const hits: number[] = []
   for (let index = 0; index + pattern.length <= lines.length; index += 1) {
-    let match = true
-    for (let offset = 0; offset < pattern.length; offset += 1) {
-      if (lines[index + offset] !== pattern[offset]) {
-        match = false
-        break
-      }
-    }
-    if (match) hits.push(index)
+    if (pattern.every((line, offset) => lines[index + offset] === line)) hits.push(index)
   }
   return hits
 }
@@ -261,21 +250,6 @@ function hookText(result: HookResult): string {
 function argText(args: Record<string, unknown>, key: string): string | undefined {
   const value = args[key]
   return typeof value === 'string' && value.length > 0 ? value : undefined
-}
-
-function editDistance(a: string, b: string): number {
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index)
-  for (let i = 1; i <= a.length; i += 1) {
-    const current = [i]
-    for (let j = 1; j <= b.length; j += 1) {
-      const insert = (previous[j] ?? 0) + 1
-      const remove = (current[j - 1] ?? 0) + 1
-      const swap = (previous[j - 1] ?? 0) + (a[i - 1] === b[j - 1] ? 0 : 1)
-      current[j] = Math.min(insert, remove, swap)
-    }
-    previous = current
-  }
-  return previous[b.length] ?? b.length
 }
 
 function similarity(a: string, b: string): number {
@@ -397,7 +371,7 @@ function closestToolName(wanted: string, names: readonly string[]): string | und
 async function repair(ctx: PluginContext, exec: ExecuteHook, result: HookResult): Promise<Repair | undefined> {
   const tool = exec.name ?? ''
   const args = (exec.arguments ?? {}) as Record<string, unknown>
-  const cwd = exec.agent?.session.header?.cwd ?? process.cwd()
+  const cwd = cwdOf(exec)
   const message = hookText(result)
   const path = argText(args, 'path') ?? argText(args, 'file_path')
 
@@ -406,7 +380,7 @@ async function repair(ctx: PluginContext, exec: ExecuteHook, result: HookResult)
   if (tool === 'apply_patch' && /hunk does not match/i.test(message)) {
     const patch = argText(args, 'patch')
     if (patch === undefined) return undefined
-    for (const op of parsePatch(patch).ops) {
+    for (const op of parsePatch(patch)) {
       if (op.kind !== 'update') continue
       const lines = await readLines(ctx, op.path, cwd)
       if (lines === undefined) continue
@@ -478,19 +452,18 @@ export function apply(ctx: PluginContext): void {
     parameters: objectSchema({
       patch: { type: 'string', description: 'The complete V4D patch text.' },
     }, ['patch']),
-    outputSchema: { type: 'string' },
     concurrencySafe: false,
     async execute(raw, exec) {
       const patch = String((raw as { patch?: unknown }).patch ?? '')
       if (patch.trim().length === 0) throw new Error('patch must be non-empty')
-      const parsed = parsePatch(patch)
-      if (parsed.ops.length === 0) throw new Error('patch contains no file operations')
+      const ops = parsePatch(patch)
+      if (ops.length === 0) throw new Error('patch contains no file operations')
       const fs = fsService(ctx)
-      const cwd = exec.agent?.session.header?.cwd ?? process.cwd()
+      const cwd = cwdOf(exec)
       const results: string[] = []
       const staged = new Map<string, { target: unknown; path: string; text: string }>()
       try {
-        for (const op of parsed.ops) {
+        for (const op of ops) {
           exec.signal.throwIfAborted()
           if (op.kind === 'delete') throw new Error(`delete is not supported by apply_patch: ${op.path}`)
           const target = await fs.resolve(op.path, { cwd, signal: exec.signal })
@@ -509,9 +482,9 @@ export function apply(ctx: PluginContext): void {
         // Everything above is preflight. Say so: with several files in one
         // patch the model cannot tell whether the earlier ones were written.
         if (exec.signal.aborted) throw error
-        const files = new Set(parsed.ops.map(op => op.path)).size
+        const files = new Set(ops.map(op => op.path)).size
         const untouched = files > 1 ? `No file was changed: all ${files} files in this patch are untouched.` : 'No file was changed.'
-        throw new Error(`${error instanceof Error ? error.message : String(error)}\n${untouched} Fix this hunk and send the whole patch again.`, { cause: error })
+        throw new Error(`${errorMessage(error)}\n${untouched} Fix this hunk and send the whole patch again.`, { cause: error })
       }
       // ponytail: preflight prevents invalid-patch partial writes; I/O is not a multi-file transaction.
       const writes = [...staged.values()]
@@ -525,7 +498,7 @@ export function apply(ctx: PluginContext): void {
       } catch (error) {
         const written = writes.slice(0, completed).map(entry => entry.path).join(', ') || '(none)'
         const pending = writes.slice(completed).map(entry => entry.path).join(', ')
-        throw new Error(`${error instanceof Error ? error.message : String(error)}\nWritten: ${written}\nNot confirmed written: ${pending}`, { cause: error })
+        throw new Error(`${errorMessage(error)}\nWritten: ${written}\nNot confirmed written: ${pending}`, { cause: error })
       }
       return results.join('\n')
     },
@@ -540,12 +513,11 @@ export function apply(ctx: PluginContext): void {
       end: { type: 'integer', description: 'Last line (inclusive). Omit with tail.' },
       tail: { type: 'integer', description: 'Return the last N lines instead of start/end.' },
     }, ['path']),
-    outputSchema: { type: 'string' },
     concurrencySafe: true,
     async execute(raw, exec) {
       const args = raw as { path: string; start?: number; end?: number; tail?: number }
       const fs = fsService(ctx)
-      const cwd = exec.agent?.session.header?.cwd ?? process.cwd()
+      const cwd = cwdOf(exec)
       const target = await fs.resolve(args.path, { cwd, signal: exec.signal })
       const text = await fs.readText(target, exec.signal)
       const lines = text.replace(/\r\n/g, '\n').split('\n')

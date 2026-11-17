@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { editDistance } from '../../core/tools.js'
 
 /** The script's return + console block budget, and its bounds. */
 export const DEFAULT_OUTPUT_BUDGET = 6_000
@@ -66,34 +67,16 @@ let spillSequence = 0
  * temp file whose path stays in the result. The runtime's hard byte cap
  * (output-limit) never fires for a model that stays anywhere near the budget.
  */
-export function applyOutputBudget(valueText: string, consoleBlock: string, cap: number): { text: string; spillPath?: string } {
+export function applyOutputBudget(valueText: string, consoleBlock: string, cap: number): string {
   const full = [valueText, consoleBlock].filter(part => part.length > 0).join('\n')
-  if (full.length <= cap) return { text: full }
+  if (full.length <= cap) return full
   const head = Math.floor(cap / 2)
   const tail = Math.ceil(cap / 2)
   const omitted = full.length - head - tail
   const spillPath = join(tmpdir(), `codemode-output-${Date.now()}-${++spillSequence}.txt`)
   writeFileSync(spillPath, full, { mode: 0o600 })
   const marker = `\n… ${omitted} chars omitted; full output: ${spillPath} …\n`
-  return { text: full.slice(0, head) + marker + full.slice(full.length - tail), spillPath }
-}
-
-/** Cheap bounded Levenshtein: returns true when edit distance is at most 2. */
-function withinTwoEdits(a: string, b: string): boolean {
-  if (Math.abs(a.length - b.length) > 2) return false
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index)
-  for (let i = 1; i <= a.length; i++) {
-    const current = [i]
-    for (let j = 1; j <= b.length; j++) {
-      current[j] = Math.min(
-        previous[j]! + 1,
-        current[j - 1]! + 1,
-        previous[j - 1]! + (a[i - 1] === b[j - 1] ? 0 : 1),
-      )
-    }
-    previous = current
-  }
-  return previous[b.length]! <= 2
+  return full.slice(0, head) + marker + full.slice(full.length - tail)
 }
 
 /**
@@ -110,7 +93,7 @@ export function suggestBinding(message: string, names: readonly string[]): strin
   let best: string | undefined
   for (const name of names) {
     if (normalize(name) === wanted) return name
-    if (best === undefined && withinTwoEdits(normalize(name), wanted)) best = name
+    if (best === undefined && editDistance(normalize(name), wanted) <= 2) best = name
   }
   return best === target ? undefined : best
 }

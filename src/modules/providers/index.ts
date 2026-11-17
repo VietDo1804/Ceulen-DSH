@@ -27,26 +27,8 @@ export const DEEPSEEK_COMPAT: Record<(typeof TOOL_LOOP_COMPAT_FIELDS)[number], b
   requiresAssistantContentForToolCalls: true,
 }
 
-export interface ProviderRecipe {
-  id: string
-  displayName: string
-  api: string
-  baseURL: string
-  apiKeyEnv: string
-  compat: Record<string, boolean>
-}
-
-/** Pinned recipes: a route names one by provider id. */
-export const RECIPES: Record<string, ProviderRecipe> = {
-  deepseek: {
-    id: 'deepseek',
-    displayName: 'DeepSeek',
-    api: 'openai-completions',
-    baseURL: 'https://api.deepseek.com',
-    apiKeyEnv: 'DEEPSEEK_API_KEY',
-    compat: { ...DEEPSEEK_COMPAT },
-  },
-}
+/** Pinned tool-loop compat: a route names one by provider id. */
+const COMPAT: Record<string, Record<string, boolean>> = { deepseek: DEEPSEEK_COMPAT }
 
 export interface CompatReport {
   route: string
@@ -70,7 +52,7 @@ function splitRoute(route: string): { provider: string; model?: string } {
  * Missing compat fields for one route. `compat` is injectable so a doctor test
  * (or a hand-written profile recipe) can check an incomplete set.
  */
-export function compatReport(route: string, compat: Record<string, unknown> | undefined = RECIPES[splitRoute(route).provider]?.compat): CompatReport {
+export function compatReport(route: string, compat: Record<string, unknown> | undefined = COMPAT[splitRoute(route).provider]): CompatReport {
   const { provider, model } = splitRoute(route)
   const present = TOOL_LOOP_COMPAT_FIELDS.filter(field => typeof compat?.[field] === 'boolean')
   const missing = TOOL_LOOP_COMPAT_FIELDS.filter(field => typeof compat?.[field] !== 'boolean')
@@ -112,8 +94,8 @@ function deepseekText(): string {
     '    providers:',
     '      deepseek:',
     '        api: openai-completions',
-    `        baseURL: ${RECIPES.deepseek?.baseURL}`,
-    `        apiKeyEnv: ${RECIPES.deepseek?.apiKeyEnv}`,
+    '        baseURL: https://api.deepseek.com',
+    '        apiKeyEnv: DEEPSEEK_API_KEY',
     '        compat:',
     ...TOOL_LOOP_COMPAT_FIELDS.map(field => `          ${field}: ${String(DEEPSEEK_COMPAT[field])}`),
     '',

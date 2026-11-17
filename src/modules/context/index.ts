@@ -2,7 +2,7 @@
  * `/context` — the Claude Code-style context dashboard. The split:
  *
  * - report.ts   public usage/report types, the compaction buffer, buildReport
- * - dashboard.ts ANSI card + plain block rendering, stripAnsi
+ * - dashboard.ts ANSI card + plain block rendering
  * - collect.ts  service reads (projections, token meter, model info) and reportFor
  * - scene.ts    the `/context --play` DNA scene plus its static fallback frame
  */
@@ -15,7 +15,7 @@ import { briefStatusLine as agentMemBriefStatusLine } from '../agentmem/index.js
 import { collectSnapshots, formatTokens, type DnaEvent } from './dna.js'
 import { reportFor, terminalColumns } from './collect.js'
 import { dnaReport, openDnaReplay } from './scene.js'
-import { stripAnsi } from './dashboard.js'
+import { stripVTControlCharacters } from 'node:util'
 
 export const name = 'ceulen-context'
 export const inject = ['commands']
@@ -72,7 +72,7 @@ export function apply(ctx: PluginContext): void {
         // One line item per memory brief: exact bytes, absent when that brief is off.
         const briefs = [briefStatusLine(), agentMemBriefStatusLine()].filter(line => line !== '')
         const text = briefs.length === 0 ? report : `${report}\n${briefs.join('\n')}`
-        logLine('context', `invoked: ${stripAnsi(text.split('\n')[0] ?? '')}`)
+        logLine('context', `invoked: ${stripVTControlCharacters(text.split('\n')[0] ?? '')}`)
         return { kind: 'success', text }
       } catch (error) {
         logLine('context', `invoked failed: ${errorMessage(error)}`)

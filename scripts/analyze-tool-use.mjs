@@ -9,7 +9,6 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { pathToFileURL } from 'node:url'
 
 const EDIT_TOOLS = new Set(['edit', 'write', 'apply_patch'])
 const WRITES_FILE = /(python3?|node)\b[\s\S]*(write_text|open\([^)]*['"][wa]['"]|writeFileSync)|\bsed\s+-i\b/
@@ -132,7 +131,7 @@ export function callsOf(events, { sinceMs, untilMs, model } = {}) {
   return calls
 }
 
-function sessionFiles(root) {
+export function sessionFiles(root) {
   const files = []
   for (const entry of fs.readdirSync(root)) {
     const workspace = path.join(root, entry)
@@ -147,7 +146,7 @@ function sessionFiles(root) {
   return files
 }
 
-function loadEvents(file) {
+export function loadEvents(file) {
   let text
   try {
     text = execFileSync('zstdcat', [file], { maxBuffer: 1 << 29 }).toString()
@@ -246,4 +245,4 @@ function main() {
   else console.log(renderText(report, `${model ? `model~${model}` : 'all models'}${since ? `, since ${since}` : ''}${until ? `, until ${until}` : ''}`))
 }
 
-if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) main()
+if (import.meta.main) main()

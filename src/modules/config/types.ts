@@ -58,14 +58,4 @@ export interface ConfigContext {
   readonly env?: Readonly<Record<string, string | undefined>>
 }
 
-export interface RowOptions {
-  picker?: boolean
-  pickerAppend?: boolean
-  description?: string
-  warning?: string
-  values?: readonly string[]
-  ref?: string
-  placeholder?: string
-  min?: number
-  max?: number
-}
+export type RowOptions = Omit<ConfigRow, 'key' | 'label' | 'kind' | 'value' | 'set'>

@@ -19,14 +19,15 @@ all tools or backends from the upstream Pi web module.
 | PDF | `web_pdf` | Local Chrome/Chromium |
 | Click, type, evaluate, verify UI | `web_interact` | Local Chrome via CDP; one browser lifecycle per call |
 | One-off model chat | `web_chat` | Configured ChatGPT web credential or OpenAI-compatible gateway |
+| Generate an image | `web_image` | ChatGPT web image generation on the subscription credential (no API key), Z.AI via `ZAI_API_KEY`, or any OpenAI-compatible images endpoint via `WEB_IMAGE_API_BASE_URL` |
 | Check available configuration | `web_status` | Reports native web service, providers, credentials and Chrome availability |
 
-The bundle registers seven tools: extract, map, screenshot, PDF, interact,
-chat and status. Native search/fetch availability depends on the profile.
-`web_crawl`, `web_a11y`, `web_research` and `web_image` are not registered by
-this module. Do not promise them or call them unless another loaded module
-actually declares them. For rendered UI/accessibility checks, use the separate
-`ux_audit` tool when available.
+The bundle registers eight tools: extract, map, screenshot, PDF, interact,
+chat, image and status. Native search/fetch availability depends on the profile.
+`web_crawl`, `web_a11y` and `web_research` are not registered by this module.
+Do not promise them or call them unless another loaded module actually declares
+them. For rendered UI/accessibility checks, use the separate `ux_audit` tool
+when available.
 
 ## Extract and map
 

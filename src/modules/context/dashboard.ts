@@ -1,11 +1,8 @@
+import { stripVTControlCharacters } from 'node:util'
 import { formatTokens } from './dna.js'
 import type { ContextUsage, ReportOptions } from './report.js'
 
-
 const ANSI = { reset: '\u001B[0m', bold: '\u001B[1m' } as const
-/** SGR colour escapes; the literal is unavoidable, so the rule is silenced. */
-// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI SGR sequences
-const ANSI_SGR = /\u001B\[[0-9;]*m/gu
 
 /**
  * Dashboard swatches (dark terminals). The used categories mirror the Claude
@@ -44,7 +41,7 @@ export function isDashboardGlyph(char: string): boolean {
 /** Visible terminal width of a styled line; the draughts glyphs are 2 cells. */
 export function visibleWidth(text: string): number {
   let width = 0
-  for (const char of text.replace(ANSI_SGR, '')) width += isDashboardGlyph(char) ? 2 : 1
+  for (const char of stripVTControlCharacters(text)) width += isDashboardGlyph(char) ? 2 : 1
   return width
 }
 
@@ -125,18 +122,12 @@ export function dashboardCells(rows: readonly DashboardRow[], windowTokens: numb
     for (let i = 0; i < count; i += 1) cells.push({ color: row.color, glyph: row.glyph })
   }
   const bufferRow = rows.find(row => row.key === 'buffer')
-  if (bufferRow !== undefined && bufferRow.tokens > 0 && remaining > 0) {
-    const want = Math.max(1, Math.round(bufferRow.tokens / windowTokens * total))
-    const count = Math.min(want, remaining)
-    remaining -= count
-    const freeRow = rows.find(row => row.key === 'free')
-    const freeCount = remaining
-    for (let i = 0; i < freeCount; i += 1) cells.push({ color: freeRow?.color ?? DASHBOARD_COLORS.free, glyph: DASHBOARD_GLYPHS.free })
-    for (let i = 0; i < count; i += 1) cells.push({ color: bufferRow.color, glyph: bufferRow.glyph })
-    return cells
-  }
-  const freeRow = rows.find(row => row.key === 'free')
-  for (let i = 0; i < remaining; i += 1) cells.push({ color: freeRow?.color ?? DASHBOARD_COLORS.free, glyph: DASHBOARD_GLYPHS.free })
+  const freeColor = rows.find(row => row.key === 'free')?.color ?? DASHBOARD_COLORS.free
+  const bufferCount = bufferRow !== undefined && bufferRow.tokens > 0
+    ? Math.min(Math.max(1, Math.round(bufferRow.tokens / windowTokens * total)), remaining)
+    : 0
+  for (let i = 0; i < remaining - bufferCount; i += 1) cells.push({ color: freeColor, glyph: DASHBOARD_GLYPHS.free })
+  for (let i = 0; i < bufferCount; i += 1) cells.push({ color: bufferRow!.color, glyph: bufferRow!.glyph })
   return cells
 }
 
@@ -226,8 +217,4 @@ export function buildPlainReport(usage: ContextUsage, header: { displayName?: st
   lines.push(row(GLYPHS.free, 'Free space:', Math.max(0, window_ - usage.used - (usage.bufferTokens ?? 0))))
   if (usage.bufferTokens !== undefined) lines.push(row(GLYPHS.buffer, 'Autocompact buffer:', usage.bufferTokens))
   return lines.join('\n')
-}
-
-export function stripAnsi(text: string): string {
-  return text.replace(ANSI_SGR, '')
 }

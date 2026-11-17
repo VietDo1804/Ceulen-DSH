@@ -193,10 +193,6 @@ export interface LlmService {
   listModels?(provider: string): Promise<readonly unknown[]>
 }
 
-export interface TuiStatusService {
-  set(key: string, text: string | number | boolean | undefined): () => void
-}
-
 export interface TuiThemeService {
   register(descriptor: {
     readonly name: string

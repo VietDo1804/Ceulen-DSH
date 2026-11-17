@@ -183,21 +183,21 @@ export function windows(entries, now = new Date()) {
   }
 }
 
+/** Parsed lines of a JSONL file; a missing file or an unparsable line is skipped. */
+function readJsonl(file) {
+  if (!existsSync(file)) return []
+  return readFileSync(file, 'utf8').split('\n').filter(Boolean).flatMap(line => {
+    try {
+      return [JSON.parse(line)]
+    } catch {
+      return []
+    }
+  })
+}
+
 /** Fixes recorded with `--fixed`: one `{ at, signature, example, note }` per line. */
 export function loadFixes(base) {
-  const file = join(base, 'fixes.jsonl')
-  if (!existsSync(file)) return []
-  return readFileSync(file, 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .flatMap(line => {
-      try {
-        const fix = JSON.parse(line)
-        return typeof fix?.signature === 'string' && Number.isFinite(Date.parse(fix?.at)) ? [fix] : []
-      } catch {
-        return []
-      }
-    })
+  return readJsonl(join(base, 'fixes.jsonl')).filter(fix => typeof fix?.signature === 'string' && Number.isFinite(Date.parse(fix?.at)))
 }
 
 /**
@@ -343,18 +343,7 @@ export function reportText(agg, min = 5, lists) {
 }
 
 export function loadLedger(base) {
-  const file = join(base, 'ledger.jsonl')
-  if (!existsSync(file)) return []
-  return readFileSync(file, 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .flatMap(line => {
-      try {
-        return [JSON.parse(line)]
-      } catch {
-        return []
-      }
-    })
+  return readJsonl(join(base, 'ledger.jsonl'))
 }
 
 /** Redact prose and parsed values, never run a prose regex over serialized JSON. */
@@ -458,4 +447,4 @@ function main(argv) {
   process.stdout.write(text)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main(process.argv.slice(2))
+if (import.meta.main) main(process.argv.slice(2))

@@ -3,10 +3,9 @@
 // and context size per step. Re-run after changes to compare against baseline.
 // Usage: node scripts/analyze-agent-efficiency.mjs [--dir <sessionsRoot>] [--since YYYY-MM-DD] [--json] [--advisor-sample N]
 // Logs are multi-frame zstd; uses zstdcat.
-import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { execFileSync } from 'node:child_process'
+import { loadEvents, sessionFiles } from './analyze-tool-use.mjs'
 
 const args = process.argv.slice(2)
 const readArg = (flag) => {
@@ -50,40 +49,6 @@ function classifyFailure(kind, message) {
   return 'other'
 }
 
-function sessionFiles() {
-  const files = []
-  for (const entry of fs.readdirSync(root)) {
-    const workspace = path.join(root, entry)
-    if (!fs.statSync(workspace).isDirectory()) continue
-    for (const id of fs.readdirSync(workspace)) {
-      const dir = path.join(workspace, id)
-      if (!fs.statSync(dir).isDirectory()) continue
-      const file = fs.readdirSync(dir).find((name) => name.endsWith('.jsonl.zstd'))
-      if (file) files.push(path.join(dir, file))
-    }
-  }
-  return files
-}
-
-function loadEvents(file) {
-  let text
-  try {
-    text = execFileSync('zstdcat', [file], { maxBuffer: 1 << 29 }).toString()
-  } catch {
-    return []
-  }
-  const events = []
-  for (const line of text.split('\n')) {
-    if (!line) continue
-    try {
-      events.push(JSON.parse(line))
-    } catch {
-      // Skip torn frames.
-    }
-  }
-  return events
-}
-
 const report = {
   sessions: 0,
   steps: 0,
@@ -98,7 +63,7 @@ const contextSamples = []
 
 const sinceMs = since ? Date.parse(`${since}T00:00:00`) : undefined
 
-for (const file of sessionFiles()) {
+for (const file of sessionFiles(root)) {
   let events = loadEvents(file)
   if (sinceMs !== undefined) {
     // Filter per event, not per session: a session that spans the date would

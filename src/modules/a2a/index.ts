@@ -111,7 +111,6 @@ export function apply(ctx: PluginContext): void {
     name: 'a2a_peers',
     description: 'List configured A2A peers (name and URL) and whether the client is ready.',
     parameters: objectSchema({}),
-    outputSchema: { type: 'string' },
     concurrencySafe: true,
     async execute() {
       const list = peers()
@@ -129,7 +128,6 @@ export function apply(ctx: PluginContext): void {
       message: { type: 'string', description: 'Message text.' },
       contextId: { type: 'string', description: 'Optional conversation context id.' },
     }, ['message']),
-    outputSchema: { type: 'string' },
     timeoutMs: 240_000,
     concurrencySafe: false,
     async execute(raw, exec) {
@@ -158,7 +156,6 @@ export function apply(ctx: PluginContext): void {
       taskId: { type: 'string', description: 'Remote task id.' },
       peer: { type: 'string', description: 'Peer name or URL; defaults to the first peer.' },
     }, ['taskId']),
-    outputSchema: { type: 'string' },
     timeoutMs: 60_000,
     concurrencySafe: true,
     async execute(raw, exec) {
@@ -173,7 +170,6 @@ export function apply(ctx: PluginContext): void {
     name: 'a2a_list',
     description: 'List configured A2A peers (alias of a2a_peers kept for Ceulen parity).',
     parameters: objectSchema({}),
-    outputSchema: { type: 'string' },
     concurrencySafe: true,
     async execute() {
       return peers().map(peer => `${peer.name}\t${peer.url}`).join('\n') || 'No A2A peers configured.'

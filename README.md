@@ -164,7 +164,7 @@ committed, revoke/rotate it immediately; adding it to `.gitignore` is not enough
 | Rules | sticky `.dsh/RULES.md` + rulebook, `when-*` behaviour guards (`rules.guards`), read-only `AGENTS.md` / `.cursor/rules/*.mdc` / `.clinerules` sources, `rule_get`, `/rules` |
 | GitHub | read-only `github` tool over the `gh` CLI |
 | Ponytail | `/ponytail off|lite|full|ultra`, prompt discipline, skills |
-| Agent Mode | `/Agent-mode` (alias `/agent-mode`) loads `~/vietdo_workspace/DHS/agent_mode/AGENTS.md`; run again to reload edits, `off` to remove the role, `status` to inspect it. Starts off after restart; permissions and Plan Mode are unchanged. Default routes under `/ceulen-config` → Model → Agent Mode (`opencode-go/deepseek-v4.1-flash`, `deepseek/deepseek-flash`) load the role automatically; an explicit on/off outranks the route default. Override the file with the plugin's `path` config. |
+| Agent Mode | `/agent-mode` loads `~/vietdo_workspace/DHS/agent_mode/AGENTS.md`; run again to reload edits, `off` to remove the role, `status` to inspect it. Starts off after restart; permissions and Plan Mode are unchanged. Default routes under `/ceulen-config` → Model → Agent Mode (`opencode-go/deepseek-v4.1-flash`, `deepseek/deepseek-flash`) load the role automatically; an explicit on/off outranks the route default. Override the file with the plugin's `path` config. |
 | Skills | all 19 bundled skill packs registered (15 ported from Ceulen) |
 | Evolve | Weekly audit with no model: `scripts/evo-weekly.mjs` (systemd timer) scans every session, gathers recurring tool errors into fix groups and writes an HTML report plus `report-<date>.md`; the review is a session the user starts on a strong model (skill `evo`, "evo weekly review"): diagnose, fix in a worktree with a test, then `evo-report.mjs --fixed` so later reports compare before and after; `/evo-status` names the newest report; `evo_notice` shows a 💾 Self-improvement block; `/evo` session postmortem → ledger → Munin; see `docs/evo.md` |
 | Cron | `cron` tool, `/cron`, persisted jobs fired into the live session |
@@ -200,13 +200,13 @@ Settings live at `$DSH_HOME/ceulen/settings.json` (mode `0600`):
   "schemaVersion": 1,
   "disabled": [],
   "upstream": { "enabled": true, "intervalHours": 24 },
-  "advisor": { "provider": "zai", "model": "glm-5.3", "reasoningEffort": "max", "fallbacks": [], "watch": false, "minToolCalls": 1 },
+  "advisor": { "provider": "zai", "model": "glm-5.3", "reasoningEffort": "max", "fallbacks": [], "skipModels": ["gpt-6-astra"], "watch": false, "minToolCalls": 1 },
   "classifier": { "provider": null, "model": null, "audit": true, "enforce": false, "fallbacks": [] },
   "tools": { "cold": ["a2a_call", "a2a_list", "a2a_peers", "a2a_status", "jfind", "munin_delete", "munin_share", "web_interact", "web_map", "web_pdf", "web_screenshot"] },
   "munin": { "project": "", "baseUrl": "", "allowProjectConfig": false, "brief": { "enabled": false, "maxChars": 600, "recencyDays": 30 } },
   "agentmem": { "project": "", "baseUrl": "", "brief": { "enabled": false, "maxChars": 600, "recencyDays": 30 } },
   "cron": { "enabled": true, "tickMs": 30000 },
-  "rules": { "projectFile": ".dsh/RULES.md", "userFile": "RULES.md", "maxBytes": 20000, "guards": "audit" },
+  "rules": { "guards": "audit" },
   "ponytail": { "level": "full" },
   "ux": { "mode": "off" },
   "usage": { "enabled": true, "showStatus": true, "intervalMinutes": 5, "providers": [] },
@@ -348,6 +348,13 @@ The `:high` suffix persists as the advisor's reasoning effort; the Model tab in
 is `zai/glm-5.3:max` (Z.AI GLM-5.3 at max thinking); clear the route row to fall
 back to the parent agent's route. Notes are delivered as logged user context; `blocker`/`concern` notes wake a follow-up turn, `nit` notes are deferred.
 
+When the main model is Astra (`gpt-6-astra`), both automatic reviews and the
+on-demand `advisor` tool skip reviewer calls by default. Other main models keep
+their normal advisor behavior. Configure **Model → Advisor → Skip main models**
+in `/ceulen-config` (`advisor.skipModels` in settings): comma-separated model ids
+or exact `provider/model` routes; clear it or enter `-` to allow every model.
+The exclusion follows the current model after a model switch.
+
 A review pins the latest real user request above the turn transcript (harness
 notices like `time-context` are never mistaken for it) and appends the
 working-tree diff of the files this turn touched as evidence, so the reviewer
@@ -422,6 +429,8 @@ entry uses the `/settings` default. A level the model does not offer still
 steps down to the nearest lower one; a resumed session keeps the level it ran
 on. `/effort` no longer moves the global default. `/ceulen doctor` reports
 `effort-per-model applied|stock`.
+
+`/ceulen-config → Tasks → Plan mode` exposes separate model, reasoning, and ordered fallback controls for planning and implementation. Reasoning stays in the existing `provider/model:effort` route strings; each fallback has its own reasoning. `plan.fallbacks` and `plan.implementFallbacks` default to empty. After native recovery is exhausted for a provider failure, Ceulen waits for the failed turn to settle, selects the next untried fallback, and continues in a new turn of the same session. The original failed attempt remains visible. Cancellation, context/offload errors, and manual model overrides do not trigger fallback. A phase change restores that phase's primary model.
 
 Plan mode has three TUI gaps the harness cannot reach.
 `node scripts/tui-plan-patch.mjs` (`apply`/`check`/`revert`) makes bare

@@ -1,24 +1,24 @@
- ⠋ CEULEN · Native Agent Dashboard · render-session
- lead · test/gpt-6-astra · idle · usage —
- Live native session · route and execution policy unchanged
- [Tasks] · Agents · Activity
- ╭─ TASKS ────────────────╮╭─ AGENTS ───────────────╮╭─ TOKENS ───────────────╮
- │ 0/25                   ││ 1/1                    ││ — / —                  │
- │  ░░░░░░░░░░░░░░░░░░░░░ ││ ██████████████████████ ││ — no ratio reported    │
- │ 0% · 25 open           ││ 100% · 1 child · 1 ru… ││ total —                │
- ╰────────────────────────╯╰────────────────────────╯╰────────────────────────╯
- ╭─ Tasks · 0/25 done · 1-5 ──────────────────────────────────────────────────╮
- │ >○ Task 0 你好 👩‍💻 long long long long long long long long long long long … │
- │    pending · owner worker · not ready · scope warning                      │
- │  ○ Task 1 你好 👩‍💻 long long long long long long long long long long long … │
- │    pending · owner worker · not ready · scope warning                      │
- │  ○ Task 2 你好 👩‍💻 long long long long long long long long long long long … │
- │    pending · owner worker · not ready · scope warning                      │
- │  ○ Task 3 你好 👩‍💻 long long long long long long long long long long long … │
- │    pending · owner worker · not ready · scope warning                      │
- │  ○ Task 4 你好 👩‍💻 long long long long long long long long long long long … │
- │    pending · owner worker · not ready · scope warning                      │
+ ⠋ CEULEN · dashboard · render-session
+ Lead · IN 1.2k / OUT 300 · test/test · idle
+ [Tasks] · Workflow
+ ╭─ Tasks ────────────────────────────────────────────────────────────────────╮
+ │ session 0/2 · team 0/25 · 1-16/27                                          │
+ │ >◐ S Checklist item · in_progress · session checklist                      │
+ │  ○ S Second item · pending · session checklist                             │
+ │  ○ T Task 0 你好 👩‍💻 long long long long long long long long long long lon… │
+ │  ○ T Task 1 你好 👩‍💻 long long long long long long long long long long lon… │
+ │  ○ T Task 2 你好 👩‍💻 long long long long long long long long long long lon… │
+ │  ○ T Task 3 你好 👩‍💻 long long long long long long long long long long lon… │
+ │  ○ T Task 4 你好 👩‍💻 long long long long long long long long long long lon… │
+ │  ○ T Task 5 你好 👩‍💻 long long long long long long long long long long lon… │
+ │  ○ T Task 6 你好 👩‍💻 long long long long long long long long long long lon… │
+ │  ○ T Task 7 你好 👩‍💻 long long long long long long long long long long lon… │
+ │  ○ T Task 8 你好 👩‍💻 long long long long long long long long long long lon… │
+ │  ○ T Task 9 你好 👩‍💻 long long long long long long long long long long lon… │
+ │  ○ T Task 10 你好 👩‍💻 long long long long long long long long long long lo… │
+ │  ○ T Task 11 你好 👩‍💻 long long long long long long long long long long lo… │
+ │  ○ T Task 12 你好 👩‍💻 long long long long long long long long long long lo… │
+ │  ○ T Task 13 你好 👩‍💻 long long long long long long long long long long lo… │
  ╰────────────────────────────────────────────────────────────────────────────╯
- Tab/Shift+Tab: region · arrows/PgUp/PgDn: select/scroll · Enter: detail
- Esc: chat · assign work in the original composer
- Source: DSH channel/team/subagents · usage per source, not summed
+ Tab: region · ↑↓/PgUp/PgDn: select · Enter: detail · Esc: chat
+ Source: native checklist/team/subagents · tokens per source, not summed

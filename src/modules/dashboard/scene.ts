@@ -1,4 +1,4 @@
-import { clean, project, watch, type Dashboard, type DashboardChannel, type Item } from './model.js'
+import { clean, project, visibleTools, watch, type Dashboard, type DashboardChannel, type Item } from './model.js'
 import { motion, tokens as t } from './tokens.js'
 
 interface Key {
@@ -26,56 +26,35 @@ export interface SceneProps {
   close(): void
 }
 
-export function layout(columns: number, rows: number): 'small' | 'tabs' | 'stacked' | 'wide' {
-  return columns < t.minColumns || rows < t.minRows ? 'small' : columns < t.stacked || rows < 24 ? 'tabs' : columns < t.wide ? 'stacked' : 'wide'
+/** Wide terminals get Tasks and Workflow side by side; everything else tabs. */
+export function layout(columns: number, rows: number): 'small' | 'tabs' | 'wide' {
+  return columns < t.minColumns || rows < t.minRows ? 'small' : columns < t.wide ? 'tabs' : 'wide'
 }
-const labels = ['Tasks', 'Agents', 'Activity'] as const
+const labels = ['Tasks', 'Workflow'] as const
 const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
-const BLOCKS = [' ', '▏', '▎', '▍', '▌', '▋', '▊', '▉', '█']
-const SPARK = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█']
 
-const running = (status: string): boolean => status === 'running' || status === 'starting'
+const running = (status: string): boolean => status === 'running' || status === 'starting' || status === 'in_progress'
 const tone = (status: string): string => status === 'failed' || status === 'error' || status === 'cancelled' ? t.danger : status === 'completed' || status === 'ok' ? t.success : running(status) ? t.focus : t.muted
 const mark = (status: string): string => status === 'failed' || status === 'cancelled' ? '×' : status === 'completed' || status === 'ok' ? '✓' : running(status) ? '◐' : '○'
 
-/** Host design-system ProgressBar is not in the plugin `ui` surface; this is its 8-line equivalent, with a visible track. */
-function gauge(ratio: number, width: number, ramp: number): readonly [string, string] {
-  const r = Math.max(0, Math.min(1, ratio * ramp))
-  const whole = Math.floor(r * width)
-  const tail = whole < width ? BLOCKS[Math.floor((r * width - whole) * BLOCKS.length)] ?? ' ' : ''
-  const filled = (BLOCKS[8] ?? '█').repeat(whole) + tail
-  return [filled, '░'.repeat(Math.max(0, width - whole - (tail === '' ? 0 : 1)))]
-}
-function sparkline(counts: readonly number[]): string {
-  const max = Math.max(1, ...counts)
-  return counts.map(count => SPARK[count === 0 ? 0 : Math.min(7, Math.round((count / max) * 7))] ?? '▁').join('')
-}
-/** Real per-minute event counts from native timestamps; unknown times contribute nothing. */
-function recent(items: readonly Item[], minutes: number, now: number): number[] {
-  const counts = new Array<number>(minutes).fill(0)
-  for (const item of items) {
-    if (item.at === undefined || item.at <= 0) continue
-    const age = Math.floor((now - item.at) / 60_000)
-    const slot = minutes - 1 - age
-    const current = counts[slot]
-    if (age >= 0 && current !== undefined) counts[slot] = current + 1
+/** Start block so the cursor block fits inside the card's row budget. */
+function firstVisible(heights: readonly number[], cursor: number, capacity: number): number {
+  let start = 0
+  while (start < cursor) {
+    let used = 0
+    for (let i = start; i <= cursor && i < heights.length; i++) used += heights[i] ?? 0
+    if (used <= capacity) break
+    start++
   }
-  return counts
-}
-function compact(value: number | undefined): string {
-  if (value === undefined) return '—'
-  if (value < 1000) return String(value)
-  if (value < 1_000_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}k`
-  return `${(value / 1_000_000).toFixed(1)}m`
+  return start
 }
 
 function DashboardSession({ React: R, ui, channel, close }: SceneProps): unknown {
   const h = R.createElement
   const [state, setState] = R.useState<{ view?: Dashboard; error?: string }>({})
   const [focus, setFocus] = R.useState(0)
-  const [selected, setSelected] = R.useState<readonly string[]>(['', '', ''])
+  const [selected, setSelected] = R.useState<readonly string[]>(['', ''])
   const [detail, setDetail] = R.useState<{ region: number; id: string } | undefined>(undefined)
-  const [mountedAt] = R.useState(() => Date.now())
   const scroll = R.useRef<Scroll | null>(null)
   const size = ui.useTerminalSize()
   R.useEffect(() => {
@@ -89,32 +68,38 @@ function DashboardSession({ React: R, ui, channel, close }: SceneProps): unknown
     return undefined
   }, [channel])
   R.useEffect(() => { if (state.view?.needsInput) close() }, [state.view?.needsInput, close])
+
   const view = state.view
-  // ponytail: one shared clock, and it stops. Idle after the open ramp costs zero timers.
+  const spinning = view !== undefined && (running(view.workflow.lead.status) || view.workflow.children.some(item => running(item.status)))
+  // One shared host clock, and only while a native run is live; idle costs zero frames.
   const frame = ui.useAnimationFrame ?? ((): Frame => [undefined, 0])
-  const spinning = view?.agents.some(item => running(item.status)) ?? false
-  const [clockRef, time] = frame(spinning || Date.now() - mountedAt < motion.rampMs + motion.tickMs ? motion.tickMs : null)
-  const ramp = Math.min(1, Math.max(0, (Date.now() - mountedAt) / motion.rampMs))
+  const [clockRef, time] = frame(spinning ? motion.tickMs : null)
   const spin = (offset = 0): string => SPIN[(Math.floor(time / motion.tickMs) + offset) % SPIN.length] ?? '⠋'
 
-  const groups: readonly (readonly Item[])[] = [view?.tasks ?? [], view?.agents ?? [], view?.activity ?? []]
+  const mode = layout(size.columns, size.rows)
+  const error = state.error ?? view?.failure
+  const headerRows = 2 + (error === undefined ? 0 : 1) + (mode === 'tabs' ? 1 : 0)
+  const inner = Math.max(12, size.columns - 2 * t.inset)
+  const bodyRows = Math.max(1, size.rows - headerRows - 2)
+
+  const taskItems: readonly Item[] = view === undefined ? [] : [...view.sessionTasks, ...view.teamTasks]
+  const workflowItems: readonly Item[] = view === undefined ? [] : [view.workflow.lead, ...view.workflow.children]
+  const groups: readonly (readonly Item[])[] = [taskItems, workflowItems]
   const items = groups[focus] ?? []
   const index = Math.max(0, items.findIndex(item => item.id === selected[focus]))
   const opened = detail === undefined ? undefined : groups[detail.region]?.find(item => item.id === detail.id)
-  const mode = layout(size.columns, size.rows)
-  const content = Math.max(1, size.rows - t.chrome)
-  const kpiRows = mode === 'tabs' || mode === 'small' ? 0 : Math.min(t.kpiRows, Math.max(0, content - t.minCard))
-  const bodyRows = Math.max(t.minCard, content - kpiRows)
-  const inner = Math.max(12, size.columns - 2 * t.inset)
-  /** Above 21 body rows a stacked terminal fits all three cards; below it shows the focused one. */
-  const stackedThree = mode === 'stacked' && bodyRows >= 21
-  const cardHeight = (region: number): number => stackedThree ? (region === 2 ? bodyRows - 2 * Math.floor(bodyRows / 3) : Math.floor(bodyRows / 3)) : bodyRows
-  /** Two-line rows for tasks/agents, a one-line feed plus a sparkline for activity. */
-  const capacityOf = (region: number): number => Math.max(1, region === 2 ? cardHeight(region) - 4 : Math.floor((cardHeight(region) - 2) / 2))
+  const taskCapacity = Math.max(1, bodyRows - 3 - (view?.request === undefined ? 0 : 1))
+  const workflowCapacity = Math.max(1, bodyRows - 2)
+  const page = focus === 0 ? taskCapacity : Math.max(1, Math.floor(workflowCapacity / 2))
+
   ui.useInput((input, key) => {
-    if (key.escape || (key.ctrl && input === 'c')) { if (detail !== undefined) setDetail(undefined); else close(); return }
-    if (key.tab && detail === undefined) { setFocus((focus + (key.shift ? 2 : 1)) % 3); return }
-    const page = capacityOf(focus)
+    if (key.escape || (key.ctrl && input === 'c')) {
+      if (detail !== undefined) setDetail(undefined)
+      else close()
+      return
+    }
+    if (mode === 'small') return
+    if (key.tab && detail === undefined) { setFocus((focus + 1) % labels.length); return }
     const delta = key.pageDown ? page : key.pageUp ? -page : key.downArrow ? 1 : key.upArrow ? -1 : 0
     if (opened !== undefined) {
       if (key.home) scroll.current?.scrollTo(0)
@@ -128,104 +113,124 @@ function DashboardSession({ React: R, ui, channel, close }: SceneProps): unknown
     }
     if (key.return && items[index] !== undefined) setDetail({ region: focus, id: items[index].id })
   })
+
   const text = (value: string, props: Record<string, unknown> = {}): unknown => h(ui.Text, { color: t.text, wrap: 'truncate-end', ...props }, value)
   /** Inline colour runs inside one line; each run stays a whole string for host truncation. */
   const runs = (segments: readonly (readonly [string, Record<string, unknown>])[], props: Record<string, unknown> = {}): unknown =>
     h(ui.Text, { wrap: 'truncate-end', ...props }, ...segments.map(([value, extra], i) => h(ui.Text, { key: i, ...extra }, value)))
-  if (mode === 'small') return h(ui.Box, { flexDirection: 'column', width: size.columns, height: Math.max(1, size.rows) }, text('Too small: resize'), text('Esc: chat'))
+  if (mode === 'small') {
+    return h(ui.Box, { flexDirection: 'column', width: size.columns, height: Math.max(1, size.rows) },
+      text(`Too small at ${size.columns}x${size.rows}`, { bold: true, color: t.focus }),
+      text('Resize to at least 30x10.', { color: t.muted }),
+      text('Esc: chat', { color: t.muted }))
+  }
 
-  const card = (title: string, opts: { key?: string; width: number; height: number; active?: boolean; accent?: string }, ...rows: unknown[]): unknown =>
+  const card = (title: string, opts: { key?: string; width: number; height: number; active?: boolean }, ...rows: unknown[]): unknown =>
     h(ui.Box, {
       key: opts.key, flexDirection: 'column', flexShrink: 1, minWidth: 0, width: opts.width, height: opts.height,
-      borderStyle: 'round', borderColor: opts.active === true ? (opts.accent ?? t.focus) : t.card,
+      borderStyle: 'round', borderColor: opts.active === true ? t.focus : t.card,
       borderText: { content: `─ ${title} `, position: 'top', align: 'start' }, paddingX: t.inset,
     }, ...rows)
 
-  const kpiWidth = Math.max(12, Math.floor(inner / 3))
-  const tasks = groups[0] ?? []
-  const agents = groups[1] ?? []
-  const done = tasks.filter(item => item.status === 'completed').length
-  const live = agents.filter(item => running(item.status)).length
-  const tokens = view?.tokens
-  const input = tokens?.input
-  const output = tokens?.output
-  const total = input === undefined && output === undefined ? undefined : (input ?? 0) + (output ?? 0)
-  const share = total === undefined || total === 0 ? 0 : (input ?? 0) / total
-  const buckets = recent(groups[2] ?? [], 20, Date.now())
-  const kpi = (label: string, value: string, ratio: number | undefined, meta: string): unknown => {
-    const [filled, track] = gauge(ratio ?? 0, Math.max(1, kpiWidth - 4), ratio === undefined ? 0 : ramp)
-    return card(label, { width: kpiWidth, height: kpiRows, active: false },
-      text(value, { bold: true, color: t.focus }),
-      ratio === undefined ? text('— no ratio reported', { color: t.muted }) : runs([[filled, { color: t.focus }], [track, { color: t.card }]]),
-      text(ratio === undefined ? meta : `${Math.round(ratio * 100)}% · ${meta}`, { color: t.muted }))
+  const taskCard = (width: number): unknown => {
+    const total = taskItems.length
+    const cursor = Math.max(0, taskItems.findIndex(item => item.id === selected[0]))
+    const start = Math.floor(cursor / taskCapacity) * taskCapacity
+    const shown = taskItems.slice(start, start + taskCapacity)
+    const rows: unknown[] = []
+    const range = total > taskCapacity ? ` · ${start + 1}-${Math.min(start + taskCapacity, total)}/${total}` : ''
+    rows.push(text(`session ${view?.sessionCount.done ?? 0}/${view?.sessionCount.total ?? 0} · team ${view?.teamCount.done ?? 0}/${view?.teamCount.total ?? 0}${range}`, { color: t.muted }))
+    if (view?.request !== undefined) {
+      rows.push(runs([
+        ['Current request ', { color: t.muted, bold: true }],
+        [clean(view.request, 600), { color: t.text }],
+        [' · no checklist', { color: t.muted }],
+      ]))
+    }
+    for (const [offset, item] of shown.entries()) {
+      const selectedRow = focus === 0 && start + offset === cursor
+      const source = item.id.startsWith('session:') ? 'S' : 'T'
+      const glyph = mark(item.status)
+      rows.push(runs([
+        [`${selectedRow ? '>' : ' '}${glyph} `, { color: tone(item.status), bold: selectedRow }],
+        [`${source} `, { color: t.muted }],
+        [item.title, { color: t.text, bold: selectedRow }],
+        [` · ${item.status}`, { color: tone(item.status) }],
+        [` · ${item.meta}`, { color: t.muted }],
+      ]))
+    }
+    if (total === 0) rows.push(text('No session checklist or team tasks. Nothing was created.', { color: t.muted }))
+    return card('Tasks', { key: 'tasks', width, height: bodyRows, active: focus === 0 }, ...rows)
   }
 
-  const regionCard = (region: number, width: number): unknown => {
-    const list = groups[region] ?? []
-    const active = focus === region
-    const cursor = active ? index : Math.max(0, list.findIndex(item => item.id === selected[region]))
-    const page = capacityOf(region)
-    const start = Math.floor(cursor / page) * page
-    const shown = list.slice(start, start + page)
-    const count = region === 0 ? `${view?.taskCount ?? '0/0'} done` : `${list.length}`
-    const head = `${labels[region]} · ${count} · ${list.length === 0 ? 0 : start + 1}-${Math.min(start + page, list.length)}`
+  const workflowCard = (width: number): unknown => {
+    const blocks = workflowItems.map(item => {
+      const { shown, overflow } = visibleTools(item.tools)
+      return { item, shown, overflow, height: 2 + shown.length + (overflow > 0 ? 1 : 0) }
+    })
+    const cursor = Math.max(0, workflowItems.findIndex(item => item.id === selected[1]))
+    const start = firstVisible(blocks.map(block => block.height), cursor, workflowCapacity)
     const rows: unknown[] = []
-    if (region === 2) {
-      rows.push(text(sparkline(buckets), { color: active ? t.warning : t.muted }))
-      for (const [offset, item] of shown.entries()) {
-        const selectedRow = active && start + offset === cursor
-        rows.push(runs([
-          [`${selectedRow ? '>' : ' '}${mark(item.status)} `, { color: tone(item.status), bold: selectedRow }],
-          [item.title, { color: t.text }],
-          [` · ${item.meta}`, { color: t.muted }],
+    let used = 0
+    for (let i = start; i < blocks.length; i++) {
+      const block = blocks[i]
+      if (block === undefined) break
+      const remaining = workflowCapacity - used
+      if (remaining <= 0) break
+      const selectedRow = focus === 1 && i === cursor
+      const glyph = running(block.item.status) ? spin(i) : mark(block.item.status)
+      const connector = i === 0 ? '  ' : i === workflowItems.length - 1 ? '└─ ' : '├─ '
+      const lines: unknown[] = [
+        runs([
+          [`${selectedRow ? '>' : ' '}${connector}${glyph} `, { color: tone(block.item.status), bold: selectedRow }],
+          [block.item.title, { color: t.text, bold: selectedRow }],
+          [` · ${block.item.status}`, { color: tone(block.item.status) }],
+        ]),
+        text(`  ${block.item.meta}`, { color: t.muted }),
+      ]
+      for (const tool of block.shown) {
+        const toolGlyph = running(tool.status) ? spin() : mark(tool.status)
+        lines.push(runs([
+          [`   ${toolGlyph} `, { color: tone(tool.status) }],
+          [tool.name, { color: t.text }],
+          [` · ${tool.status}`, { color: tone(tool.status) }],
         ]))
       }
-    } else {
-      for (const [offset, item] of shown.entries()) {
-        const selectedRow = active && start + offset === cursor
-        const cursorGlyph = running(item.status) ? spin(offset) : mark(item.status)
-        rows.push(runs([
-          [`${selectedRow ? '>' : ' '}${cursorGlyph} `, { color: tone(item.status), bold: selectedRow }],
-          [item.title, { color: t.text, bold: selectedRow }],
-        ]))
-        rows.push(runs([
-          [`   ${item.status}`, { color: tone(item.status) }],
-          [` · ${item.meta}`, { color: t.muted }],
-        ]))
-      }
+      if (block.overflow > 0) lines.push(text(`   +${block.overflow} earlier`, { color: t.muted }))
+      rows.push(...lines.slice(0, remaining))
+      used += Math.min(lines.length, remaining)
     }
-    if (list.length === 0) rows.push(text(region === 0 ? 'No native team tasks. Nothing was created.' : region === 1 ? 'No native children in this session.' : 'No public tool/output activity yet.', { color: t.muted }))
-    return card(head, { key: labels[region], width, height: cardHeight(region), active, accent: t.focus }, ...rows)
+    if (rows.length === 0) rows.push(text('Loading native workflow…', { color: t.muted }))
+    if (workflowItems.length === 1 && used < workflowCapacity) rows.push(text('No native current-session children.', { color: t.muted }))
+    return card('Workflow', { key: 'workflow', width, height: bodyRows, active: focus === 1 }, ...rows)
   }
 
   let body: unknown
   if (detail !== undefined) {
     const lines = [opened?.title ?? 'This run/item is no longer in the native snapshot.', ...(opened?.detail ?? [])]
-    body = card(`DETAIL · ${labels[detail.region]}`, { width: inner, height: bodyRows, active: true, accent: t.focus },
+    body = card(`DETAIL · ${labels[detail.region]}`, { width: inner, height: bodyRows, active: true },
       h(ui.ScrollBox, { key: detail.id, ref: scroll, height: Math.max(1, bodyRows - 4), flexDirection: 'column' },
         ...lines.map((line, i) => h(ui.Text, { key: i, color: t.text }, clean(line, 4000)))))
   } else if (mode === 'wide') {
-    const tasksWidth = Math.floor(inner * 0.38)
-    const agentsWidth = Math.floor(inner * 0.34)
+    const tasksWidth = Math.floor(inner * 0.42)
     body = h(ui.Box, { flexDirection: 'row', width: inner, height: bodyRows, flexShrink: 0 },
-      regionCard(0, tasksWidth), regionCard(1, agentsWidth), regionCard(2, Math.max(8, inner - tasksWidth - agentsWidth)))
-  } else if (stackedThree) {
-    body = h(ui.Box, { flexDirection: 'column', width: inner, height: bodyRows, flexShrink: 0 }, regionCard(0, inner), regionCard(1, inner), regionCard(2, inner))
-  } else body = regionCard(focus, inner)
+      taskCard(tasksWidth), workflowCard(Math.max(8, inner - tasksWidth)))
+  } else {
+    body = focus === 0 ? taskCard(inner) : workflowCard(inner)
+  }
 
+  // Keep Tab and Esc visible when the terminal is too narrow for the full hint.
+  const footer = detail !== undefined
+    ? (inner < 46 ? 'Esc: overview · Esc: chat' : 'Esc: overview · Esc again: chat · ↑↓/PgUp/PgDn: scroll')
+    : (inner < 34 ? 'Tab · Esc: chat' : inner < 46 ? 'Tab: region · Enter · Esc: chat' : 'Tab: region · ↑↓/PgUp/PgDn: select · Enter: detail · Esc: chat')
   return h(ui.Box, { ref: clockRef, flexDirection: 'column', width: size.columns, height: size.rows, paddingX: t.inset },
-    text(`${spinning ? spin() : '·'} CEULEN · Native Agent Dashboard · ${clean(channel.sessionId)}`, { bold: true, color: t.focus }),
-    text(view?.lead ?? 'Loading native channel…'),
-    text(state.error ?? view?.failure ?? view?.warning ?? 'Live native session · route and execution policy unchanged', { color: state.error === undefined && view?.failure === undefined ? t.warning : t.danger }),
-    text(labels.map((label, region) => (region === focus ? `[${label}]` : label)).join(' · '), { color: t.muted }),
-    ...(kpiRows === 0 ? [] : [h(ui.Box, { flexDirection: 'row', width: inner, height: kpiRows, flexShrink: 0 },
-      kpi('TASKS', `${done}/${tasks.length}`, tasks.length === 0 ? undefined : done / tasks.length, `${tasks.length - done} open`),
-      kpi('AGENTS', `${live}/${agents.length}`, agents.length === 0 ? undefined : live / agents.length, `${agents.length} ${agents.length === 1 ? 'child' : 'children'} · ${live} running`),
-      kpi('TOKENS', `${compact(input)} / ${compact(output)}`, total === undefined ? undefined : share, `total ${compact(total)}`))]),
+    text(`${spinning ? `${spin()} ` : ''}CEULEN · dashboard · ${clean(channel.sessionId)}`, { bold: true, color: t.focus }),
+    text(view?.lead ?? 'Loading native channel…', { color: t.muted }),
+    ...(error === undefined ? [] : [text(error, { color: t.danger })]),
+    ...(mode === 'tabs' ? [text(labels.map((label, region) => (region === focus ? `[${label}]` : label)).join(' · '), { color: t.muted })] : []),
     body,
-    text('Tab/Shift+Tab: region · arrows/PgUp/PgDn: select/scroll · Enter: detail', { color: t.muted }),
-    text(detail ? 'Esc: overview · Esc again: chat' : 'Esc: chat · assign work in the original composer', { color: t.muted }),
-    text('Source: DSH channel/team/subagents · usage per source, not summed', { color: t.muted }),
+    text(footer, { color: t.muted }),
+    text('Source: native checklist/team/subagents · tokens per source, not summed', { color: t.muted }),
   )
 }
 

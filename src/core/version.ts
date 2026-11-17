@@ -103,7 +103,7 @@ export function releaseDistTag(manifest: PackageManifest = readManifest()): stri
   return trimmed(manifest.release?.distTag) ?? trimmed(manifest.release?.line)
 }
 
-function readLockedUpstreamVersion(): string | undefined {
+export function readLockedUpstreamVersion(): string | undefined {
   try {
     const lock = JSON.parse(readFileSync(new URL('../../upstream.lock.json', import.meta.url), 'utf8')) as UpstreamLock
     return trimmed(lock.upstream?.version)

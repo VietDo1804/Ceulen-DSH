@@ -5,10 +5,8 @@ import { logLine } from '../../core/log.js'
 import { assertPublicUrl } from './url-guard.js'
 import type { WebFetchProviderLike, WebFetchResult, WebLike } from './types.js'
 
-export async function fetchPage(ctx: PluginContext, url: string, signal: AbortSignal, options?: { direct?: boolean }): Promise<WebFetchResult> {
-  // A markdown-provider pin (`deepseek-fetch-api`) makes ctx.web.fetch return
-  // `kind: 'text'`; callers that need raw HTML pass `direct` to bypass it.
-  const service = options?.direct === true ? undefined : ctx.get('web', false) as WebLike | undefined
+export async function fetchPage(ctx: PluginContext, url: string, signal: AbortSignal): Promise<WebFetchResult> {
+  const service = ctx.get('web', false) as WebLike | undefined
   if (service !== undefined && typeof service.fetch === 'function') {
     return await service.fetch({ url, signal })
   }
@@ -59,7 +57,16 @@ export async function fetchDirectPublic(url: string, signal?: AbortSignal): Prom
       current = new URL(location, current).href
       continue
     }
-    const text = await response.text()
+    // Stop reading at the cap instead of buffering an arbitrarily large body.
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+    let text = ''
+    while (reader !== undefined && text.length <= FETCH_MAX_CHARS) {
+      const { done, value } = await reader.read()
+      if (done) break
+      text += decoder.decode(value, { stream: true })
+    }
+    await reader?.cancel()
     const type = response.headers.get('content-type') ?? ''
     return {
       url: response.url || current,
@@ -104,14 +111,5 @@ export function createFallbackFetchProvider(): WebFetchProviderLike {
 export async function fetchHtmlPage(ctx: PluginContext, url: string, signal: AbortSignal): Promise<WebFetchResult> {
   const result = await fetchPage(ctx, url, signal)
   if (result.body.kind === 'html') return result
-  return await fetchPage(ctx, url, signal, { direct: true })
+  return await fetchDirectPublic(url, signal)
 }
-
-
-/**
- * Capture tools (screenshot, PDF, interact, runtime UX audit) take http(s) URLs
- * and any file:// inside the workspace. `assertCaptureUrl` is only the
- * argv-injection guard (the URL becomes a spawn argument); `captureUrlProblem`
- * adds the network boundary for link-local/metadata ranges, while loopback and
- * LAN dev servers stay auditable.
- */

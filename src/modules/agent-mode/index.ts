@@ -94,38 +94,37 @@ export function apply(ctx: PluginContext, config: { path?: string } = {}): void 
     followRoute()
   })
 
-  for (const command of ['Agent-mode', 'agent-mode']) {
-    registerCommandSafe(ctx, {
-      name: command,
-      description: 'Load your translation/localization AGENTS.md role (on, off, status)',
-      input: { hint: '[on|off|status]' },
-      handler({ rawInput }) {
-        const action = rawInput.trim().toLowerCase()
-        if (action === 'status') {
-          const source = explicit === undefined ? ' (model default)' : ''
-          return { kind: 'success', text: `Agent Mode: ${instructions ? 'on' : 'off'}${source}\nRole: ${path}` }
-        }
-        if (action === 'off') {
-          explicit = false
-          instructions = ''
-          paintFooter()
-          return { kind: 'success', text: 'Agent Mode off. Role instructions removed; permissions unchanged.' }
-        }
-        if (action !== '' && action !== 'on') {
-          return { kind: 'error', text: 'Usage: /Agent-mode [on|off|status]' }
-        }
-        try {
-          instructions = readRole()
-          explicit = true
-          return { kind: 'success', text: `Agent Mode on. Loaded ${path}.\nUse /Agent-mode off to leave; run /Agent-mode again to reload edits. Permissions unchanged.` }
-        } catch (error) {
-          explicit = true
-          instructions = ''
-          return { kind: 'error', text: `Agent Mode off: cannot load ${path}: ${errorMessage(error)}` }
-        } finally {
-          paintFooter()
-        }
-      },
-    })
-  }
+  registerCommandSafe(ctx, {
+    // The host only accepts lower-case command names.
+    name: 'agent-mode',
+    description: 'Load your translation/localization AGENTS.md role (on, off, status)',
+    input: { hint: '[on|off|status]' },
+    handler({ rawInput }) {
+      const action = rawInput.trim().toLowerCase()
+      if (action === 'status') {
+        const source = explicit === undefined ? ' (model default)' : ''
+        return { kind: 'success', text: `Agent Mode: ${instructions ? 'on' : 'off'}${source}\nRole: ${path}` }
+      }
+      if (action === 'off') {
+        explicit = false
+        instructions = ''
+        paintFooter()
+        return { kind: 'success', text: 'Agent Mode off. Role instructions removed; permissions unchanged.' }
+      }
+      if (action !== '' && action !== 'on') {
+        return { kind: 'error', text: 'Usage: /agent-mode [on|off|status]' }
+      }
+      try {
+        instructions = readRole()
+        explicit = true
+        return { kind: 'success', text: `Agent Mode on. Loaded ${path}.\nUse /agent-mode off to leave; run /agent-mode again to reload edits. Permissions unchanged.` }
+      } catch (error) {
+        explicit = true
+        instructions = ''
+        return { kind: 'error', text: `Agent Mode off: cannot load ${path}: ${errorMessage(error)}` }
+      } finally {
+        paintFooter()
+      }
+    },
+  })
 }

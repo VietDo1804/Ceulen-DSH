@@ -1,6 +1,6 @@
 import type { PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
-import { ceulenTool, objectSchema, registerToolSafe } from '../../core/tools.js'
+import { ceulenTool, objectSchema, registerToolSafe, cwdOf, errorMessage } from '../../core/tools.js'
 import { ghAvailable, realGh } from '../../vendor/ceulen/gh/gh-cli.js'
 import { executeOp, SEARCH_LIMIT_DEFAULT, SEARCH_LIMIT_MAX, type GhParams } from '../../vendor/ceulen/gh/ops.js'
 import { logLine } from '../../core/log.js'
@@ -25,10 +25,6 @@ const DESCRIPTION = [
 
 export const name = 'ceulen-gh'
 export const inject = ['tools']
-
-function cwdOf(exec: { agent?: { session: { header?: { cwd?: string } } } }): string {
-  return exec.agent?.session.header?.cwd ?? process.cwd()
-}
 
 export function apply(ctx: PluginContext): void {
   const settings = loadSettingsSync()
@@ -55,7 +51,6 @@ export function apply(ctx: PluginContext): void {
       run: { type: 'string', description: 'Actions run id or URL (run_watch).' },
       tail: { type: 'integer', description: 'Failed-job log tail lines (run_watch; default 15, max 200).' },
     }, ['op']),
-    outputSchema: { type: 'string' },
     timeoutMs: 330_000,
     concurrencySafe: false,
     async execute(args, exec) {
@@ -67,7 +62,7 @@ export function apply(ctx: PluginContext): void {
         }
         return result.text
       } catch (error) {
-        throw new Error(error instanceof Error ? error.message : String(error))
+        throw new Error(errorMessage(error))
       }
     },
   }))

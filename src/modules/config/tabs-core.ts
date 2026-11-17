@@ -1,25 +1,27 @@
-import { REASONING_EFFORTS, type CeulenSettings, type ReasoningEffort } from '../../core/settings.js'
+import { PONYTAIL_LEVELS, REASONING_EFFORTS, RULE_GUARD_MODES, UX_MODES, type CeulenSettings, type ReasoningEffort } from '../../core/settings.js'
 import { ROLES } from '../subagent/roles.js'
 import { info, number, option, secret, text, toggle } from './rows.js'
 import { roleSelector, routeList, routeText, splitList, splitRoute } from './helpers.js'
 import type { ConfigContext, ConfigRow, ConfigTab } from './types.js'
 
 /** Keep fallback order and effort in the existing route strings. */
-function fallbackRows(settings: CeulenSettings, owner: 'advisor' | 'classifier'): ConfigRow[] {
-  return settings[owner].fallbacks.flatMap((value, index) => [
+export function fallbackRows(owner: string, get: () => string[], set: (routes: string[]) => void): ConfigRow[] {
+  return get().flatMap((value, index) => [
     text(`${owner}.fallbacks.${index}.model`, `Fallback ${index + 1} model`, value, next => {
-      const routes = [...settings[owner].fallbacks]
+      const routes = [...get()]
       if (next.trim() === '') routes.splice(index, 1)
       else {
         splitRoute(next)
         routes[index] = next
       }
-      settings[owner].fallbacks = routeList(routes.join(', '))
+      set(routeList(routes.join(', ')))
     }, { picker: true, description: 'Tried in this order. Enter replaces only this fallback; type "-" in the picker to remove it.' }),
     option(`${owner}.fallbacks.${index}.reasoning`, `Fallback ${index + 1} reasoning`, splitRoute(value)?.effort ?? 'auto', ['auto', ...REASONING_EFFORTS], next => {
-      const route = splitRoute(settings[owner].fallbacks[index] ?? '')
+      const routes = [...get()]
+      const route = splitRoute(routes[index] ?? '')
       if (route === null) return
-      settings[owner].fallbacks[index] = routeText(route.provider, route.model, next === 'auto' ? null : next as ReasoningEffort)
+      routes[index] = routeText(route.provider, route.model, next === 'auto' ? null : next as ReasoningEffort)
+      set(routes)
     }, { description: 'Reasoning for this fallback only; auto uses its model default.' }),
   ])
 }
@@ -57,10 +59,10 @@ export function buildCoreTabs(settings: CeulenSettings, context: ConfigContext, 
           id: 'discipline',
           label: 'Discipline',
           rows: [
-            option('ponytail.level', 'Ponytail mode', settings.ponytail.level, ['off', 'lite', 'full', 'ultra'], value => {
+            option('ponytail.level', 'Ponytail mode', settings.ponytail.level, PONYTAIL_LEVELS, value => {
               settings.ponytail.level = value as CeulenSettings['ponytail']['level']
             }, { description: 'Over-engineering discipline injected into every request. New sessions pick it up.' }),
-            option('ux.mode', 'UX mode', settings.ux.mode, ['off', 'lite', 'strict'], value => {
+            option('ux.mode', 'UX mode', settings.ux.mode, UX_MODES, value => {
               settings.ux.mode = value as CeulenSettings['ux']['mode']
             }, { description: 'Anti-slop UI design discipline; strict adds the full method to the prompt. Guidance only: nothing blocks handoff.' }),
           ],
@@ -99,8 +101,11 @@ export function buildCoreTabs(settings: CeulenSettings, context: ConfigContext, 
             text('advisor.fallbacks', 'Add fallback', settings.advisor.fallbacks.join(', '), value => {
               settings.advisor.fallbacks = routeList(value)
             }, { picker: true, pickerAppend: true, placeholder: 'none', description: 'provider/model routes tried in order when the primary fails. Enter opens the model list and APPENDS the pick; type freely for an effort suffix; "-" clears the list.' }),
-            ...fallbackRows(settings, 'advisor'),
+            ...fallbackRows('advisor', () => settings.advisor.fallbacks, value => { settings.advisor.fallbacks = value }),
             toggle('advisor.watch', 'Watch turns', settings.advisor.watch, value => { settings.advisor.watch = value }, { description: 'Review settled turns and raise at most one note.' }),
+            text('advisor.skipModels', 'Skip main models', settings.advisor.skipModels.join(', '), value => {
+              settings.advisor.skipModels = splitList(value === '-' ? '' : value)
+            }, { placeholder: 'none', description: 'Skip automatic and on-demand advisor for these comma-separated main model ids or provider/model routes. Default: gpt-6-astra. Empty or "-" allows all models.' }),
             toggle('advisor.showStatus', 'Status line', settings.advisor.showStatus, value => { settings.advisor.showStatus = value }, { description: 'Show advisor working/done in the status bar.' }),
             number('advisor.minToolCalls', 'Min tool calls', settings.advisor.minToolCalls, value => { settings.advisor.minToolCalls = value }, 0, 100),
           ],
@@ -119,7 +124,7 @@ export function buildCoreTabs(settings: CeulenSettings, context: ConfigContext, 
             text('classifier.fallbacks', 'Add fallback', settings.classifier.fallbacks.join(', '), value => {
               settings.classifier.fallbacks = routeList(value)
             }, { picker: true, pickerAppend: true, description: 'provider/model routes tried in order when the primary classify route fails or returns invalid JSON. Enter opens the model list and APPENDS the pick; "-" clears the list.' }),
-            ...fallbackRows(settings, 'classifier'),
+            ...fallbackRows('classifier', () => settings.classifier.fallbacks, value => { settings.classifier.fallbacks = value }),
           ],
         },
         {
@@ -133,7 +138,7 @@ export function buildCoreTabs(settings: CeulenSettings, context: ConfigContext, 
           rows: [
             text('agentMode.models', 'Default routes', settings.agentMode.models.join(', '), value => {
               settings.agentMode.models = routeList(value)
-            }, { picker: true, pickerAppend: true, placeholder: 'manual only', description: 'provider/model routes that load Agent Mode by default; "-" clears. Explicit /Agent-mode on|off outranks the route default.' }),
+            }, { picker: true, pickerAppend: true, placeholder: 'manual only', description: 'provider/model routes that load Agent Mode by default; "-" clears. Explicit /agent-mode on|off outranks the route default.' }),
           ],
         },
       ],
@@ -195,10 +200,7 @@ export function buildCoreTabs(settings: CeulenSettings, context: ConfigContext, 
           id: 'rules',
           label: 'Rules',
           rows: [
-            text('rules.projectFile', 'Project file', settings.rules.projectFile, value => { settings.rules.projectFile = value }, { placeholder: '.dsh/RULES.md' }),
-            text('rules.userFile', 'User file', settings.rules.userFile, value => { settings.rules.userFile = value }, { placeholder: 'RULES.md' }),
-            number('rules.maxBytes', 'Max bytes', settings.rules.maxBytes, value => { settings.rules.maxBytes = value }, 1_000, 200_000),
-            option('rules.guards', 'Guards', settings.rules.guards, ['off', 'audit', 'enforce'], value => {
+            option('rules.guards', 'Guards', settings.rules.guards, RULE_GUARD_MODES, value => {
               settings.rules.guards = value as CeulenSettings['rules']['guards']
             }, { description: 'when-* rule guards: audit logs matches, enforce denies when-action: deny.' }),
           ],

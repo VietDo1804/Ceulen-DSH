@@ -14,18 +14,13 @@
 
 import type { LlmService, PluginContext } from '../../core/types.js'
 import { loadSettingsSync } from '../../core/settings.js'
-import { registerCommandSafe, errorMessage } from '../../core/tools.js'
+import { registerCommandSafe, errorMessage, sceneService, type TuiScenesLike } from '../../core/tools.js'
 import { displayPath, settingsPath } from '../../core/paths.js'
 import { logLine } from '../../core/log.js'
 import { buildConfigTabs, summaryLines, type ConfigContext, type ConfigProvider } from './model.js'
 import { createConfigScene } from './scene.js'
 
 const SCENE_ID = 'ceulen-config'
-
-interface TuiScenesLike {
-  register(descriptor: { id: string; title?: string; component: unknown }, identity?: unknown): () => void
-  open(id: string): boolean
-}
 
 interface CredentialStoreLike {
   set(ref: string, value: string): Promise<void>
@@ -48,16 +43,6 @@ function credentialWriter(ctx: PluginContext): { write(ref: string, value: strin
       }
       await store.set(ref, value)
     },
-  }
-}
-
-function sceneService(ctx: PluginContext): TuiScenesLike | undefined {
-  try {
-    const service = ctx.get('tuiScenes', false) as TuiScenesLike | undefined
-    if (service === undefined || typeof service.register !== 'function' || typeof service.open !== 'function') return undefined
-    return service
-  } catch {
-    return undefined
   }
 }
 

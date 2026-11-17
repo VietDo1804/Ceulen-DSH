@@ -22,10 +22,10 @@
  */
 import { dirname, join, relative } from 'node:path'
 import type { AgentLike, MessageLike, PluginContext, SessionLike, UserMessageLike } from '../../core/types.js'
-import { isModuleEnabled, loadSettingsSync, type CeulenSettings, type ReasoningEffort } from '../../core/settings.js'
+import { isModuleEnabled, loadSettingsSync, type CeulenSettings } from '../../core/settings.js'
 import { ensureDir, writeAtomic } from '../../core/fsx.js'
-import { parseRoute } from '../../core/llm.js'
-import { registerCommandSafe } from '../../core/tools.js'
+import { parseRoute, type ParsedRoute } from '../../core/llm.js'
+import { registerCommandSafe, toolArgs } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 
 export const name = 'ceulen-plan'
@@ -71,15 +71,7 @@ export function latestPlan(messages: readonly MessageLike[]): DraftPlan | undefi
 }
 
 function readPlanArgument(raw: unknown): DraftPlan | undefined {
-  let args = raw
-  if (typeof raw === 'string') {
-    try {
-      args = JSON.parse(raw)
-    } catch {
-      return undefined
-    }
-  }
-  const plan = (args as { plan?: unknown } | null | undefined)?.plan
+  const plan = toolArgs(raw).plan
   if (typeof plan !== 'string' || plan.trim().length === 0) return undefined
   const title = plan.match(/^#\s+(.+)$/m)?.[1]?.trim() || 'Plan'
   return { plan: plan.endsWith('\n') ? plan : `${plan}\n`, title }
@@ -107,22 +99,8 @@ export function executionPrompt(relativePlan: string, mode: 'current' | 'new'): 
   return `${prefix}Execute the approved plan at ${relativePlan}. Read the plan file if needed, keep the implementation scoped to the plan, update it if reality differs materially, and run the verification described there.`
 }
 
-interface PhaseRoute {
-  readonly provider: string
-  readonly model: string
-  readonly reasoningEffort?: ReasoningEffort
-}
-
 /** A configured phase route: `provider/model[:effort]`, or undefined for inherit. */
-export function phaseRoute(selector: string): PhaseRoute | undefined {
-  const parsed = parseRoute(selector)
-  if (parsed === undefined) return undefined
-  return {
-    provider: parsed.provider,
-    model: parsed.model,
-    ...(parsed.reasoningEffort === undefined ? {} : { reasoningEffort: parsed.reasoningEffort }),
-  }
-}
+export const phaseRoute = parseRoute
 
 function routeKey(route: { readonly provider?: unknown; readonly model?: unknown } | undefined): string {
   const provider = typeof route?.provider === 'string' ? route.provider : ''
@@ -140,8 +118,12 @@ export function hasApprovedPlan(session: SessionLike | undefined): boolean {
 
 function planActive(ctx: PluginContext, agent: AgentLike): boolean {
   try {
-    const service = ctx.get('planMode', false) as { get?(target: unknown): { active?: boolean } | undefined } | undefined
-    return service?.get?.(agent)?.active === true
+    const service = ctx.get('planMode', false) as { get?(target: unknown): { active?: boolean; pending?: boolean } | undefined } | undefined
+    const state = service?.get?.(agent)
+    if (state !== undefined) return (state.pending ?? state.active) === true
+    // The TUI plugin host does not expose the kernel's planMode service.
+    return agent.session.snapshotEvents?.().reduce((active, event) => event.type === 'plan/mode'
+      ? (event.data as { active?: boolean } | undefined)?.active === true : active, false) ?? false
   } catch {
     // No plan-mode service composed (web/headless): stay on the client route.
     return false
@@ -164,51 +146,93 @@ export function installPhaseRoutes(ctx: PluginContext, agent: AgentLike): void {
   let suppressed: 'plan' | 'implement' | undefined
   let recorded: string | undefined
   let lastPhase: 'plan' | 'implement' | undefined
+  let fallbackRoute: ParsedRoute | undefined
+  const tried = new Set<string>()
 
-  const sync = (): void => {
+  const sync = (approved = false): void => {
     if (typeof seam?.select !== 'function') return
     // Read per sync (a ~2 KB sync read) so a /ceulen-config edit applies to
     // the running session instead of the next one.
     const settings: CeulenSettings = loadSettingsSync()
     // None of the feature's config: leave the host selection untouched.
-    if (settings.plan.model === '' && settings.plan.implement === '') return
-    const phase: 'plan' | 'implement' | undefined = planActive(ctx, agent)
+    if (settings.plan.model === '' && settings.plan.implement === '' && settings.plan.fallbacks.length === 0 && settings.plan.implementFallbacks.length === 0) return
+    const phase: 'plan' | 'implement' | undefined = approved ? 'implement' : planActive(ctx, agent)
       ? 'plan'
       : hasApprovedPlan(agent.session) ? 'implement' : undefined
     if (phase === undefined) {
       suppressed = undefined
       recorded = undefined
       lastPhase = undefined
+      fallbackRoute = undefined
+      tried.clear()
       return
     }
-    const target = phase === 'plan' ? phaseRoute(settings.plan.model) : phaseRoute(settings.plan.implement)
-    if (target === undefined) return
     // A phase flip re-applies the config: a switch made in the previous phase
     // does not carry over into the new one.
     if (phase !== lastPhase) {
       suppressed = undefined
       recorded = undefined
+      fallbackRoute = undefined
+      tried.clear()
     }
     lastPhase = phase
     const key = routeKey(seam.current?.())
     // The live selection is not the one we recorded: a human model switch.
     if (suppressed !== phase && recorded !== undefined && key !== '' && key !== recorded) suppressed = phase
     if (suppressed === phase) return
-    seam.select({
-      provider: target.provider,
-      model: target.model,
-      ...(target.reasoningEffort === undefined ? {} : { reasoningEffort: target.reasoningEffort }),
-    })
+    const target = fallbackRoute ?? (phase === 'plan' ? phaseRoute(settings.plan.model) : phaseRoute(settings.plan.implement))
+    if (target === undefined) {
+      recorded = key
+      return
+    }
+    seam.select(target)
     recorded = routeKey(target)
   }
 
-  // Plan mode is logged (`plan/mode`, whole-value), so every flip — upstream
-  // `/plan`, `exit_plan_mode`, our own `/plan-approve` — reaches us before the
-  // next step is prepared.
+  // Session publication forbids nested appends (model.select appends too).
   ctx.on('session/event', (session: SessionLike | undefined, event: { type?: string } | undefined) => {
     if (event?.type !== 'plan/mode') return
     if (session !== undefined && agent.session !== undefined && session !== agent.session) return
+    void Promise.resolve().then(() => sync()).catch(error => { logLine('plan', `phase route failed: ${String(error)}`) })
+  })
+  // Approval queues plan-mode exit until pre-step, AFTER its model is frozen.
+  // The successful tool result exposes approval before that boundary, even
+  // when the plugin host cannot access the kernel's pending mode selection.
+  ctx.on('tools/post-execute', async (exec: { agent?: AgentLike; name?: string; signal?: AbortSignal }, result: { isError?: boolean; value?: { approved?: boolean } }, next: () => Promise<{ kind: string }>) => {
+    const decision = await next()
+    if (exec.agent === agent && exec.name === EXIT_PLAN_TOOL && !exec.signal?.aborted && !result.isError && result.value?.approved === true && decision.kind === 'accept') sync(true)
+    return decision
+  })
+  ctx.on('agent/request-error', async (payload: {
+    agent: AgentLike
+    failure: { code: string }
+    signal: AbortSignal
+  }, next: () => Promise<{ kind: 'retry' } | undefined>) => {
+    if (payload.agent !== agent) return next()
+    // Let compaction, image offload and native bounded retries recover first.
+    const action = await next()
+    if (action !== undefined || payload.signal.aborted) return action
+    if (!['RATE_LIMIT', 'SERVER', 'TIMEOUT', 'TRANSPORT', 'EMPTY_RESPONSE', 'AUTH', 'QUOTA', 'ACCOUNT_QUOTA', 'NO_ADAPTER', 'MISSING_CREDENTIAL', 'INVALID_CREDENTIAL'].includes(payload.failure.code)) return action
     sync()
+    if (lastPhase === undefined || suppressed === lastPhase || typeof seam?.select !== 'function' || typeof agent.whenIdle !== 'function') return action
+    const settings = loadSettingsSync().plan
+    const candidates = lastPhase === 'plan' ? settings.fallbacks : settings.implementFallbacks
+    tried.add(routeKey(seam.current?.()))
+    const target = candidates.map(phaseRoute).find(route => route !== undefined && !tried.has(routeKey(route)))
+    if (target === undefined) return action
+    fallbackRoute = target
+    seam.select(target)
+    recorded = routeKey(target)
+    tried.add(recorded)
+    // ponytail: a step freezes its route; resume on a new turn rather than
+    // retrying the same frozen step. Failed attempts execute no tool calls.
+    const prompt = `The ${lastPhase} model request failed (${payload.failure.code}). Continue the current task on fallback ${recorded}; preserve the current plan-mode state and all user instructions. Inspect existing work before continuing; do not repeat completed actions.`
+    // The failed driver does not drain followups queued while still running.
+    void agent.whenIdle().then(() => {
+      if (!payload.signal.aborted && routeKey(seam.current?.()) === routeKey(target)) deliver(agent, prompt)
+    }).catch(error => { logLine('plan', `fallback continuation failed: ${String(error)}`) })
+    logLine('plan', `${lastPhase} fallback selected: ${recorded} (${payload.failure.code})`)
+    return action
   })
   sync()
 }
@@ -360,7 +384,11 @@ export function apply(ctx: PluginContext): void {
       // non-fatal (`/plan off` remains the manual escape).
       try {
         const planMode = ctx.get('planMode', false) as { set?(agent: unknown, active: boolean): unknown } | undefined
-        planMode?.set?.(agent, false)
+        if (typeof planMode?.set === 'function') planMode.set(agent, false)
+        else {
+          const commands = ctx.commands as typeof ctx.commands & { execute?(agent: AgentLike, line: string, attachments: unknown[], signal?: AbortSignal): Promise<unknown> }
+          await commands.execute?.(agent, '/plan off', [], signal)
+        }
       } catch {
         // Optional surface.
       }

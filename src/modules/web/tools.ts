@@ -1,10 +1,19 @@
+import path from 'node:path'
 import type { PluginContext } from '../../core/types.js'
-import { ceulenTool, clampText, objectSchema, registerToolSafe } from '../../core/tools.js'
+import { ceulenTool, clampText, objectSchema, registerToolSafe, cwdOf } from '../../core/tools.js'
 import { credential } from '../../core/credentials.js'
 import { findChromeBinary, capturePdf, captureScreenshot } from '../../vendor/ceulen/web/chrome.js'
 import { runInteraction, validateSteps, type InteractStep } from '../../vendor/ceulen/web/cdp.js'
 import { chatgptWebChat, describeChatGptError, loadChatGptAuth } from '../../vendor/ceulen/web/chatgpt.js'
 import { chatgptChat, describeChatApiError, loadChatConfig } from '../../vendor/ceulen/web/chatapi.js'
+import { loadGeminiWebConfig } from '../../vendor/ceulen/web/gemini.js'
+import {
+  describeImageApiError,
+  generateImageWithFallback,
+  loadImageApiConfig,
+  loadImageRateConfig,
+  type ImageProvider,
+} from '../../vendor/ceulen/web/imageapi.js'
 import { ignoredNote, normalizeInteractArgs, normalizeScreenshotArgs } from './args.js'
 import { assertCaptureScope, IMAGE_RESULT_SCHEMA, imageRender, savePdfFile, saveScreenshot } from './capture.js'
 import { FALLBACK_FETCH_PROVIDER_ID, fetchPage, fetchHtmlPage } from './fetch.js'
@@ -46,14 +55,13 @@ export function registerWebTools(ctx: PluginContext): void {
       maxChars: { type: 'integer', description: 'Maximum characters returned (default 12000, max 40000).' },
       links: { type: 'boolean', description: 'Include same-page links.' },
     }, ['url']),
-    outputSchema: { type: 'string' },
     concurrencySafe: true,
     async execute(raw, exec) {
       const args = raw as { url: string; maxChars?: number; links?: boolean }
       const result = await fetchPage(ctx, args.url, exec.signal)
-      if (result.body.kind === 'text') return clampText(result.body.content, args.maxChars ?? 12_000)
-      const parsed = htmlToText(result.body.content)
       const limit = Math.max(500, Math.min(args.maxChars ?? 12_000, 40_000))
+      if (result.body.kind === 'text') return clampText(result.body.content, limit)
+      const parsed = htmlToText(result.body.content)
       const header = [
         `URL: ${result.url}`,
         `Status: ${result.statusCode}${result.truncated ? ' (body truncated by provider)' : ''}`,
@@ -73,7 +81,6 @@ export function registerWebTools(ctx: PluginContext): void {
       url: { type: 'string', description: 'Public HTTP(S) URL.' },
       limit: { type: 'integer', description: 'Max links (default 60, max 200).' },
     }, ['url']),
-    outputSchema: { type: 'string' },
     concurrencySafe: true,
     async execute(raw, exec) {
       const args = raw as { url: string; limit?: number }
@@ -111,7 +118,7 @@ export function registerWebTools(ctx: PluginContext): void {
     concurrencySafe: false,
     async execute(raw, exec) {
       const args = raw as { url: string; width?: number; height?: number; fullPage?: boolean; reducedMotion?: boolean; waitForSec?: number }
-      const cwd = exec.agent?.session.header?.cwd ?? process.cwd()
+      const cwd = cwdOf(exec)
       assertCaptureScope(args.url, cwd)
       const capture = await captureScreenshot({
         url: args.url,
@@ -136,12 +143,11 @@ export function registerWebTools(ctx: PluginContext): void {
       url: { type: 'string', description: 'http(s) or workspace file:// URL.' },
       reducedMotion: { type: 'boolean', description: 'Force prefers-reduced-motion: reduce.' },
     }, ['url']),
-    outputSchema: { type: 'string' },
     timeoutMs: 60_000,
     concurrencySafe: false,
     async execute(raw, exec) {
       const args = raw as { url: string; reducedMotion?: boolean }
-      const cwd = exec.agent?.session.header?.cwd ?? process.cwd()
+      const cwd = cwdOf(exec)
       assertCaptureScope(args.url, cwd)
       const capture = await capturePdf({ url: args.url, reducedMotion: args.reducedMotion, signal: exec.signal, timeoutMs: 45_000 })
       const file = await savePdfFile(capture.base64, `page-${new URL(args.url).hostname || 'page'}`)
@@ -168,7 +174,7 @@ export function registerWebTools(ctx: PluginContext): void {
         stepTimeoutMs?: number
         grant?: string[]
       }
-      const cwd = exec.agent?.session.header?.cwd ?? process.cwd()
+      const cwd = cwdOf(exec)
       assertCaptureScope(args.url, cwd)
       const steps = args.steps ?? []
       validateSteps(steps)
@@ -215,12 +221,11 @@ export function registerWebTools(ctx: PluginContext): void {
       system: { type: 'string', description: 'Optional system prompt.' },
       timeout_ms: { type: 'integer', description: 'Request timeout (default 120000, 10s-5min).' },
     }, ['prompt']),
-    outputSchema: { type: 'string' },
     timeoutMs: 300_000,
     concurrencySafe: true,
     async execute(raw, exec) {
       const args = raw as { prompt: string; provider?: 'chatgpt' | 'gateway'; model?: string; system?: string; timeout_ms?: number }
-      const cwd = exec.agent?.session.header?.cwd ?? process.cwd()
+      const cwd = cwdOf(exec)
       const timeoutMs = Math.min(Math.max(args.timeout_ms ?? 120_000, 10_000), 300_000)
       const chatGpt = loadChatGptAuth(cwd)
       const wantChatGpt = args.provider === 'chatgpt' || (args.provider === undefined && chatGpt.auth !== null)
@@ -267,10 +272,66 @@ export function registerWebTools(ctx: PluginContext): void {
   }))
 
   registerToolSafe(ctx, ceulenTool({
+    name: 'web_image',
+    description: 'Generate images from a text prompt and write PNG files. Provider "auto" uses ChatGPT web image generation over the existing OpenAI subscription credential (codex login / CHATGPT_WEB_AUTH_KEY — no API key needed), then Z.AI (ZAI_API_KEY) and any OpenAI-compatible images endpoint (WEB_IMAGE_API_BASE_URL). Returns the written paths.',
+    parameters: objectSchema({
+      prompt: { type: 'string', description: 'What to draw: subject, setting, style, composition, constraints.' },
+      provider: { type: 'string', enum: ['auto', 'chatgpt', 'zai', 'custom', 'gemini'], description: 'Force one backend instead of the auto chain.' },
+      model: { type: 'string', description: 'Provider-specific model override.' },
+      n: { type: 'integer', description: 'How many images (default 1). The chatgpt leg generates one per call, sequentially.' },
+      size: { type: 'string', description: 'WxH for zai/custom (the chatgpt leg ignores it).' },
+      out_dir: { type: 'string', description: 'Directory for the PNGs (default <cwd>/output/imagegen).' },
+      timeout_ms: { type: 'integer', description: 'Per-provider timeout (default 300000, max 600000).' },
+    }, ['prompt']),
+    timeoutMs: 600_000,
+    concurrencySafe: true,
+    async execute(raw, exec) {
+      const args = raw as {
+        prompt: string
+        provider?: 'auto' | ImageProvider
+        model?: string
+        n?: number
+        size?: string
+        out_dir?: string
+        timeout_ms?: number
+      }
+      const cwd = cwdOf(exec)
+      const outDir = args.out_dir === undefined ? path.join(cwd, 'output', 'imagegen') : path.resolve(cwd, args.out_dir)
+      const chatGpt = loadChatGptAuth(cwd)
+      try {
+        const result = await generateImageWithFallback({
+          prompt: args.prompt,
+          ...(args.model === undefined ? {} : { model: args.model }),
+          ...(args.n === undefined ? {} : { n: args.n }),
+          ...(args.size === undefined ? {} : { size: args.size }),
+          outDir,
+          provider: args.provider ?? 'auto',
+          geminiConfig: loadGeminiWebConfig(cwd),
+          apiConfig: loadImageApiConfig(cwd),
+          rateConfig: loadImageRateConfig(cwd),
+          chatgptAuth: chatGpt.auth,
+          chatgptProblem: chatGpt.problem,
+          timeoutMs: Math.min(Math.max(args.timeout_ms ?? 300_000, 10_000), 600_000),
+          signal: exec.signal,
+        })
+        const lines = [
+          `provider: ${result.provider}${result.model === undefined ? '' : ` (${result.model})`}`,
+          ...result.paths.map(file => `file: ${file}`),
+        ]
+        if (result.note !== undefined) lines.push(`note: ${result.note}`)
+        if (result.attempts.length > 0) lines.push(`skipped: ${result.attempts.join('; ')}`)
+        return lines.join('\n')
+      } catch (error) {
+        if ((error as Error)?.name === 'AbortError') throw error
+        throw new Error(describeImageApiError(error))
+      }
+    },
+  }))
+
+  registerToolSafe(ctx, ceulenTool({
     name: 'web_status',
     description: 'Show which web backends are configured and whether the native web service is mounted.',
     parameters: objectSchema({}),
-    outputSchema: { type: 'string' },
     concurrencySafe: true,
     async execute() {
       const web = ctx.get('web', false) !== undefined
@@ -288,9 +349,10 @@ export function registerWebTools(ctx: PluginContext): void {
         `BRAVE_API_KEY: ${braveStatus}`,
         `chat: chatgpt ${chatGptStatus}; gateway ${chatConfig === null ? 'not configured' : chatConfig.baseUrl}`,
         'Pin search with web.searchProvider=brave and fetch with web.fetchProvider=deepseek-fetch-fallback in the profile patch; without a pin a single usable provider auto-selects.',
-        'Ceulen extras available here: web_extract, web_map, web_screenshot, web_pdf, web_interact, web_chat, web_status.',
+        'Ceulen extras available here: web_extract, web_map, web_screenshot, web_pdf, web_interact, web_chat, web_image, web_status.',
         `Chrome: ${findChromeBinary() ?? 'not found (set CHROME_PATH)'}`,
-        'Gemini research and image generation are still gaps.',
+        `image: ${chatGptStatus}${loadImageApiConfig().zai === undefined ? '' : ' + zai'}${loadImageApiConfig().custom === undefined ? '' : ' + custom'} via web_image`,
+        'Gemini research remains a gap; image generation runs through the chatgpt leg above.',
       ].join('\n')
     },
   }))

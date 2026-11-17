@@ -44,11 +44,6 @@ export function packageFile(...segments: string[]): string {
   return join(packageRoot(), ...segments)
 }
 
-/** Resolve a path against the session cwd, leaving absolute paths alone. */
-export function resolveProjectPath(cwd: string, path: string): string {
-  return path.startsWith('/') ? path : join(cwd, path)
-}
-
 export function displayPath(path: string): string {
   const home = homedir()
   return path.startsWith(`${home}/`) ? `~/${path.slice(home.length + 1)}` : path

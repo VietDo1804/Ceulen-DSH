@@ -27,7 +27,6 @@ export function registerEvoTools(ctx: PluginContext, runtime: EvoRuntime): void 
       summary: { type: 'string', description: 'One line: what changed, e.g. "web tools accept the argument aliases models send (commit 4907165)".' },
       detail: { type: 'string', description: 'Optional evidence: counts, sessions, file paths.' },
     }, ['summary']),
-    outputSchema: { type: 'string' },
     async execute(args, exec) {
       const summary = String((args as { summary?: unknown }).summary ?? '').trim()
       if (summary === '') throw new Error('summary is required: one line describing what changed')

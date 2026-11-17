@@ -10,10 +10,10 @@
  */
 import type { AgentLike, PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync, type CeulenSettings } from '../../core/settings.js'
-import { ceulenTool, objectSchema, registerCommandSafe, registerPromptSection, registerToolSafe, errorMessage } from '../../core/tools.js'
+import { asRecord, ceulenTool, cwdOf, objectSchema, registerCommandSafe, registerPromptSection, registerToolSafe, errorMessage } from '../../core/tools.js'
 import { displayPath, settingsPath } from '../../core/paths.js'
 import { logLine } from '../../core/log.js'
-import { describeRoute, resolveRole, roleByName, roleNames, REVIEWER_SCHEMA, ROLES, type RoleDefinition, type RoleResolution } from './roles.js'
+import { describeRoute, resolveRole, roleByName, roleNames, REVIEWER_SCHEMA, ROLES, type RoleDefinition } from './roles.js'
 import { contractBlock, parseTypedReply, type SchemaNode } from './schema.js'
 import { installOrchestrator } from './orchestrator.js'
 import { getPonytailInstructions } from '../../vendor/ceulen/ponytail/instructions.js'
@@ -48,13 +48,14 @@ const ROLE_HINTS = 'planner (read-only design), reviewer (independent review), s
  * RULES.md block are prepended to the task. Fail-open: policy loading can
  * never block a dispatch.
  */
-function inheritedPolicy(settings: CeulenSettings): string {
+function inheritedPolicy(settings: CeulenSettings, cwd: string): string {
   try {
     const parts: string[] = []
     if (process.env.PONYTAIL_SUBAGENT_SCOPE !== 'off' && settings.ponytail.level !== 'off') {
       parts.push(getPonytailInstructions(settings.ponytail.level))
     }
-    const rules = composeRulesBlock(loadRules(), process.cwd())
+    // The parent session's project rules, not those of the harness process cwd.
+    const rules = composeRulesBlock(loadRules(cwd), cwd)
     if (rules !== undefined) parts.push(rules)
     return parts.join('\n\n')
   } catch {
@@ -79,10 +80,6 @@ function labelFor(args: Record<string, unknown>, role: RoleDefinition): string {
   return description.length <= 80 ? description : `${description.slice(0, 79)}…`
 }
 
-function routeText(resolution: RoleResolution): string {
-  return resolution.route === undefined ? 'parent route' : describeRoute(resolution)
-}
-
 function promptText(): string {
   try {
     const settings = loadSettingsSync()
@@ -100,7 +97,7 @@ function promptText(): string {
 function roleLines(settings: CeulenSettings): string[] {
   return ROLES.map(role => {
     const resolution = resolveRole(role.name, settings.subagent)
-    const route = resolution === undefined ? '?' : routeText(resolution)
+    const route = resolution === undefined ? '?' : describeRoute(resolution)
     return `  ${role.name.padEnd(8)} ${route.padEnd(30)} ${role.description}`
   })
 }
@@ -117,7 +114,7 @@ function roleDetail(settings: CeulenSettings, role: RoleDefinition): string[] {
     `${role.name}: ${role.description}`,
     `  selector: ${resolution.selector}${resolution.selector === role.model ? ' (role default)' : ''}`,
     `  chain: ${chain}`,
-    `  route: ${routeText(resolution)}`,
+    `  route: ${describeRoute(resolution)}`,
     `  thinking: ${resolution.thinking}${resolution.route === undefined ? ' (advisory: an inherited parent route keeps its effort)' : ''}`,
     `  preset: ${settings.subagent.presets[role.name] ?? 'parent composition'}`,
   ]
@@ -175,7 +172,7 @@ function delegateTool(service: SubagentRuntimeLike) {
     },
     concurrencySafe: true,
     async execute(args, exec) {
-      const input = args !== null && typeof args === 'object' && !Array.isArray(args) ? (args as Record<string, unknown>) : {}
+      const input = asRecord(args)
       const role = roleByName(String(input.role ?? ''))
       if (role === undefined) throw new Error(`unknown role; choose one of: ${roleNames().join(', ')}`)
       const task = typeof input.task === 'string' ? input.task.trim() : ''
@@ -192,7 +189,7 @@ function delegateTool(service: SubagentRuntimeLike) {
 
       const schema = asSchema(input.schema) ?? (role.name === 'reviewer' ? REVIEWER_SCHEMA : undefined)
       const request: Record<string, unknown> = {
-        prompt: [{ type: 'text', text: composePrompt(role, task, inheritedPolicy(settings), schema) }],
+        prompt: [{ type: 'text', text: composePrompt(role, task, inheritedPolicy(settings, cwdOf(exec)), schema) }],
         parent: agent,
         signal: exec.signal,
       }
@@ -217,7 +214,7 @@ function delegateTool(service: SubagentRuntimeLike) {
         delivery: 'parent',
       })
       const subagentId = String(activation.childId)
-      logLine('subagent', `started ${role.name} ${subagentId} via ${routeText(resolution)}`)
+      logLine('subagent', `started ${role.name} ${subagentId} via ${describeRoute(resolution)}`)
       return { kind: 'activation', subagentId }
     },
   })

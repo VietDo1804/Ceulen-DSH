@@ -14,17 +14,14 @@ import {
   formatAge,
   formatBundleUpdate,
   formatUpstream,
-  isCacheFresh,
   readPinnedVersion,
-  type UpstreamState,
+  readUpstreamCache,
 } from '../../core/upstream.js'
 import { pluginVersion, releaseDistTag, releaseLine } from '../../core/version.js'
 import { packageFile, settingsPath, dshHome, displayPath } from '../../core/paths.js'
-import { clampText, coldToolEntries, registerCommandSafe, resetToolBudget, toolBudgetEntries, tuiStatusPublisher } from '../../core/tools.js'
+import { clampText, coldToolEntries, registerCommandSafe, resetToolBudget, toolBudgetEntries, tuiStatusPublisher, errorMessage } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import { credential } from '../../core/credentials.js'
-import { readJson } from '../../core/fsx.js'
-import { upstreamCachePath } from '../../core/paths.js'
 import { applyConfig } from '../config/index.js'
 import { compatReport, formatCompat } from '../providers/index.js'
 
@@ -68,7 +65,7 @@ async function refreshStatusLine(publish: (text: string | undefined) => void): P
     const bundle = await checkBundleUpdate({ intervalHours: settings.upstream.intervalHours })
     publish(bundleStatusLine(bundle))
   } catch (error) {
-    logLine('upstream', `status refresh failed: ${error instanceof Error ? error.message : String(error)}`)
+    logLine('upstream', `status refresh failed: ${errorMessage(error)}`)
   }
 }
 
@@ -203,54 +200,26 @@ export function tuiFooterState(): string {
     } catch {
       // Report the profile anyway.
     }
-    let native = false
-    try {
-      native = readFileSync(join(dir, 'lib', 'types', 'dsh-adapter', 'status.js'), 'utf8').includes('setField(')
-    } catch {
-      // No status adapter (0.16.x): the usage segment stays above the prompt.
+    // An unreadable or missing file counts as not applied.
+    const has = (needle: string, ...rel: string[]): boolean => {
+      try {
+        return readFileSync(join(dir, 'lib', 'types', ...rel), 'utf8').includes(needle)
+      } catch {
+        return false
+      }
     }
-    const footer = native ? 'footer-native' : 'footer-stock (0.16.x has no footer slot; usage renders above the prompt)'
-    let advisor = false
-    try {
-      const projection = readFileSync(join(dir, 'lib', 'types', 'channel', 'projection.js'), 'utf8')
-      advisor = projection.includes("event.source === 'advisor'")
-    } catch {
-      // Unreadable projection counts as not applied.
-    }
-    let contextRedirect = false
-    try {
-      contextRedirect = readFileSync(chat, 'utf8').includes("runExternalCommandOutcome('context'")
-    } catch {
-      // Unreadable Chat.js counts as not applied.
-    }
-    let toolNames = false
-    try {
-      toolNames = readFileSync(join(dir, 'lib', 'types', 'components', 'messages', 'AssistantToolUseMessage.js'), 'utf8').includes('TOOL_NAME_ALIASES')
-    } catch {
-      // Unreadable tool card counts as not applied.
-    }
-    let planMode = false
-    try {
-      // The leading-space marker also flags the older patch whose toggle-off
-      // sent `/planoff` ("no such command").
-      planMode = readFileSync(chat, 'utf8').includes('the argument carries its own leading space') &&
-        readFileSync(join(dir, 'lib', 'types', 'dsh-adapter', 'channel', 'mode-permission-actions.js'), 'utf8').includes("id: 'plan',") &&
-        readFileSync(join(dir, 'lib', 'types', 'components', 'questions', 'PlanReviewPanel.js'), 'utf8').includes('ceulen-plan: Esc with feedback')
-    } catch {
-      // Unreadable sources count as not applied.
-    }
-    let effortPerModel = false
-    try {
-      effortPerModel = readFileSync(join(dir, 'lib', 'types', 'dsh-adapter', 'channel', 'model-actions.js'), 'utf8').includes('readRouteEffortPref(capture.provider, capture.model) ?? preferredEffort')
-    } catch {
-      // Unreadable model actions count as not applied.
-    }
-    let uiStyle = false
-    try {
-      uiStyle = readFileSync(join(dir, 'lib', 'types', 'uiStyle.js'), 'utf8').includes('ceulen-style:')
-    } catch {
-      // Missing style module keeps the stock layout.
-    }
+    // No status adapter (0.16.x): the usage segment stays above the prompt.
+    const footer = has('setField(', 'dsh-adapter', 'status.js') ? 'footer-native' : 'footer-stock (0.16.x has no footer slot; usage renders above the prompt)'
+    const advisor = has("event.source === 'advisor'", 'channel', 'projection.js')
+    const contextRedirect = has("runExternalCommandOutcome('context'", 'screens', 'Chat.js')
+    const toolNames = has('TOOL_NAME_ALIASES', 'components', 'messages', 'AssistantToolUseMessage.js')
+    // The leading-space marker also flags the older patch whose toggle-off
+    // sent `/planoff` ("no such command").
+    const planMode = has('the argument carries its own leading space', 'screens', 'Chat.js') &&
+      has("id: 'plan',", 'dsh-adapter', 'channel', 'mode-permission-actions.js') &&
+      has('ceulen-plan: Esc with feedback', 'components', 'questions', 'PlanReviewPanel.js')
+    const effortPerModel = has('readRouteEffortPref(capture.provider, capture.model) ?? preferredEffort', 'dsh-adapter', 'channel', 'model-actions.js')
+    const uiStyle = has('ceulen-style:', 'uiStyle.js')
     states.push(`${profile}:${version} ${footer} · effort-per-model ${effortPerModel ? 'applied' : 'stock (one effort for every model; run scripts/tui-effort-patch.mjs apply)'} · ui-style ${uiStyle ? 'applied' : 'stock (layout stays dsh; run scripts/tui-style-patch.mjs apply)'} · advisor-block ${advisor ? 'applied' : 'stock (advisor notes stay out of the transcript; run scripts/tui-advisor-patch.mjs apply)'} · context-redirect ${contextRedirect ? 'applied' : 'stock (the built-in /context dump stays; run scripts/tui-context-patch.mjs apply)'} · tool-names ${toolNames ? 'applied' : 'stock (fff_grep renders as Fff_grep; run scripts/tui-toolname-patch.mjs apply)'} · plan-mode ${planMode ? 'applied' : 'stock (/plan asks on/off, Esc drops a typed answer and the footer may not name plan mode; run scripts/tui-plan-patch.mjs apply)'}`)
   }
   return states.length === 0 ? 'dsh-tui not installed' : states.join(' · ')
@@ -281,7 +250,7 @@ async function compatLines(ctx: PluginContext, agent?: AgentLike): Promise<strin
 async function doctorText(ctx: PluginContext, agent?: AgentLike): Promise<string> {
   const parity = loadParity()
   const settings = loadSettingsSync()
-  const cache = await readJson<UpstreamState>(upstreamCachePath())
+  const cache = await readUpstreamCache()
   const services = [
     ['tools', ctx.get('tools', false) !== undefined],
     ['commands', ctx.get('commands', false) !== undefined],
@@ -293,7 +262,7 @@ async function doctorText(ctx: PluginContext, agent?: AgentLike): Promise<string
   ] as const
   const envNames = ['MUNIN_API_KEY', 'ROUTER_API_KEY', 'ROUTER_BASE_URL', 'ZAI_ANTHROPIC_API_KEY', 'ZAI_API_KEY', 'BRAVE_API_KEY', 'GITHUB_TOKEN']
   const env = envNames.map(name => {
-    if (process.env[name] !== undefined) return `${name}=set`
+    if ((process.env[name] ?? '') !== '') return `${name}=set`
     return `${name}=${credential(name).value !== undefined ? 'stored' : 'unset'}`
   })
   const bins = await Promise.all([
@@ -439,8 +408,6 @@ export const name = 'ceulen-status'
 export const inject = ['commands']
 
 export function apply(ctx: PluginContext): void {
-  const settings = loadSettingsSync()
-
   registerCommandSafe(ctx, {
     name: 'ceulen',
     description: 'Ceulen bundle status, upstream releases, modules and diagnostics',
@@ -451,9 +418,7 @@ export function apply(ctx: PluginContext): void {
       try {
         if (head === 'status') return ok(await statusText())
         if (head === 'modules' || head === 'module') {
-          if (head === 'module') return await moduleText(args.slice(1))
-          const parity = loadParity()
-          return ok(formatParity(parity, loadSettingsSync().disabled))
+          return await moduleText(head === 'module' ? args.slice(1) : [])
         }
         if (head === 'tools') return ok(toolsText(ctx))
         if (head === 'update' || head === 'check') return ok(await updateText(args.slice(1)))
@@ -469,7 +434,7 @@ export function apply(ctx: PluginContext): void {
         if (head === 'help' || head === '--help' || head === '-h') return ok(helpText())
         return err(`unknown subcommand "${head}"\n\n${helpText()}`)
       } catch (error) {
-        return err(`/ceulen ${head} failed: ${error instanceof Error ? error.message : String(error)}`)
+        return err(`/ceulen ${head} failed: ${errorMessage(error)}`)
       }
     },
   })
@@ -486,13 +451,9 @@ export function apply(ctx: PluginContext): void {
   // Publish a cached "update available" line immediately, then refresh in the
   // background. The check is detached and unref'd: it must never delay or keep
   // alive a TUI/headless process.
+  // refreshStatusLine checks `upstream.enabled` and reuses a fresh cache itself.
   const timer = setTimeout(() => {
-    void (async () => {
-      await applyStatusLine(publishUpstream)
-      const current = await currentBundleUpdate()
-      if (!settings.upstream.enabled) return
-      if (!isCacheFresh(current, settings.upstream.intervalHours)) await refreshStatusLine(publishUpstream)
-    })()
+    void applyStatusLine(publishUpstream).then(() => refreshStatusLine(publishUpstream))
   }, 750)
   timer.unref?.()
   ctx.effect(() => () => clearTimeout(timer), 'ceulen upstream status timer')

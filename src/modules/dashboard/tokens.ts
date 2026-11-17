@@ -6,11 +6,9 @@
  */
 export const tokens = {
   text: 'text', muted: 'subtle', focus: 'accent', card: 'inactive',
-  success: 'success', warning: 'warning', danger: 'error',
-  inset: 1, wide: 120, stacked: 80, minColumns: 30, minRows: 10,
-  /** Rows the title/lead/banner/region strip and the three footer lines take. */
-  chrome: 7, kpiRows: 5, minCard: 5,
+  success: 'success', danger: 'error',
+  inset: 1, wide: 120, minColumns: 30, minRows: 10,
 } as const
 
-/** The one shared animation clock: 80ms is 12.5fps, measured ~3.5ms/frame at 120x40. */
-export const motion = { tickMs: 80, rampMs: 700 } as const
+/** The one shared animation clock, used only while a native run is live. */
+export const motion = { tickMs: 80 } as const

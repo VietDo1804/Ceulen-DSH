@@ -1,13 +1,10 @@
 import type { PluginContext } from '../../core/types.js'
-import { isModuleEnabled, loadSettingsSync, updateSettings, type PonytailLevel } from '../../core/settings.js'
+import { isModuleEnabled, loadSettingsSync, PONYTAIL_LEVELS, updateSettings, type PonytailLevel } from '../../core/settings.js'
 import { registerCommandSafe, registerPromptSection } from '../../core/tools.js'
 import { getPonytailInstructions } from '../../vendor/ceulen/ponytail/instructions.js'
-import { normalizeMode } from '../../vendor/ceulen/ponytail/config.js'
 
 export const name = 'ceulen-ponytail'
 export const inject = ['commands', 'systemPrompt']
-
-const LEVELS = new Set(['off', 'lite', 'full', 'ultra'])
 
 export function apply(ctx: PluginContext): void {
   const settings = loadSettingsSync()
@@ -33,7 +30,7 @@ export function apply(ctx: PluginContext): void {
           text: `Ponytail: ${level}${level === 'off' ? ' (inactive)' : ' — simplest solution that works; stdlib first; no speculative abstraction.'}\nSwitch with /ponytail off|lite|full|ultra.`,
         }
       }
-      if (!LEVELS.has(value)) {
+      if (!(PONYTAIL_LEVELS as readonly string[]).includes(value)) {
         return { kind: 'error', text: `unknown level "${value}". Use off, lite, full, or ultra.` }
       }
       level = value as PonytailLevel
@@ -60,8 +57,4 @@ export function apply(ctx: PluginContext): void {
       },
     })
   }
-
-  // Normalize legacy values read from old settings files.
-  const normalized = normalizeMode(level)
-  if (normalized !== null) level = normalized
 }

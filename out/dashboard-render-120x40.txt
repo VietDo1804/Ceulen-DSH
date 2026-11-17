@@ -1,40 +1,40 @@
- ⠋ CEULEN · Native Agent Dashboard · render-session
- lead · test/gpt-6-astra · idle · usage —
- Live native session · route and execution policy unchanged
- [Tasks] · Agents · Activity
- ╭─ TASKS ─────────────────────────────╮╭─ AGENTS ────────────────────────────╮╭─ TOKENS ────────────────────────────╮
- │ 0/25                                ││ 1/1                                 ││ — / —                               │
- │  ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ ││ ███████████████████████████████████ ││ — no ratio reported                 │
- │ 0% · 25 open                        ││ 100% · 1 child · 1 running          ││ total —                             │
- ╰─────────────────────────────────────╯╰─────────────────────────────────────╯╰─────────────────────────────────────╯
- ╭─ Tasks · 0/25 done · 1-13 ───────────────╮╭─ Agents · 1 · 1-1 ───────────────────╮╭─ Activity · 1 · 1-1 ───────────╮
- │ >○ Task 0 你好 👩‍💻 long long long long l… ││  ⠋ worker                            ││ ▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁           │
- │    pending · owner worker · not ready ·… ││    running · native/test · tool rea… ││  ◐ read · worker · tool        │
- │  ○ Task 1 你好 👩‍💻 long long long long l… ││                                      ││                                │
- │    pending · owner worker · not ready ·… ││                                      ││                                │
- │  ○ Task 2 你好 👩‍💻 long long long long l… ││                                      ││                                │
- │    pending · owner worker · not ready ·… ││                                      ││                                │
- │  ○ Task 3 你好 👩‍💻 long long long long l… ││                                      ││                                │
- │    pending · owner worker · not ready ·… ││                                      ││                                │
- │  ○ Task 4 你好 👩‍💻 long long long long l… ││                                      ││                                │
- │    pending · owner worker · not ready ·… ││                                      ││                                │
- │  ○ Task 5 你好 👩‍💻 long long long long l… ││                                      ││                                │
- │    pending · owner worker · not ready ·… ││                                      ││                                │
- │  ○ Task 6 你好 👩‍💻 long long long long l… ││                                      ││                                │
- │    pending · owner worker · not ready ·… ││                                      ││                                │
- │  ○ Task 7 你好 👩‍💻 long long long long l… ││                                      ││                                │
- │    pending · owner worker · not ready ·… ││                                      ││                                │
- │  ○ Task 8 你好 👩‍💻 long long long long l… ││                                      ││                                │
- │    pending · owner worker · not ready ·… ││                                      ││                                │
- │  ○ Task 9 你好 👩‍💻 long long long long l… ││                                      ││                                │
- │    pending · owner worker · not ready ·… ││                                      ││                                │
- │  ○ Task 10 你好 👩‍💻 long long long long … ││                                      ││                                │
- │    pending · owner worker · not ready ·… ││                                      ││                                │
- │  ○ Task 11 你好 👩‍💻 long long long long … ││                                      ││                                │
- │    pending · owner worker · not ready ·… ││                                      ││                                │
- │  ○ Task 12 你好 👩‍💻 long long long long … ││                                      ││                                │
- │    pending · owner worker · not ready ·… ││                                      ││                                │
- ╰──────────────────────────────────────────╯╰──────────────────────────────────────╯╰────────────────────────────────╯
- Tab/Shift+Tab: region · arrows/PgUp/PgDn: select/scroll · Enter: detail
- Esc: chat · assign work in the original composer
- Source: DSH channel/team/subagents · usage per source, not summed
+ ⠋ CEULEN · dashboard · render-session
+ Lead · IN 1.2k / OUT 300 · test/test · idle
+ ╭─ Tasks ───────────────────────────────────────╮╭─ Workflow ────────────────────────────────────────────────────────╮
+ │ session 0/2 · team 0/25                       ││    ○ Lead · idle                                                  │
+ │ >◐ S Checklist item · in_progress · session … ││   IN 1.2k / OUT 300 · test/test                                   │
+ │  ○ S Second item · pending · session checkli… ││  └─ ⠋ child-worker · running                                      │
+ │  ○ T Task 0 你好 👩‍💻 long long long long long… ││   IN 2.4k / OUT 0 · native/test                                   │
+ │  ○ T Task 1 你好 👩‍💻 long long long long long… ││    ⠋ live-tool · running                                          │
+ │  ○ T Task 2 你好 👩‍💻 long long long long long… ││    ✓ recent-b · ok                                                │
+ │  ○ T Task 3 你好 👩‍💻 long long long long long… ││    ✓ recent-a · ok                                                │
+ │  ○ T Task 4 你好 👩‍💻 long long long long long… ││    +2 earlier                                                     │
+ │  ○ T Task 5 你好 👩‍💻 long long long long long… ││                                                                   │
+ │  ○ T Task 6 你好 👩‍💻 long long long long long… ││                                                                   │
+ │  ○ T Task 7 你好 👩‍💻 long long long long long… ││                                                                   │
+ │  ○ T Task 8 你好 👩‍💻 long long long long long… ││                                                                   │
+ │  ○ T Task 9 你好 👩‍💻 long long long long long… ││                                                                   │
+ │  ○ T Task 10 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 11 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 12 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 13 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 14 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 15 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 16 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 17 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 18 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 19 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 20 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 21 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 22 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 23 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │  ○ T Task 24 你好 👩‍💻 long long long long lon… ││                                                                   │
+ │                                               ││                                                                   │
+ │                                               ││                                                                   │
+ │                                               ││                                                                   │
+ │                                               ││                                                                   │
+ │                                               ││                                                                   │
+ │                                               ││                                                                   │
+ ╰───────────────────────────────────────────────╯╰───────────────────────────────────────────────────────────────────╯
+ Tab: region · ↑↓/PgUp/PgDn: select · Enter: detail · Esc: chat
+ Source: native checklist/team/subagents · tokens per source, not summed

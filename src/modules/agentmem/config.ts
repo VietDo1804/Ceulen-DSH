@@ -9,7 +9,6 @@ import { credential } from '../../core/credentials.js'
 import type { CeulenSettings } from '../../core/settings.js'
 import { normalizeBaseUrl } from '../../vendor/ceulen/munin/helpers.js'
 
-export const AGENTMEM_ENV_KEYS = ['AGENTMEM_API_KEY', 'AGENTMEM_PROJECT', 'AGENTMEM_BASE_URL'] as const
 
 export type AgentMemConfigSource = 'param' | 'env' | 'store' | 'global'
 

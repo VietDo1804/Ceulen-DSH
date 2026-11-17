@@ -1,6 +1,6 @@
 import type { AgentLike, MessageLike, PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
-import { registerCommandSafe, tuiStatusPublisher } from '../../core/tools.js'
+import { registerCommandSafe, toolArgs, tuiStatusPublisher } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 
 export const name = 'ceulen-todoview'
@@ -32,15 +32,7 @@ export function latestTodos(messages: readonly MessageLike[]): TodoItem[] | unde
 }
 
 function parseTodos(raw: unknown): TodoItem[] | undefined {
-  let args = raw
-  if (typeof raw === 'string') {
-    try {
-      args = JSON.parse(raw)
-    } catch {
-      return undefined
-    }
-  }
-  const todos = (args as { todos?: unknown } | null | undefined)?.todos
+  const todos = toolArgs(raw).todos
   if (!Array.isArray(todos)) return undefined
   return todos
     .filter((item): item is { content: string; status?: string } => item !== null && typeof (item as { content?: unknown }).content === 'string')

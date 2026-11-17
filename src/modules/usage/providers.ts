@@ -1,18 +1,16 @@
-import { readFileSync, statSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { credential } from '../../core/credentials.js'
 import { dshHome } from '../../core/paths.js'
+import { errorMessage } from '../../core/tools.js'
 
 export interface UsageWindow {
-  percent?: number
   remaining?: number
   remainingLabel?: string
   resetLabel?: string
 }
 
 export interface UsageAccount {
-  id?: string
-  isActive?: boolean
   accountLabel?: string
   plan?: string
   fiveHour?: UsageWindow
@@ -22,7 +20,6 @@ export interface UsageAccount {
   creditsCurrency?: string
   mcpMonthly?: UsageWindow
   usageBreakdown?: string
-  lastActivity?: string
 }
 
 export interface UsageSnapshot {
@@ -36,7 +33,7 @@ export interface UsageSnapshot {
 export interface UsageAdapter {
   id: string
   displayName: string
-  fetchUsage(signal?: AbortSignal): Promise<UsageSnapshot>
+  fetchUsage(): Promise<UsageSnapshot>
 }
 
 const OPC_USAGE_URL = 'https://opencode.ai/zen/go/v1/usage'
@@ -71,7 +68,6 @@ function windowFromPercent(percent: number | undefined, resetAtSec: number | und
   if (percent === undefined || !Number.isFinite(percent)) return undefined
   const used = Math.max(0, Math.min(100, Math.round(percent)))
   return {
-    percent: used,
     remaining: 100 - used,
     remainingLabel: formatRemainingTime(resetAtSec),
     resetLabel: formatReset(resetAtSec),
@@ -82,7 +78,6 @@ function windowFromRemaining(remainingPct: number | undefined, resetAtSec: numbe
   if (remainingPct === undefined || !Number.isFinite(remainingPct)) return undefined
   const remaining = Math.max(0, Math.min(100, Math.round(remainingPct)))
   return {
-    percent: 100 - remaining,
     remaining,
     remainingLabel: formatRemainingTime(resetAtSec),
     resetLabel: formatReset(resetAtSec),
@@ -90,7 +85,7 @@ function windowFromRemaining(remainingPct: number | undefined, resetAtSec: numbe
 }
 
 function redactedError(error: unknown, provider: string): string {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = errorMessage(error)
   const cleaned = message
     .replace(/\b(?:sk-|ghp_|Bearer\s+)[A-Za-z0-9._-]+/gi, '[redacted]')
     .replace(/\b[A-Za-z0-9_-]{32,}\b/g, '[redacted]')
@@ -98,13 +93,8 @@ function redactedError(error: unknown, provider: string): string {
   return `${provider}: ${cleaned}`
 }
 
-function combinedSignal(signal: AbortSignal | undefined): AbortSignal {
-  const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS)
-  return signal === undefined ? timeout : AbortSignal.any([signal, timeout])
-}
-
-async function requestJson(url: string, headers: Record<string, string>, signal: AbortSignal | undefined): Promise<unknown> {
-  const response = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'ceulen-dsh-usage/1', ...headers }, signal: combinedSignal(signal) })
+async function requestJson(url: string, headers: Record<string, string>): Promise<unknown> {
+  const response = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'ceulen-dsh-usage/1', ...headers }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
   if (!response.ok) throw new Error(`usage request failed with HTTP ${response.status}`)
   return await response.json()
 }
@@ -132,11 +122,11 @@ export function opcWindowToUsageWindow(window: { percent?: number; resetsAt?: st
 export const openCodeGoAdapter: UsageAdapter = {
   id: 'opencode-go',
   displayName: 'OpenCode Go',
-  async fetchUsage(signal) {
+  async fetchUsage() {
     try {
       const resolved = credential('OPENCODE_GO_API_KEY')
       if (resolved.value === undefined) throw new Error('missing OPENCODE_GO_API_KEY (env or DSH credential)')
-      const body = (await requestJson(OPC_USAGE_URL, { Authorization: `Bearer ${resolved.value}` }, signal)) as {
+      const body = (await requestJson(OPC_USAGE_URL, { Authorization: `Bearer ${resolved.value}` })) as {
         usage?: { rolling?: { percent?: number; resetsAt?: string }; weekly?: { percent?: number; resetsAt?: string }; monthly?: { percent?: number; resetsAt?: string } }
       }
       const fiveHour = opcWindowToUsageWindow(body.usage?.rolling)
@@ -144,8 +134,6 @@ export const openCodeGoAdapter: UsageAdapter = {
       const monthly = opcWindowToUsageWindow(body.usage?.monthly)
       if (fiveHour === undefined && weekly === undefined && monthly === undefined) throw new Error('no usage windows in the response')
       const account: UsageAccount = {
-        id: resolved.ref,
-        isActive: true,
         accountLabel: keySource(['OPENCODE_GO_API_KEY']),
         plan: 'Go',
         fiveHour,
@@ -191,11 +179,11 @@ function makeZaiAdapter(id: string, url: string, displayName: string, keyRefs: s
   return {
     id,
     displayName,
-    async fetchUsage(signal) {
+    async fetchUsage() {
       try {
         const resolved = credential(...keyRefs)
         if (resolved.value === undefined) throw new Error(`missing ${keyRefs.join(' or ')} (env or DSH credential)`)
-        const body = (await requestJson(url, { Authorization: `Bearer ${resolved.value}` }, signal)) as ZaiResponse
+        const body = (await requestJson(url, { Authorization: `Bearer ${resolved.value}` })) as ZaiResponse
         if ((typeof body.code === 'number' && body.code >= 400) || body.success === false || (typeof body.msg === 'string' && body.msg.length > 0 && body.success === undefined)) {
           throw new Error(`API error: ${body.msg ?? `HTTP status ${body.code ?? 'unknown'}`}`)
         }
@@ -206,8 +194,6 @@ function makeZaiAdapter(id: string, url: string, displayName: string, keyRefs: s
         if (tokenLimits.length === 0) throw new Error('no usage-limit entries in the response')
         const timeLimit = limits.find(limit => limit.type === 'TIME_LIMIT')
         const account: UsageAccount = {
-          id: resolved.ref,
-          isActive: true,
           accountLabel: keySource(keyRefs),
           plan: zaiPlan(body),
           fiveHour: zaiLimitToWindow(tokenLimits[0]),
@@ -244,12 +230,12 @@ function commandCodeWindow(window: CommandCodeWindow | undefined): UsageWindow |
 export const commandCodeAdapter: UsageAdapter = {
   id: 'commandcode',
   displayName: 'Command Code',
-  async fetchUsage(signal) {
+  async fetchUsage() {
     try {
       const refs = ['COMMAND_CODE_API_KEY', 'COMMANDCODE_API_KEY']
       const resolved = credential(...refs)
       if (resolved.value === undefined) throw new Error('missing COMMAND_CODE_API_KEY (env or DSH credential)')
-      const body = (await requestJson(COMMAND_CODE_USAGE_URL, { Authorization: `Bearer ${resolved.value}` }, signal)) as {
+      const body = (await requestJson(COMMAND_CODE_USAGE_URL, { Authorization: `Bearer ${resolved.value}` })) as {
         credits?: { monthlyCredits?: number }
         windowLimits?: { fiveHour?: CommandCodeWindow; weekly?: CommandCodeWindow }
       }
@@ -257,8 +243,6 @@ export const commandCodeAdapter: UsageAdapter = {
       const weekly = commandCodeWindow(body.windowLimits?.weekly)
       const monthlyCredits = typeof body.credits?.monthlyCredits === 'number' ? body.credits.monthlyCredits : undefined
       const account: UsageAccount = {
-        id: resolved.ref,
-        isActive: true,
         accountLabel: keySource(refs),
         fiveHour,
         weekly,
@@ -282,46 +266,27 @@ interface CodexAuthEntry {
   expires?: number
 }
 
-let codexAuthCache: { path: string; mtimeMs: number; size: number; entry?: CodexAuthEntry } | undefined
-
 /**
  * Read `$DSH_HOME/dsh-auth/credentials.json` (the login DSH itself writes).
  * Read-only by design: DSH owns the OAuth refresh, and swapping its refresh
- * token would sign the user out. Re-read whenever the file changes so rotated
- * tokens are picked up.
+ * token would sign the user out. Read per refresh so rotated tokens are picked up.
  */
 function readCodexAuth(): CodexAuthEntry | undefined {
-  const path = join(dshHome(), 'dsh-auth', 'credentials.json')
-  let mtimeMs = -1
-  let size = -1
   try {
-    const info = statSync(path)
-    mtimeMs = info.mtimeMs
-    size = info.size
-  } catch {
-    return undefined
-  }
-  if (codexAuthCache !== undefined && codexAuthCache.path === path && codexAuthCache.mtimeMs === mtimeMs && codexAuthCache.size === size) {
-    return codexAuthCache.entry
-  }
-  let entry: CodexAuthEntry | undefined
-  try {
-    const parsed = JSON.parse(readFileSync(path, 'utf8')) as {
+    const parsed = JSON.parse(readFileSync(join(dshHome(), 'dsh-auth', 'credentials.json'), 'utf8')) as {
       providers?: Record<string, { access?: unknown; accountId?: unknown; expires?: unknown }>
     }
     const raw = parsed.providers?.['openai-codex']
-    if (typeof raw?.access === 'string' && raw.access.trim().length > 0) {
-      entry = {
-        access: raw.access.trim(),
-        accountId: typeof raw.accountId === 'string' && raw.accountId.length > 0 ? raw.accountId : undefined,
-        expires: typeof raw.expires === 'number' && Number.isFinite(raw.expires) ? raw.expires : undefined,
-      }
+    if (typeof raw?.access !== 'string' || raw.access.trim().length === 0) return undefined
+    return {
+      access: raw.access.trim(),
+      accountId: typeof raw.accountId === 'string' && raw.accountId.length > 0 ? raw.accountId : undefined,
+      expires: typeof raw.expires === 'number' && Number.isFinite(raw.expires) ? raw.expires : undefined,
     }
   } catch {
-    // Unreadable or malformed auth behaves as absent.
+    // Missing, unreadable or malformed auth behaves as absent.
+    return undefined
   }
-  codexAuthCache = { path, mtimeMs, size, entry }
-  return entry
 }
 
 /** Codex auth: environment/DSH credential refs first, then the DSH OAuth login. */
@@ -341,7 +306,7 @@ function codexWindow(window: { used_percent?: number; reset_at?: number } | unde
 export const codexAdapter: UsageAdapter = {
   id: 'openai-codex',
   displayName: 'Codex',
-  async fetchUsage(signal) {
+  async fetchUsage() {
     try {
       const auth = codexAuth()
       if (auth.token === undefined) throw new Error('missing Codex login (env OPENAI_CODEX_ACCESS_TOKEN or DSH dsh-auth)')
@@ -350,15 +315,13 @@ export const codexAdapter: UsageAdapter = {
       }
       const headers: Record<string, string> = { Authorization: `Bearer ${auth.token}`, 'User-Agent': 'ceulen-dsh-usage/1' }
       if (auth.accountId !== undefined) headers['chatgpt-account-id'] = auth.accountId
-      const body = (await requestJson(CODEX_USAGE_URL, headers, signal)) as {
+      const body = (await requestJson(CODEX_USAGE_URL, headers)) as {
         rate_limit?: { primary_window?: { used_percent?: number; reset_at?: number }; secondary_window?: { used_percent?: number; reset_at?: number } }
         plan_type?: string
       }
       const fiveHour = codexWindow(body.rate_limit?.primary_window)
       const weekly = codexWindow(body.rate_limit?.secondary_window)
       const account: UsageAccount = {
-        id: auth.accountId,
-        isActive: true,
         accountLabel: 'Codex',
         plan: firstString(body.plan_type),
         fiveHour,
@@ -378,22 +341,20 @@ export const codexAdapter: UsageAdapter = {
 export const routerAdapter: UsageAdapter = {
   id: 'router',
   displayName: 'Router',
-  async fetchUsage(signal) {
+  async fetchUsage() {
     try {
       const base = process.env.ROUTER_BASE_URL ?? process.env.NINE_ROUTER_BASE_URL
       const key = credential('ROUTER_API_KEY', 'NINE_ROUTER_API_KEY')
       if (base === undefined || base.trim().length === 0) throw new Error('missing ROUTER_BASE_URL')
       if (key.value === undefined) throw new Error('missing ROUTER_API_KEY (env or DSH credential)')
       const tenant = base.replace(/\/$/, '')
-      const body = (await requestJson(`${tenant}/usage`, { Authorization: `Bearer ${key.value}` }, signal)) as {
+      const body = (await requestJson(`${tenant}/usage`, { Authorization: `Bearer ${key.value}` })) as {
         windows?: Record<string, { remaining_pct?: number; reset_at?: number }>
         credits?: { balance?: number; currency?: string }
         plan?: string
       }
       const toWindow = (entry: { remaining_pct?: number; reset_at?: number } | undefined) => windowFromRemaining(entry?.remaining_pct, entry?.reset_at)
       const account: UsageAccount = {
-        id: tenant,
-        isActive: true,
         accountLabel: tenant.replace(/^https?:\/\//, ''),
         plan: firstString(body.plan) ?? 'Router usage',
         fiveHour: toWindow(body.windows?.session),

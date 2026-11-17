@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type { PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync, updateSettings } from '../../core/settings.js'
-import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerPromptSection, registerToolSafe } from '../../core/tools.js'
+import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerPromptSection, registerToolSafe, errorMessage } from '../../core/tools.js'
 import { compareSemver, parseSemver } from '../../core/version.js'
 import { logLine } from '../../core/log.js'
 
@@ -22,28 +22,23 @@ interface RtkStatus {
 
 let cached: { at: number; status: RtkStatus } | undefined
 
-async function rtkStatus(force = false): Promise<RtkStatus> {
-  if (!force && cached !== undefined && Date.now() - cached.at < 30_000) return cached.status
+async function probeRtk(): Promise<RtkStatus> {
   try {
     const { stdout } = await execFileAsync('rtk', ['--version'], { timeout: TIMEOUT_MS })
     const version = stdout.trim().split(/\s+/).at(-1) ?? stdout.trim()
-    const parsed = parseSemver(version)
-    if (parsed === undefined) {
-      const status = { available: false, version: null, reason: `unrecognized rtk version: ${stdout.trim()}` }
-      cached = { at: Date.now(), status }
-      return status
-    }
-    const tooOld = compareSemver(version, MIN_VERSION) < 0
-    const status: RtkStatus = tooOld
+    if (parseSemver(version) === undefined) return { available: false, version: null, reason: `unrecognized rtk version: ${stdout.trim()}` }
+    return compareSemver(version, MIN_VERSION) < 0
       ? { available: false, version, reason: `rtk ${version} is older than ${MIN_VERSION}; rtk rewrite is unavailable` }
       : { available: true, version }
-    cached = { at: Date.now(), status }
-    return status
   } catch {
-    const status = { available: false, version: null, reason: 'rtk binary not found in PATH' }
-    cached = { at: Date.now(), status }
-    return status
+    return { available: false, version: null, reason: 'rtk binary not found in PATH' }
   }
+}
+
+async function rtkStatus(force = false): Promise<RtkStatus> {
+  if (!force && cached !== undefined && Date.now() - cached.at < 30_000) return cached.status
+  cached = { at: Date.now(), status: await probeRtk() }
+  return cached.status
 }
 
 function isEvalCommand(command: string): boolean {
@@ -73,14 +68,11 @@ export function isSafeRewrite(original: string, rewritten: string): boolean {
   const rewrittenTokens = rewritten.trim().split(/\s+/)
   const offset = rewrittenTokens[0] === 'rtk' ? 1 : 0
   if (originalTokens[0] !== rewrittenTokens[offset]) return false
-  const hasOperators = /[|><;&]/.test(rewritten)
-  if (hasOperators) return false
-  return true
+  return !/[|><;&]/.test(rewritten)
 }
 
 export interface RewriteOutcome {
   status: RtkStatus
-  original: string
   rewritten: string | null
   reason?: string
 }
@@ -95,26 +87,26 @@ export function rewriteArgs(command: string): readonly string[] {
 
 export async function rewriteCommand(command: string): Promise<RewriteOutcome> {
   const status = await rtkStatus()
-  if (!status.available) return { status, original: command, rewritten: null, reason: status.reason }
-  if (command.trim().length === 0) return { status, original: command, rewritten: null, reason: 'empty command' }
-  if (command.trimStart().startsWith('rtk ')) return { status, original: command, rewritten: null, reason: 'already an rtk command' }
-  if (hasUnquotedChain(command)) return { status, original: command, rewritten: null, reason: 'chains and separators pass through' }
+  if (!status.available) return { status, rewritten: null, reason: status.reason }
+  if (command.trim().length === 0) return { status, rewritten: null, reason: 'empty command' }
+  if (command.trimStart().startsWith('rtk ')) return { status, rewritten: null, reason: 'already an rtk command' }
+  if (hasUnquotedChain(command)) return { status, rewritten: null, reason: 'chains and separators pass through' }
   try {
     const { stdout } = await execFileAsync('rtk', [...rewriteArgs(command)], { timeout: TIMEOUT_MS })
     const rewritten = stdout.trim()
-    if (rewritten.length === 0) return { status, original: command, rewritten: null, reason: 'no rtk equivalent' }
-    if (!isSafeRewrite(command, rewritten)) return { status, original: command, rewritten: null, reason: 'rtk rewrite rejected by the safety gate' }
-    return { status, original: command, rewritten }
+    if (rewritten.length === 0) return { status, rewritten: null, reason: 'no rtk equivalent' }
+    if (!isSafeRewrite(command, rewritten)) return { status, rewritten: null, reason: 'rtk rewrite rejected by the safety gate' }
+    return { status, rewritten }
   } catch (error) {
     const failure = error as { code?: number; stdout?: string }
     // rtk rewrite uses 0 = no rewrite, 3 = successful rewrite, 1 = error.
     if (failure.code === 3 && typeof failure.stdout === 'string') {
       const rewritten = failure.stdout.trim()
-      if (rewritten.length > 0 && isSafeRewrite(command, rewritten)) return { status, original: command, rewritten }
-      return { status, original: command, rewritten: null, reason: 'rtk rewrite rejected by the safety gate' }
+      if (rewritten.length > 0 && isSafeRewrite(command, rewritten)) return { status, rewritten }
+      return { status, rewritten: null, reason: 'rtk rewrite rejected by the safety gate' }
     }
-    if (failure.code === 1) return { status, original: command, rewritten: null, reason: 'no rtk equivalent' }
-    return { status, original: command, rewritten: null, reason: error instanceof Error ? error.message : String(error) }
+    if (failure.code === 1) return { status, rewritten: null, reason: 'no rtk equivalent' }
+    return { status, rewritten: null, reason: errorMessage(error) }
   }
 }
 
@@ -136,7 +128,6 @@ export function apply(ctx: PluginContext): void {
     parameters: objectSchema({
       command: { type: 'string', description: 'The single shell command to rewrite.' },
     }, ['command']),
-    outputSchema: { type: 'string' },
     timeoutMs: 10_000,
     concurrencySafe: true,
     async execute(raw) {
@@ -183,7 +174,7 @@ export function apply(ctx: PluginContext): void {
           const { stdout } = await execFileAsync('rtk', ['gain'], { timeout: 5_000 })
           return { kind: 'success', text: clampText(stdout.trim(), 4_000) }
         } catch (error) {
-          return { kind: 'error', text: `rtk gain failed: ${error instanceof Error ? error.message : String(error)}` }
+          return { kind: 'error', text: `rtk gain failed: ${errorMessage(error)}` }
         }
       }
       if (action !== 'status') return { kind: 'error', text: 'usage: /rtk [status|on|off|rewrite <command>|gain]' }

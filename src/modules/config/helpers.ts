@@ -1,22 +1,18 @@
 import { dedupeRoutes, routeBase, type CeulenSettings, type ReasoningEffort } from '../../core/settings.js'
-import { phaseRoute } from '../plan/index.js'
-import type { ConfigContext } from './types.js'
+import { parseRoute } from '../../core/llm.js'
 
 export function clampNumber(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min
   return Math.min(max, Math.max(min, Math.round(value)))
 }
 
-export function envValue(context: ConfigContext, name: string): string {
-  const env = context.env ?? process.env
-  return env[name] !== undefined && env[name] !== '' ? 'set' : 'unset'
-}
-
 export function routeText(provider: string | null, model: string | null, effort: ReasoningEffort | null = null): string {
   return provider !== null && model !== null ? `${provider}/${model}${effort === null ? '' : `:${effort}`}` : ''
-}export function planTargets(settings: CeulenSettings): string {
+}
+
+export function planTargets(settings: CeulenSettings): string {
   const show = (selector: string): string => {
-    const route = phaseRoute(selector)
+    const route = parseRoute(selector)
     return route === undefined
       ? 'client route'
       : `${route.provider}/${route.model}${route.reasoningEffort === undefined ? '' : `:${route.reasoningEffort}`}`
@@ -26,20 +22,10 @@ export function routeText(provider: string | null, model: string | null, effort:
 
 /** Parse `provider/model[:effort]`; empty clears the route. */
 export function splitRoute(value: string): { provider: string; model: string; effort: ReasoningEffort | null } | null {
-  const trimmed = value.trim()
-  if (trimmed.length === 0) return null
-  const slash = trimmed.indexOf('/')
-  if (slash <= 0 || slash === trimmed.length - 1) {
-    throw new Error('expected provider/model[:effort]')
-  }
-  let model = trimmed.slice(slash + 1)
-  let effort: ReasoningEffort | null = null
-  const colon = model.lastIndexOf(':')
-  if (colon > 0 && /^(off|minimal|low|medium|high|xhigh|max)$/.test(model.slice(colon + 1))) {
-    effort = model.slice(colon + 1) as ReasoningEffort
-    model = model.slice(0, colon)
-  }
-  return { provider: trimmed.slice(0, slash), model, effort }
+  if (value.trim().length === 0) return null
+  const route = parseRoute(value)
+  if (route === undefined) throw new Error('expected provider/model[:effort]')
+  return { provider: route.provider, model: route.model, effort: route.reasoningEffort ?? null }
 }
 
 export function splitList(value: string): string[] {
@@ -72,20 +58,10 @@ export function pickerRoute(visible: readonly string[], cursor: number, filter: 
  * A pick that is not a route (`@alias`, `*`, `''`) is returned untouched.
  */
 export function keepEffort(picked: string, current: string): string {
-  let parsed: ReturnType<typeof splitRoute> = null
-  try {
-    parsed = splitRoute(picked)
-  } catch {
-    parsed = null
-  }
-  if (parsed === null || parsed.effort !== null) return picked
-  let effort: ReasoningEffort | null = null
-  try {
-    effort = splitRoute(current)?.effort ?? null
-  } catch {
-    effort = null
-  }
-  return effort === null ? picked : `${picked}:${effort}`
+  const route = parseRoute(picked)
+  if (route === undefined || route.reasoningEffort !== undefined) return picked
+  const effort = parseRoute(current)?.reasoningEffort
+  return effort === undefined ? picked : `${picked}:${effort}`
 }
 
 /**
@@ -95,7 +71,7 @@ export function keepEffort(picked: string, current: string): string {
  * an effort replaces that entry instead of adding a second copy.
  */
 export function appendRouteList(current: string, picked: string): string {
-  const list = current.split(',').map(entry => entry.trim()).filter(entry => entry.length > 0)
+  const list = splitList(current)
   const next = picked.trim()
   if (next === '') return ''
   const base = routeBase(next)
@@ -108,8 +84,7 @@ export function appendRouteList(current: string, picked: string): string {
 export function routeList(value: string): string[] {
   const entries = splitList(value)
   for (const entry of entries) {
-    const slash = entry.indexOf('/')
-    if (slash <= 0 || slash === entry.length - 1) throw new Error(`invalid route "${entry}" — expected provider/model`)
+    if (parseRoute(entry) === undefined) throw new Error(`invalid route "${entry}" — expected provider/model`)
   }
   return dedupeRoutes(entries)
 }

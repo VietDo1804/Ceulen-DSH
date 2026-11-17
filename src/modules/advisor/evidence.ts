@@ -1,9 +1,9 @@
 import { execFile } from 'node:child_process'
 import { readFileSync } from 'node:fs'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import type { MessageLike } from '../../core/types.js'
-import { clampText } from '../../core/tools.js'
+import { clampText, toolArgs } from '../../core/tools.js'
 import { isUserPrompt } from './transcript.js'
 
 const execFileAsync = promisify(execFile)
@@ -20,34 +20,16 @@ const EXCLUDE_PATHSPECS = [
 
 const UNTRACKED_READ_LIMIT = 3
 
-function toolCallArguments(value: Record<string, unknown>): Record<string, unknown> {
-  let args: unknown = value.arguments
-  if (typeof args === 'string') {
-    try {
-      args = JSON.parse(args)
-    } catch {
-      args = undefined
-    }
-  }
-  return args !== null && typeof args === 'object' ? (args as Record<string, unknown>) : {}
-}
-
 /** File paths this turn's edit/write/apply_patch calls touched. */
 export function touchedPaths(messages: readonly MessageLike[]): string[] {
-  let start = 0
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (isUserPrompt(messages[index]!)) {
-      start = index + 1
-      break
-    }
-  }
+  const start = messages.findLastIndex(isUserPrompt) + 1
   const paths: string[] = []
   for (const message of messages.slice(start)) {
     for (const block of message.content) {
       const value = block as unknown as Record<string, unknown>
       if (value.type !== 'tool-call') continue
       const name = String(value.name ?? '')
-      const args = toolCallArguments(value)
+      const args = toolArgs(value.arguments)
       if (name === 'edit' || name === 'write') {
         const path = typeof args.path === 'string' ? args.path : typeof args.file_path === 'string' ? args.file_path : undefined
         if (path !== undefined) paths.push(path)
@@ -64,9 +46,7 @@ export function touchedPaths(messages: readonly MessageLike[]): string[] {
 }
 
 function insideCwd(cwd: string, path: string): boolean {
-  const absolute = resolve(cwd, path)
-  if (!absolute.startsWith(cwd + sep)) return false
-  return isAbsolute(absolute)
+  return resolve(cwd, path).startsWith(cwd + sep)
 }
 
 function isSecretPath(path: string): boolean {

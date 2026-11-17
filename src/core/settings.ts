@@ -2,10 +2,13 @@ import { readFileSync } from 'node:fs'
 import { writeJsonAtomic } from './fsx.js'
 import { settingsPath } from './paths.js'
 
-export type PonytailLevel = 'off' | 'lite' | 'full' | 'ultra'
-export type UxMode = 'off' | 'lite' | 'strict'
+export const PONYTAIL_LEVELS = ['off', 'lite', 'full', 'ultra'] as const
+export type PonytailLevel = (typeof PONYTAIL_LEVELS)[number]
+export const UX_MODES = ['off', 'lite', 'strict'] as const
+export type UxMode = (typeof UX_MODES)[number]
 /** Behaviour-scoped rule guards: off, audit (log), or enforce (deny). */
-export type RuleGuardMode = 'off' | 'audit' | 'enforce'
+export const RULE_GUARD_MODES = ['off', 'audit', 'enforce'] as const
+export type RuleGuardMode = (typeof RULE_GUARD_MODES)[number]
 export const REASONING_EFFORTS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'] as const
 export type ReasoningEffort = (typeof REASONING_EFFORTS)[number]
 
@@ -21,6 +24,7 @@ export interface CeulenSettings {
     model: string | null
     reasoningEffort: ReasoningEffort | null
     fallbacks: string[]
+    skipModels: string[]
     watch: boolean
     showStatus: boolean
     minToolCalls: number
@@ -80,9 +84,6 @@ export interface CeulenSettings {
     cold: string[]
   }
   rules: {
-    projectFile: string
-    userFile: string
-    maxBytes: number
     /** `when-*` guards: `audit` logs matches, `enforce` denies `when-action: deny`. */
     guards: RuleGuardMode
   }
@@ -128,6 +129,9 @@ export interface CeulenSettings {
     model: string
     /** Route used once a plan was submitted; empty inherits the client route. */
     implement: string
+    /** Ordered provider/model[:effort] alternatives for each phase. */
+    fallbacks: string[]
+    implementFallbacks: string[]
   }
   usage: {
     enabled: boolean
@@ -145,7 +149,7 @@ export function defaultSettings(): CeulenSettings {
     upstream: { enabled: true, intervalHours: 24 },
     // ponytail: one shipped default (Z.AI GLM-5.3 at max thinking); clear the
     // panel's route row to fall back to the parent agent's route.
-    advisor: { provider: 'zai', model: 'glm-5.3', reasoningEffort: 'max', fallbacks: [], watch: false, showStatus: true, minToolCalls: 1 },
+    advisor: { provider: 'zai', model: 'glm-5.3', reasoningEffort: 'max', fallbacks: [], skipModels: ['gpt-6-astra'], watch: false, showStatus: true, minToolCalls: 1 },
     classifier: { provider: null, model: null, audit: true, enforce: false, fallbacks: [] },
     munin: { project: '', baseUrl: '', allowProjectConfig: false, fallback: { baseUrl: '' }, brief: { enabled: false, maxChars: 600, recencyDays: 30 } },
     agentmem: { project: '', baseUrl: '', brief: { enabled: false, maxChars: 600, recencyDays: 30 } },
@@ -193,7 +197,7 @@ export function defaultSettings(): CeulenSettings {
         'list_mcp_resources', 'list_mcp_resource_templates', 'read_mcp_resource',
       ],
     },
-    rules: { projectFile: '.dsh/RULES.md', userFile: 'RULES.md', maxBytes: 20_000, guards: 'audit' },
+    rules: { guards: 'audit' },
     ponytail: { level: 'full' },
     ux: { mode: 'off' },
     // DeepSeek V4.1 Flash is the agent-mode default on both provider routes.
@@ -206,7 +210,7 @@ export function defaultSettings(): CeulenSettings {
     // ponytail: `*` = inherit the parent route, so a fresh install assumes no provider.
     subagent: { roles: { fast: ['*'], coder: ['*'], smart: ['*'] }, models: {}, thinking: {}, presets: {} },
     // Both phases inherit the client's model until a route is configured.
-    plan: { model: '', implement: '' },
+    plan: { model: '', implement: '', fallbacks: [], implementFallbacks: [] },
     usage: { enabled: true, showStatus: true, intervalMinutes: 5, providers: [] },
   }
 }
@@ -284,40 +288,28 @@ function effortRecord(value: unknown): Record<string, ReasoningEffort> {
   if (!isRecord(value)) return {}
   const out: Record<string, ReasoningEffort> = {}
   for (const [key, entry] of Object.entries(value)) {
-    const effort = reasoningEffort(entry)
+    const effort = oneOf(REASONING_EFFORTS, entry, null)
     if (effort !== null) out[key.trim()] = effort
   }
   return out
 }
 
-function level(value: unknown, fallback: PonytailLevel): PonytailLevel {
-  return value === 'off' || value === 'lite' || value === 'full' || value === 'ultra' ? value : fallback
-}
-
-function uxMode(value: unknown, fallback: UxMode): UxMode {
-  return value === 'off' || value === 'lite' || value === 'strict' ? value : fallback
-}
-
-function guardMode(value: unknown, fallback: RuleGuardMode): RuleGuardMode {
-  return value === 'off' || value === 'audit' || value === 'enforce' ? value : fallback
-}
-
-function reasoningEffort(value: unknown): ReasoningEffort | null {
-  return typeof value === 'string' && (REASONING_EFFORTS as readonly string[]).includes(value)
-    ? (value as ReasoningEffort)
-    : null
+function oneOf<T extends string, F>(allowed: readonly T[], value: unknown, fallback: F): T | F {
+  return (allowed as readonly unknown[]).includes(value) ? (value as T) : fallback
 }
 
 /**
  * Merge a raw settings document over the defaults, coercing every known field
  * and preserving unknown top-level/section keys for forward compatibility.
+ * `env: false` leaves out the process overrides (`CEULEN_DISABLED`,
+ * `CEULEN_UPSTREAM_CHECK`): that is the document an edit must write back.
  */
-export function normalizeSettings(raw: unknown): CeulenSettings {
+export function normalizeSettings(raw: unknown, env = true): CeulenSettings {
   const base = defaultSettings()
   if (!isRecord(raw)) return base
 
   const disabled = new Set(strArray(raw.disabled))
-  for (const entry of (process.env.CEULEN_DISABLED ?? '').split(',')) {
+  for (const entry of (env ? process.env.CEULEN_DISABLED ?? '' : '').split(',')) {
     const name = entry.trim()
     if (name.length > 0) disabled.add(name)
   }
@@ -349,14 +341,15 @@ export function normalizeSettings(raw: unknown): CeulenSettings {
     schemaVersion: 1,
     disabled: [...disabled],
     upstream: {
-      enabled: bool(upstream.enabled, base.upstream.enabled) && process.env.CEULEN_UPSTREAM_CHECK !== '0',
+      enabled: bool(upstream.enabled, base.upstream.enabled) && !(env && process.env.CEULEN_UPSTREAM_CHECK === '0'),
       intervalHours: num(upstream.intervalHours, base.upstream.intervalHours, 1, 24 * 30),
     },
     advisor: {
       provider: nullableStr(advisor.provider),
       model: nullableStr(advisor.model),
-      reasoningEffort: reasoningEffort(advisor.reasoningEffort),
+      reasoningEffort: oneOf(REASONING_EFFORTS, advisor.reasoningEffort, null),
       fallbacks: dedupeRoutes(strArray(advisor.fallbacks)),
+      skipModels: strArray(advisor.skipModels ?? base.advisor.skipModels),
       watch: bool(advisor.watch, base.advisor.watch),
       showStatus: bool((advisor as Record<string, unknown>).showStatus, base.advisor.showStatus),
       minToolCalls: num(advisor.minToolCalls, base.advisor.minToolCalls, 0, 100),
@@ -399,13 +392,10 @@ export function normalizeSettings(raw: unknown): CeulenSettings {
       cold: Array.isArray((isRecord(raw.tools) ? raw.tools : {}).cold) ? strArray((raw.tools as Record<string, unknown>).cold) : base.tools.cold,
     },
     rules: {
-      projectFile: str(rules.projectFile, base.rules.projectFile),
-      userFile: str(rules.userFile, base.rules.userFile),
-      maxBytes: num(rules.maxBytes, base.rules.maxBytes, 1_000, 200_000),
-      guards: guardMode(rules.guards, base.rules.guards),
+      guards: oneOf(RULE_GUARD_MODES, rules.guards, base.rules.guards),
     },
-    ponytail: { level: level(ponytail.level, base.ponytail.level) },
-    ux: { mode: uxMode(ux.mode, base.ux.mode) },
+    ponytail: { level: oneOf(PONYTAIL_LEVELS, ponytail.level, base.ponytail.level) },
+    ux: { mode: oneOf(UX_MODES, ux.mode, base.ux.mode) },
     agentMode: {
       // An explicit [] turns the default off; absent keeps the shipped routes.
       models: Array.isArray(agentMode.models) ? dedupeRoutes(strArray(agentMode.models)) : base.agentMode.models,
@@ -427,6 +417,8 @@ export function normalizeSettings(raw: unknown): CeulenSettings {
     plan: {
       model: str(plan.model, base.plan.model).trim(),
       implement: str(plan.implement, base.plan.implement).trim(),
+      fallbacks: dedupeRoutes(strArray(plan.fallbacks)),
+      implementFallbacks: dedupeRoutes(strArray(plan.implementFallbacks)),
     },
     usage: {
       enabled: bool(usage.enabled, base.usage.enabled),
@@ -439,12 +431,12 @@ export function normalizeSettings(raw: unknown): CeulenSettings {
 }
 
 /** Read the settings document synchronously; malformed/missing → defaults. */
-export function loadSettingsSync(): CeulenSettings {
+export function loadSettingsSync(env = true): CeulenSettings {
   try {
     const text = readFileSync(settingsPath(), 'utf8')
-    return normalizeSettings(JSON.parse(text))
+    return normalizeSettings(JSON.parse(text), env)
   } catch {
-    return normalizeSettings(undefined)
+    return normalizeSettings(undefined, env)
   }
 }
 
@@ -453,7 +445,8 @@ export async function saveSettings(settings: CeulenSettings): Promise<void> {
 }
 
 export async function updateSettings(mutator: (settings: CeulenSettings) => void): Promise<CeulenSettings> {
-  const settings = loadSettingsSync()
+  // Without env overrides, or a one-off CEULEN_DISABLED would be saved for good.
+  const settings = loadSettingsSync(false)
   mutator(settings)
   await saveSettings(settings)
   return settings

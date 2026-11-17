@@ -1,6 +1,10 @@
 import { stripVTControlCharacters } from 'node:util'
 
 /** Narrow, read-only views of the host channel. No runtime/TUI dependency. */
+export interface Todo {
+  content: string
+  status: 'pending' | 'in_progress' | 'completed'
+}
 export interface Task {
   id: string
   subject: string
@@ -16,7 +20,11 @@ export interface Team {
   enabled?: boolean
   failure?: string
   tasks: readonly Task[]
-  members?: readonly { id: string; name: string; role: string; phase: string }[]
+}
+export interface ToolCall {
+  name: string
+  status: string
+  startedAt: number
 }
 export interface Child {
   agentId: string
@@ -44,6 +52,9 @@ export interface DashboardChannel {
   provider?: string
   model?: string
   status?: string
+  lastUserText?: string
+  /** Native `channel.todos` (TodoPanelItem): the session's current checklist. */
+  todos?: readonly Todo[]
   team?: Team
   tokens?: { input?: number; output?: number }
   subagents?: readonly Child[]
@@ -58,21 +69,27 @@ export interface Item {
   status: string
   meta: string
   detail: readonly string[]
-  /** Native start time when the host reported one; 0/absent means unknown. */
-  at?: number
+  tokens?: { input?: number; output?: number }
+  /** All bounded native tool calls; the scene shows at most three per block. */
+  tools: readonly ToolCall[]
+  /** Public text output only, bounded; never thinking or raw tool payloads. */
+  activity: readonly string[]
 }
 export interface Dashboard {
   sessionId: string
   lead: string
-  warning?: string
   failure?: string
   needsInput: boolean
-  taskCount: string
-  tasks: readonly Item[]
-  agents: readonly Item[]
-  activity: readonly Item[]
-  /** Per-source parent usage exactly as the channel reported it, never summed. */
-  tokens?: { input?: number; output?: number }
+  /** Native session checklist (`channel.todos`), namespaced under session. */
+  sessionTasks: readonly Item[]
+  /** Native Team task board, namespaced under team. */
+  teamTasks: readonly Item[]
+  sessionCount: { done: number; total: number }
+  teamCount: { done: number; total: number }
+  /** lastUserText fallback, shown only while no checklist exists. */
+  request?: string
+  /** Lead root plus only the native children of this session. */
+  workflow: { lead: Item; children: readonly Item[] }
 }
 
 /** Host Text owns Unicode cell measurement/truncation; strip control bytes first. */
@@ -82,71 +99,126 @@ export function clean(value: unknown, limit = 1000): string {
 function route(provider?: string, model?: string): string {
   return `${clean(provider)}/${clean(model)}`
 }
-function usage(tokens?: { input?: number; output?: number }): string {
-  return tokens === undefined ? 'usage —' : `in ${tokens.input ?? '—'} / out ${tokens.output ?? '—'}`
+export function compactTokens(value: number | undefined): string {
+  if (value === undefined) return '—'
+  if (value < 1000) return String(value)
+  if (value < 1_000_000) return `${(value / 1000).toFixed(value < 10_000 ? 1 : 0)}k`
+  return `${(value / 1_000_000).toFixed(1)}m`
 }
+/** Compact line for a block; an unknown field stays `—`, a real zero stays `0`. */
+export function tokenLine(tokens?: { input?: number; output?: number }): string {
+  return `IN ${compactTokens(tokens?.input)} / OUT ${compactTokens(tokens?.output)}`
+}
+/** Exact line for detail; per source, never a parent/child sum. */
+export function exactTokens(tokens?: { input?: number; output?: number }): string {
+  return `input ${tokens?.input ?? '—'} / output ${tokens?.output ?? '—'}`
+}
+/**
+ * Display order for one block: running calls first, then the most recent.
+ * This is UI truncation only; the projection keeps the bounded native history.
+ */
+export function visibleTools(tools: readonly ToolCall[], max = 3): { shown: readonly ToolCall[]; overflow: number } {
+  const order = [...tools].sort((a, b) => Number(b.status === 'running') - Number(a.status === 'running') || b.startedAt - a.startedAt)
+  const shown = order.slice(0, Math.max(0, max))
+  return { shown, overflow: Math.max(0, order.length - shown.length) }
+}
+function detailTools(tools: readonly ToolCall[]): string[] {
+  const { shown } = visibleTools(tools, 40)
+  return shown.length === 0 ? ['Tools: none reported.'] : ['Tools (newest first, max 40):', ...shown.map(tool => `  ${clean(tool.name)} · ${clean(tool.status)} · ${tool.startedAt}`)]
+}
+function publicActivity(events: readonly { kind: string; text: string; at: number }[] | undefined): string[] {
+  return (events ?? []).filter(event => event.kind === 'text').slice(-10).map(event => clean(event.text, 400))
+}
+function activityDetail(activity: readonly string[]): string[] {
+  return activity.length === 0 ? ['Public activity: none reported.'] : [`Public activity (last ${activity.length}):`, ...activity.map(line => `  ${line}`)]
+}
+const NO_PRIVATE = 'Arguments, raw results, and thinking are not shown.'
+const countOf = (items: readonly Item[]): { done: number; total: number } => ({ done: items.filter(item => item.status === 'completed').length, total: items.length })
 
 export function project(channel: DashboardChannel, now = Date.now()): Dashboard {
   const team = channel.team
   const children = channel.subagents ?? []
   const relevant = new Set([channel.sessionId, ...children.map(child => child.sessionId).filter(id => id !== undefined)])
   const needsInput = (channel.agentViewRows?.() ?? []).some(row => relevant.has(row.id) && row.status === 'needs-input')
-  const tasks = (team?.tasks ?? []).map(task => ({
-    id: task.id,
+
+  const sessionTasks: Item[] = (channel.todos ?? []).map((todo, index) => ({
+    id: `session:${index}`,
+    title: clean(todo.content),
+    status: todo.status,
+    meta: 'session checklist',
+    detail: ['Source: session checklist (todo_write)', `Status: ${todo.status}`, `Checklist item ${index + 1} of ${channel.todos?.length ?? 0}.`, 'The native checklist has no description or owner.'],
+    tools: [], activity: [],
+  }))
+  const teamTasks: Item[] = (team?.tasks ?? []).map(task => ({
+    id: `team:${task.id}`,
     title: clean(task.subject),
     status: clean(task.status),
-    meta: `owner ${clean(task.ownerName)} · ${task.ready ? 'ready' : 'not ready'}${task.writeScopeWarnings.length ? ' · scope warning' : ''}`,
-    detail: [clean(task.description), `Owner: ${clean(task.ownerName)}`, `Ready: ${task.ready}`, `Blockers: ${task.blockedBy.map(id => clean(id)).join(', ') || 'none'}`, `Write scopes: ${task.writeScopes.map(scope => clean(scope)).join(', ') || '—'}`, ...task.writeScopeWarnings.map(warning => `WARNING: ${clean(warning)}`)],
+    meta: `team board · owner ${clean(task.ownerName)} · ${task.ready ? 'ready' : 'not ready'}${task.writeScopeWarnings.length ? ' · scope warning' : ''}`,
+    detail: ['Source: native Team task board', clean(task.description), `Owner: ${clean(task.ownerName)}`, `Ready: ${task.ready}`, `Blockers: ${task.blockedBy.map(id => clean(id)).join(', ') || 'none'}`, `Write scopes: ${task.writeScopes.map(scope => clean(scope)).join(', ') || '—'}`, ...task.writeScopeWarnings.map(warning => `WARNING: ${clean(warning)}`)],
+    tools: [], activity: [],
   }))
-  const agents: Item[] = children.map(child => {
+  const request = sessionTasks.length === 0 && typeof channel.lastUserText === 'string' && channel.lastUserText.trim() !== ''
+    ? clean(channel.lastUserText, 2000)
+    : undefined
+
+  const leadTools: ToolCall[] = (channel.rows ?? []).filter(row => row.kind === 'tool' && row.tool !== undefined).slice(-200)
+    .map(row => ({ name: clean(row.tool?.name), status: clean(row.tool?.status), startedAt: row.tool?.startedAt ?? 0 }))
+  const lead: Item = {
+    id: `lead:${channel.sessionId}`,
+    title: 'Lead',
+    status: clean(channel.status ?? 'unknown'),
+    meta: `${tokenLine(channel.tokens)} · ${route(channel.provider, channel.model)}`,
+    detail: ['Source: Lead of this session', `Session: ${clean(channel.sessionId)}`, `Route: ${route(channel.provider, channel.model)}`, `Status: ${clean(channel.status ?? 'unknown')}`, `Tokens: ${exactTokens(channel.tokens)}`, ...detailTools(leadTools), 'Public activity: only native tool projections are read for the Lead.', NO_PRIVATE],
+    ...(channel.tokens === undefined ? {} : { tokens: channel.tokens }),
+    tools: leadTools, activity: [],
+  }
+  const workflowChildren: Item[] = children.map(child => {
     const lastTool = child.lastTool ?? child.toolCalls?.at(-1)?.name
     const end = child.endedAt ?? child.completedAt ?? (child.status === 'running' || child.status === 'starting' ? now : undefined)
     const duration = child.reportedDurationMs ?? (child.startedAt === undefined || end === undefined ? undefined : Math.max(0, end - child.startedAt))
+    const tools: ToolCall[] = (child.toolCalls ?? []).slice(-200).map(tool => ({ name: clean(tool.name), status: clean(tool.status), startedAt: tool.startedAt }))
+    const activity = publicActivity(child.outputEvents)
     return {
       id: `${child.agentId}:${child.runId ?? 'unknown'}`,
       title: clean(child.name ?? child.description ?? child.agentId),
       status: clean(child.status ?? 'unknown'),
-      meta: `${route(child.provider, child.model)} · tool ${clean(lastTool)} · ${duration === undefined ? 'duration —' : `${Math.floor(duration / 1000)}s`} · ${usage(child.tokens)}`,
-      detail: [`Agent: ${clean(child.agentId)}`, `Session: ${clean(child.sessionId)}`, `Run: ${clean(child.runId)}`, clean(child.description), `Route: ${route(child.provider, child.model)}`, `Last tool: ${clean(lastTool)}`, usage(child.tokens), ...(child.settledRuns ?? []).slice(-20).map(run => `Previous run ${clean(run.runId)}: ${clean(run.status)}`)],
+      meta: `${tokenLine(child.tokens)} · ${route(child.provider, child.model)}${duration === undefined ? '' : ` · ${Math.floor(duration / 1000)}s`}`,
+      detail: [`Agent: ${clean(child.agentId)}`, `Session: ${clean(child.sessionId)}`, `Run: ${clean(child.runId)}`, clean(child.description), `Route: ${route(child.provider, child.model)}`, `Status: ${clean(child.status ?? 'unknown')}`, `Last tool: ${clean(lastTool)}`, `Tokens: ${exactTokens(child.tokens)}`, ...detailTools(tools), ...(child.settledRuns ?? []).slice(-20).map(run => `Previous run ${clean(run.runId)}: ${clean(run.status)}`), ...activityDetail(activity), NO_PRIVATE],
+      ...(child.tokens === undefined ? {} : { tokens: child.tokens }),
+      tools, activity,
     }
   })
-  for (const member of team?.members ?? []) {
-    if (member.id === channel.sessionId || member.role === 'lead' || children.some(child => child.sessionId === member.id)) continue
-    agents.push({ id: member.id, title: clean(member.name), status: 'unknown', meta: `${clean(member.role)} · phase ${clean(member.phase)} · route —`, detail: [`Session: ${clean(member.id)}`, 'No native run snapshot available.'] })
-  }
-  const activity: (Item & { at: number })[] = []
-  for (const row of (channel.rows ?? []).slice(-200)) {
-    if (row.kind !== 'tool' || row.tool === undefined) continue
-    activity.push({ id: `lead:${row.id}`, title: clean(row.tool.name), status: clean(row.tool.status), meta: 'lead · tool', detail: ['Source: lead', `Tool: ${clean(row.tool.name)}`, `Status: ${clean(row.tool.status)}`, 'Arguments and raw results are not shown.'], at: row.tool.startedAt ?? 0 })
-  }
-  for (const child of children) {
-    // ponytail: use bounded native previews, never fold transcripts or show thinking/tool arguments.
-    for (const [index, event] of (child.outputEvents ?? []).slice(-200).entries()) {
-      if (event.kind !== 'text') continue
-      const source = clean(child.name ?? child.agentId)
-      activity.push({ id: `${child.agentId}:${child.runId ?? 'unknown'}:${index}:${event.at}`, title: clean(event.text, 240), status: 'text', meta: `${source} · run ${clean(child.runId)}`, detail: [`Source: ${source}`, `Run: ${clean(child.runId)}`, clean(event.text, 4000)], at: event.at })
-    }
-    for (const [index, tool] of (child.toolCalls ?? []).slice(-200).entries()) {
-      activity.push({ id: `${child.agentId}:${child.runId ?? 'unknown'}:tool:${index}:${tool.startedAt}`, title: clean(tool.name), status: clean(tool.status), meta: `${clean(child.name ?? child.agentId)} · tool`, detail: [`Agent: ${clean(child.agentId)}`, `Run: ${clean(child.runId)}`, `Tool: ${clean(tool.name)}`, `Status: ${clean(tool.status)}`], at: tool.startedAt })
-    }
-  }
-  const model = channel.model ?? ''
+
   return {
     sessionId: channel.sessionId,
-    lead: `lead · ${route(channel.provider, channel.model)} · ${clean(channel.status ?? 'unknown')} · ${usage(channel.tokens)}`,
-    ...(model === 'gpt-6-astra' ? {} : { warning: 'Lead is not GPT-6-astra. Use /model in chat to select it; dashboard never switches models.' }),
+    lead: `Lead · ${tokenLine(channel.tokens)} · ${route(channel.provider, channel.model)} · ${clean(channel.status ?? 'unknown')}`,
     ...(team?.failure ? { failure: `Team projection failed (last valid board): ${clean(team.failure)}` } : {}),
     needsInput,
-    taskCount: `${tasks.filter(task => task.status === 'completed').length}/${tasks.length}`,
-    tasks,
-    agents,
-    activity: activity.sort((a, b) => b.at - a.at).slice(0, 200),
-    ...(channel.tokens === undefined ? {} : { tokens: channel.tokens }),
+    sessionTasks,
+    teamTasks,
+    sessionCount: countOf(sessionTasks),
+    teamCount: countOf(teamTasks),
+    ...(request === undefined ? {} : { request }),
+    workflow: { lead, children: workflowChildren },
   }
 }
 
 export function summary(view: Dashboard): string {
-  return [`Dashboard · session ${clean(view.sessionId)}`, view.lead, view.warning, view.failure, `Tasks ${view.taskCount}`, ...view.tasks.map(task => `[${task.status}] ${task.title} · ${task.meta}`), `Agents ${view.agents.length}`, ...view.agents.map(agent => `[${agent.status}] ${agent.title} · ${agent.meta}`), 'Source: native DSH projections; no parent/child usage aggregation.'].filter(line => line !== undefined).join('\n')
+  const tasks = [
+    ...view.sessionTasks.map(task => `[S] [${task.status}] ${task.title} · ${task.meta}`),
+    ...view.teamTasks.map(task => `[T] [${task.status}] ${task.title} · ${task.meta}`),
+  ]
+  return [
+    `Dashboard · session ${clean(view.sessionId)}`,
+    view.lead,
+    view.failure,
+    `Tasks · session ${view.sessionCount.done}/${view.sessionCount.total} · team ${view.teamCount.done}/${view.teamCount.total}`,
+    ...tasks,
+    view.request === undefined ? undefined : `Current request (no checklist): ${view.request}`,
+    `Workflow · Lead [${view.workflow.lead.status}]`,
+    ...view.workflow.children.map(child => `[child] [${child.status}] ${child.title} · ${child.meta}`),
+    'Source: native DSH projections; no parent/child usage aggregation.',
+  ].filter(line => line !== undefined).join('\n')
 }
 
 /** Every listener belongs to one mount, including the separate agent-view feed. */

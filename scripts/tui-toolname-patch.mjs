@@ -36,7 +36,7 @@ const EDITS = [
 ]
 
 const args = process.argv.slice(2)
-const action = args.find(arg => !arg.startsWith('--')) ?? 'check'
+const action = args.find((arg, index) => !arg.startsWith('--') && args[index - 1] !== '--tui') ?? 'check'
 const tuiFlag = args.indexOf('--tui')
 const home = process.env.DSH_HOME?.trim() || join(homedir(), '.dsh')
 const root = tuiFlag >= 0 && args[tuiFlag + 1] !== undefined

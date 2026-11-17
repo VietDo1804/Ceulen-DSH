@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import type { AgentLike, PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
-import { ceulenHome } from '../../core/paths.js'
-import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerToolSafe } from '../../core/tools.js'
+import { join } from 'node:path'
+import { readText } from '../../core/fsx.js'
+import { ceulenHome, logsDir } from '../../core/paths.js'
+import { ceulenTool, clampText, cwdOf, objectSchema, registerCommandSafe, registerToolSafe, errorMessage } from '../../core/tools.js'
 import {
   addJob,
   dueJobs,
@@ -61,13 +63,8 @@ function exportCrontab(list: CronJob[]): string {
 }
 
 async function logsText(lines = 30): Promise<string> {
-  try {
-    const { readFile } = await import('node:fs/promises')
-    const text = await readFile(`${ceulenHome()}/logs/cron.log`, 'utf8')
-    return text.trim().split('\n').slice(-lines).join('\n') || '(no cron log entries)'
-  } catch {
-    return '(no cron log entries)'
-  }
+  const text = await readText(join(logsDir(), 'cron.log'))
+  return text?.trim().split('\n').slice(-lines).join('\n') || '(no cron log entries)'
 }
 
 export function apply(ctx: PluginContext): void {
@@ -108,8 +105,8 @@ export function apply(ctx: PluginContext): void {
         setJobResult(dir(), job.name, 'ok')
         await appendLog('cron', `fired ${job.name}: ${job.prompt}`)
       } catch (error) {
-        setJobResult(dir(), job.name, 'fail', error instanceof Error ? error.message : String(error))
-        await appendLog('cron', `failed ${job.name}: ${error instanceof Error ? error.message : String(error)}`)
+        setJobResult(dir(), job.name, 'fail', errorMessage(error))
+        await appendLog('cron', `failed ${job.name}: ${errorMessage(error)}`)
       } finally {
         firing.delete(job.name)
       }
@@ -132,15 +129,14 @@ export function apply(ctx: PluginContext): void {
       schedule: { type: 'string', description: 'Five-field Vixie cron expression (add).' },
       prompt: { type: 'string', description: 'Prompt delivered as a follow-up turn (add).' },
     }, ['action']),
-    outputSchema: { type: 'string' },
-    async execute(raw) {
+    async execute(raw, exec) {
       const args = raw as { action: string; name?: string; schedule?: string; prompt?: string }
       const list = jobs()
       if (args.action === 'list') {
         return list.length === 0 ? 'No cron jobs. Use action:"add" with name, schedule, and prompt.' : list.map(formatJob).join('\n')
       }
       if (args.action === 'add') {
-        const job = addJob(dir(), { name: args.name, schedule: args.schedule, prompt: args.prompt, cwd: process.cwd() }, Date.now())
+        const job = addJob(dir(), { name: args.name, schedule: args.schedule, prompt: args.prompt, cwd: cwdOf(exec) }, Date.now())
         return `Added cron job "${job.name}" (${job.schedule}). Next fire ${new Date(job.nextRun).toLocaleString()}.`
       }
       if (args.action === 'remove') {
@@ -217,7 +213,7 @@ export function apply(ctx: PluginContext): void {
           const job = setJobEnabled(dir(), name, action === 'enable', Date.now())
           return { kind: 'success', text: `${job.name} ${job.enabled ? 'enabled' : 'disabled'}.` }
         } catch (error) {
-          return { kind: 'error', text: error instanceof Error ? error.message : String(error) }
+          return { kind: 'error', text: errorMessage(error) }
         }
       }
       if (action === 'test') {

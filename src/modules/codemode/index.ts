@@ -80,17 +80,9 @@ const OUTPUT_SCHEMA = {
   required: ['text', 'ok', 'seconds', 'calls'],
 }
 
-function runtimeOf(ctx: PluginContext): PtcRuntimeLike | undefined {
+function serviceOf<T>(ctx: PluginContext, name: string): T | undefined {
   try {
-    return ctx.get('ptcRuntime', false) as PtcRuntimeLike | undefined
-  } catch {
-    return undefined
-  }
-}
-
-function registryOf(ctx: PluginContext): RegistryLike | undefined {
-  try {
-    return ctx.get('tools', false) as RegistryLike | undefined
+    return ctx.get(name, false) as T | undefined
   } catch {
     return undefined
   }
@@ -171,14 +163,14 @@ function codemodeTool(ctx: PluginContext) {
       if (!loadSettingsSync().codemode.enabled) {
         throw new Error('codemode is disabled in Ceulen settings; enable it in /ceulen-config and restart DSH')
       }
-      const runtime = runtimeOf(ctx)
+      const runtime = serviceOf<PtcRuntimeLike>(ctx, 'ptcRuntime')
       if (runtime === undefined) {
         throw new Error('codemode needs the DSH PTC runtime; mount the ptc-runtime row (dsh-ptc-runtime-node)')
       }
       if (runtime.programFormat === 'repl') {
         throw new Error('codemode needs the function-body PTC runtime (executionMode: per-call); the persistent REPL runtime does not support top-level return')
       }
-      const registry = registryOf(ctx)
+      const registry = serviceOf<RegistryLike>(ctx, 'tools')
       if (registry === undefined) throw new Error('the DSH tool registry is not mounted')
 
       const calls: CodemodeCall[] = []
@@ -235,9 +227,8 @@ function codemodeTool(ctx: PluginContext) {
       if (result.error === undefined && pending.size > 0) commitState(session, pending)
       const label = code.split('\n').map(line => line.trim()).find(line => line.length > 0) ?? 'script'
       logLine('codemode', `${clipOneLine(label, 100)} -> ${result.error === undefined ? 'ok' : result.error.kind}`)
-      const rendered = renderResult(result, seconds, options.maxOutputChars ?? DEFAULT_OUTPUT_BUDGET, calls, usage.rawChars)
       const value: CodemodeValue = {
-        text: rendered.text,
+        text: renderResult(result, seconds, options.maxOutputChars ?? DEFAULT_OUTPUT_BUDGET, calls, usage.rawChars),
         ok: result.error === undefined,
         seconds,
         calls: calls.map(call => ({ ...call })),

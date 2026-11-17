@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { AgentLike, PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync, updateSettings, type ReasoningEffort } from '../../core/settings.js'
 import { parseRoute, streamTextDetailed, type LlmRoute } from '../../core/llm.js'
-import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerToolSafe, tuiStatusPublisher } from '../../core/tools.js'
+import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerToolSafe, tuiStatusPublisher, errorMessage } from '../../core/tools.js'
 import { createGuard, guardCheck, nextCycle, parseReviewOutput, type GuardState, type Severity } from '../../vendor/ceulen/advisor/emission-guard.js'
 import { sessionMovedOn, shelveLateNote } from '../steering/index.js'
 import { SYSTEM } from '../../vendor/ceulen/advisor/system-prompt.js'
@@ -21,10 +21,14 @@ interface DeliveredNote {
   at: number
 }
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 /** How many turns a delivered note may be re-delivered in (vendored guard). */
 const REDELIVERY_WINDOW = 2
+
+function skipsMainModel(agent: AgentLike, settings: ReturnType<typeof loadSettingsSync>): boolean {
+  const main = agent.model?.current?.() ?? agent.options
+  return main.model !== undefined && settings.advisor.skipModels.some(model => model === main.model || model === `${main.provider}/${main.model}`)
+}
 
 function routeListFor(agent: AgentLike | undefined, settings: ReturnType<typeof loadSettingsSync>): Route[] {
   const sessionId = agent === undefined ? undefined : String(agent.session.id)
@@ -94,7 +98,7 @@ async function streamChain(
       failures.push(`${route.provider}/${route.model}: empty response (finish=${finish})`)
     } catch (error) {
       if (signal?.aborted) throw error
-      failures.push(`${route.provider}/${route.model}: ${error instanceof Error ? error.message : String(error)}`)
+      failures.push(`${route.provider}/${route.model}: ${errorMessage(error)}`)
     } finally {
       clearTimeout(timer)
     }
@@ -149,7 +153,7 @@ function deliver(agent: AgentLike, severity: Severity, note: string, reviewer: s
   } catch (error) {
     // Never fall back to source.kind 'user': renderTurn would pin the note as
     // the user's own request at the next review. Losing one note is cheaper.
-    logLine('advisor', `note not delivered: ${error instanceof Error ? error.message : String(error)}`)
+    logLine('advisor', `note not delivered: ${errorMessage(error)}`)
   }
 }
 
@@ -173,15 +177,14 @@ export function apply(ctx: PluginContext): void {
 
   let clearTimer: ReturnType<typeof setTimeout> | undefined
   const scheduleClear = (ms: number): void => {
-    clearTimer?.unref?.()
-    if (clearTimer !== undefined) clearTimeout(clearTimer)
+    clearTimeout(clearTimer)
     clearTimer = setTimeout(() => publishStatus(undefined), ms)
     clearTimer.unref?.()
   }
 
   const review = async (agent: AgentLike, signal?: AbortSignal): Promise<void> => {
     const current = loadSettingsSync()
-    if (!current.advisor.watch) return
+    if (!current.advisor.watch || skipsMainModel(agent, current)) return
     const session = agent.session
     const key = String(session.id)
     if (reviewing.has(key)) return
@@ -218,6 +221,10 @@ export function apply(ctx: PluginContext): void {
       logLine('advisor', `review start seq=${seq} chars=${userPrompt.length} pinned=${transcript.pinned} evidence=${evidence.length}`)
       const { text: raw, route } = await streamChain(ctx, routes, SYSTEM, userPrompt, signal, true)
       if (abort()) return
+      if (skipsMainModel(agent, loadSettingsSync())) {
+        publishStatus(undefined)
+        return
+      }
       const routeLabel = `${route.provider}/${route.model}`
       lastReviewed.set(key, seq)
       const parsed = parseReviewOutput(raw)
@@ -247,7 +254,7 @@ export function apply(ctx: PluginContext): void {
       if (signal?.aborted) {
         logLine('advisor', 'review aborted')
       } else {
-        logLine('advisor', `review failed: ${error instanceof Error ? error.message : String(error)}`)
+        logLine('advisor', `review failed: ${errorMessage(error)}`)
       }
       publishStatus(undefined)
     } finally {
@@ -273,7 +280,7 @@ export function apply(ctx: PluginContext): void {
             await review(payload.agent!)
           }
         } catch {
-          await sleep(0)
+          // review() logs its own failures; a rejected maintenance slot is dropped.
         }
       }
       void run()
@@ -330,6 +337,7 @@ export function apply(ctx: PluginContext): void {
           `route: ${current.advisor.provider !== null && current.advisor.model !== null ? `${current.advisor.provider}/${current.advisor.model}` : 'parent agent route'}`,
           `reasoning: ${current.advisor.reasoningEffort ?? 'auto'}`,
           `fallbacks: ${current.advisor.fallbacks.join(', ') || '(none)'}`,
+          `skip main models: ${current.advisor.skipModels.join(', ') || '(none)'}`,
           `min tool calls: ${current.advisor.minToolCalls}`,
           `last note: ${last}`,
           `guard: delivered ${guard.counts.delivered}, suppressed ${guard.counts.suppressed}`,
@@ -344,12 +352,12 @@ export function apply(ctx: PluginContext): void {
     parameters: objectSchema({
       focus: { type: 'string', description: 'What to review or the question to ask. Defaults to the latest turn.' },
     }),
-    outputSchema: { type: 'string' },
     concurrencySafe: false,
     async execute(args, exec) {
       const agent = exec.agent
       if (agent === undefined) throw new Error('advisor needs an agent context')
       const current = loadSettingsSync()
+      if (skipsMainModel(agent, current)) return 'Advisor skipped: the current main model is excluded in /ceulen-config → Model → Advisor → Skip main models.'
       const routes = routeListFor(agent, current)
       if (routes.length === 0) throw new Error('no reviewer route: set /advisor model provider/model')
       const focus = String((args as { focus?: unknown }).focus ?? '').trim()

@@ -10,22 +10,7 @@ export function row(
   set: ((value: ConfigValue) => void) | undefined,
   options: RowOptions = {},
 ): ConfigRow {
-  return {
-    key,
-    label,
-    kind,
-    value,
-    ...(set === undefined ? {} : { set }),
-    ...(options.picker === undefined ? {} : { picker: options.picker }),
-    ...(options.pickerAppend === undefined ? {} : { pickerAppend: options.pickerAppend }),
-    ...(options.description === undefined ? {} : { description: options.description }),
-    ...(options.warning === undefined ? {} : { warning: options.warning }),
-    ...(options.values === undefined ? {} : { values: options.values }),
-    ...(options.ref === undefined ? {} : { ref: options.ref }),
-    ...(options.placeholder === undefined ? {} : { placeholder: options.placeholder }),
-    ...(options.min === undefined ? {} : { min: options.min }),
-    ...(options.max === undefined ? {} : { max: options.max }),
-  }
+  return { key, label, kind, value, ...(set === undefined ? {} : { set }), ...options }
 }
 
 export function text(

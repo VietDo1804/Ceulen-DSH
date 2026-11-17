@@ -7,7 +7,7 @@
  * - fetch.ts     fetch page (DeepSeek Markdown) + local public-URL fetch leg
  * - capture.ts   headless-Chrome capture scope, screenshot/PDF persistence
  * - providers.ts Brave search + fetch-fallback registration
- * - tools.ts     web_extract/map/screenshot/pdf/interact/chat/status
+ * - tools.ts     web_extract/map/screenshot/pdf/interact/chat/image/status
  * - url-guard.ts the public-URL and capture-target guard
  */
 import type { PluginContext } from '../../core/types.js'

@@ -1,6 +1,6 @@
-import type { PluginContext, ToolRunContext } from '../../core/types.js'
+import type { PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
-import { ceulenTool, clampText, objectSchema, registerToolSafe } from '../../core/tools.js'
+import { ceulenTool, clampText, objectSchema, registerToolSafe, cwdOf } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import {
   NOTEBOOKLM_MAX_TIMEOUT_MS,
@@ -28,10 +28,6 @@ const DESCRIPTION = [
   '`login`/`auth login` are blocked here — run them once in a terminal.',
 ].join('\n')
 
-function cwdOf(exec: ToolRunContext): string {
-  return exec.agent?.session?.header?.cwd ?? process.cwd()
-}
-
 export function apply(ctx: PluginContext): void {
   const settings = loadSettingsSync()
   if (!isModuleEnabled('notebooklm', settings)) return
@@ -58,7 +54,6 @@ export function apply(ctx: PluginContext): void {
         description: `Wall-clock budget (default ${NOTEBOOKLM_TIMEOUT_MS}, max ${NOTEBOOKLM_MAX_TIMEOUT_MS}).`,
       },
     }, ['args']),
-    outputSchema: { type: 'string' },
     // Two downloads to the same default filename would race; reads stay parallel.
     concurrencySafe: raw => !writesFiles((raw as { args?: string[] }).args ?? []),
     contract: {

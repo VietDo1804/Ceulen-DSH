@@ -3,8 +3,7 @@
 // Usage: node scripts/fff-search-patch.mjs [apply|check|revert] [--fff <package-dir>]
 import { readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { join } from 'node:path'
 
 export async function ignoredFileList(subprocess, cwd, signal, skipDirs, cap) {
   if (!subprocess) return undefined
@@ -117,7 +116,7 @@ export function patchSource(source, action) {
   return source
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+if (import.meta.main) {
   try {
     const args = process.argv.slice(2)
     const action = args[0] ?? 'check'

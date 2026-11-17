@@ -1,6 +1,6 @@
-Too small: resize
+Too small at 20x8
+Resize to at least …
 Esc: chat
-
 
 
 

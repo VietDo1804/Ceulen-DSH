@@ -16,46 +16,7 @@ import {
   type DnaCategory,
   type DnaSnapshot,
 } from './dna.js'
-
-interface KeyFlags {
-  upArrow: boolean
-  downArrow: boolean
-  leftArrow: boolean
-  rightArrow: boolean
-  pageUp: boolean
-  pageDown: boolean
-  wheelUp: boolean
-  wheelDown: boolean
-  home: boolean
-  end: boolean
-  return: boolean
-  escape: boolean
-  ctrl: boolean
-  shift: boolean
-  tab: boolean
-  backspace: boolean
-  delete: boolean
-  meta: boolean
-}
-
-interface SceneReact {
-  useState<T>(initial: T | (() => T)): [T, (value: T | ((previous: T) => T)) => void]
-  useEffect(effect: () => void | (() => void), deps?: readonly unknown[]): void
-  createElement(type: unknown, props?: Record<string, unknown> | null, ...children: unknown[]): unknown
-}
-
-interface SceneUi {
-  Box: unknown
-  Text: unknown
-  useInput(handler: (input: string, key: KeyFlags) => void, options?: { isActive?: boolean }): void
-  useTerminalSize(): { columns: number; rows: number }
-}
-
-export interface SceneProps {
-  React: SceneReact
-  ui: SceneUi
-  close(): void
-}
+import type { SceneProps } from '../config/scene.js'
 
 export interface DnaSceneOptions {
   /** Read on mount: the frames collected for the session that opened the scene. */
@@ -78,11 +39,7 @@ export function createDnaScene(options: DnaSceneOptions): (props: SceneProps) =>
   return function DnaScene(props: SceneProps): unknown {
     const React = props.React
     const ui = props.ui
-    const h = React.createElement as (
-      type: unknown,
-      properties?: Record<string, unknown> | null,
-      ...children: unknown[]
-    ) => unknown
+    const h = React.createElement
 
     const [frames] = React.useState(() => options.snapshots())
     const last = Math.max(0, frames.length - 1)
@@ -91,6 +48,7 @@ export function createDnaScene(options: DnaSceneOptions): (props: SceneProps) =>
     const [focus, setFocus] = React.useState(0)
     const size = ui.useTerminalSize()
     const current = frames[Math.min(frame, last)] ?? EMPTY
+    const ranked = [...current.items].sort((a, b) => b.tokens - a.tokens).slice(0, 6)
 
     React.useEffect(() => {
       if (!playing) return
@@ -137,7 +95,7 @@ export function createDnaScene(options: DnaSceneOptions): (props: SceneProps) =>
         return
       }
       if (key.downArrow) {
-        setFocus(focus + 1)
+        setFocus(Math.min(focus + 1, Math.max(0, ranked.length - 1)))
         return
       }
       if (key.home) {
@@ -155,7 +113,6 @@ export function createDnaScene(options: DnaSceneOptions): (props: SceneProps) =>
     const bars = Math.max(3, Math.min((size.rows ?? 24) - 12, 10))
     const start = Math.max(0, Math.min(frame - bars + 1, Math.max(0, frames.length - bars)))
     const visible = frames.slice(start, Math.min(frames.length, start + bars))
-    const ranked = [...current.items].sort((a, b) => b.tokens - a.tokens).slice(0, 6)
     const focused = ranked[Math.min(focus, Math.max(0, ranked.length - 1))]
 
     const row = (snapshot: DnaSnapshot, index: number, isCurrent: boolean): unknown => {

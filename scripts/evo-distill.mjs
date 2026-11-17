@@ -257,4 +257,4 @@ function main(argv) {
   console.log(`evo-distill: ${wrote} digest(s)${dry ? ' (dry run)' : ''} → ${queue}`)
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main(process.argv.slice(2))
+if (import.meta.main) main(process.argv.slice(2))

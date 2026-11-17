@@ -10,10 +10,9 @@
  * Zero dependencies; runs in CI after `npm run build`.
  */
 import { readFile, readdir } from 'node:fs/promises'
-import { pathToFileURL } from 'node:url'
 import { existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -70,16 +69,9 @@ for (const module of parity.modules) {
   if (module.rowId !== undefined && !seen.has(module.rowId)) {
     fail(`parity module ${module.name} names missing row ${module.rowId}`)
   }
-  if (module.rowId === undefined && ['port', 'config', 'partial'].includes(module.status) && module.phase > 0) {
-    // Planned modules are allowed to have no row yet, but the status document
-    // must stay honest: only modules at or below the implemented phase may claim
-    // they are mounted. This check catches a rowId removed by accident.
-  }
 }
-const rowIds = new Set(rows.map(row => row.id))
-for (const id of rowIds) {
-  const owner = parity.modules.find(module => module.rowId === id)
-  if (owner === undefined) fail(`row ${id} has no parity owner`)
+for (const { id } of rows) {
+  if (!parity.modules.some(module => module.rowId === id)) fail(`row ${id} has no parity owner`)
 }
 
 // --- doc/version consistency (plan 0.4) ------------------------------------

@@ -130,8 +130,22 @@ export function resetToolBudget(): void {
   toolBudget.clear()
 }
 
-function byteLength(text: string): number {
-  return Buffer.byteLength(text, 'utf8')
+type HeldTool = ToolBudgetEntry & { definition: ToolDefinition }
+
+function budgetEntry(definition: ToolDefinition, name = definition.name): ToolBudgetEntry {
+  return {
+    name,
+    descriptionBytes: Buffer.byteLength(definition.description ?? ''),
+    parameterBytes: Buffer.byteLength(JSON.stringify(definition.parameters ?? {})),
+  }
+}
+
+function hold(held: Map<string, HeldTool>, definition: ToolDefinition): void {
+  held.set(definition.name, { ...budgetEntry(definition), definition })
+}
+
+function entries(held: Map<string, HeldTool>): readonly ToolBudgetEntry[] {
+  return [...held.values()].map(({ name, descriptionBytes, parameterBytes }) => ({ name, descriptionBytes, parameterBytes }))
 }
 
 /**
@@ -139,14 +153,10 @@ function byteLength(text: string): number {
  * `ceulen_tools`. The registry keeps the full definition, so dispatch runs the
  * real body with its own contract and render.
  */
-const coldTools = new Map<string, ToolBudgetEntry & { definition: ToolDefinition }>()
+const coldTools = new Map<string, HeldTool>()
 
 export function coldToolEntries(): readonly ToolBudgetEntry[] {
-  return [...coldTools.values()].map(entry => ({
-    name: entry.name,
-    descriptionBytes: entry.descriptionBytes,
-    parameterBytes: entry.parameterBytes,
-  }))
+  return entries(coldTools)
 }
 
 export function coldTool(name: string): ToolDefinition | undefined {
@@ -163,15 +173,10 @@ export function resetColdTools(): void {
  * a scope-local `tools.restrict({ deny })` — the schema stops being declared —
  * and captures the definition here so `ceulen_tools` still runs the real body.
  */
-const nativeColdTools = new Map<string, ToolBudgetEntry & { definition: ToolDefinition }>()
+const nativeColdTools = new Map<string, HeldTool>()
 
 export function holdNativeTool(definition: ToolDefinition): void {
-  nativeColdTools.set(definition.name, {
-    name: definition.name,
-    descriptionBytes: byteLength(definition.description ?? ''),
-    parameterBytes: byteLength(JSON.stringify(definition.parameters ?? {})),
-    definition,
-  })
+  hold(nativeColdTools, definition)
 }
 
 export function nativeTool(name: string): ToolDefinition | undefined {
@@ -179,32 +184,11 @@ export function nativeTool(name: string): ToolDefinition | undefined {
 }
 
 export function nativeToolEntries(): readonly ToolBudgetEntry[] {
-  return [...nativeColdTools.values()].map(entry => ({
-    name: entry.name,
-    descriptionBytes: entry.descriptionBytes,
-    parameterBytes: entry.parameterBytes,
-  }))
+  return entries(nativeColdTools)
 }
 
 export function resetNativeTools(): void {
   nativeColdTools.clear()
-}
-
-function holdColdTool(definition: ToolDefinition): void {
-  coldTools.set(definition.name, {
-    name: definition.name,
-    descriptionBytes: byteLength(definition.description ?? ''),
-    parameterBytes: byteLength(JSON.stringify(definition.parameters ?? {})),
-    definition,
-  })
-}
-
-function recordToolBudget(definition: ToolDefinition, actual: string): void {
-  toolBudget.set(actual, {
-    name: actual,
-    descriptionBytes: byteLength(definition.description ?? ''),
-    parameterBytes: byteLength(JSON.stringify(definition.parameters ?? {})),
-  })
 }
 
 /**
@@ -219,7 +203,7 @@ export function registerToolSafe(ctx: PluginContext, definition: ToolDefinition)
     const settings = loadSettingsSync()
     // The dispatcher is the tools module: without it a cold tool would be lost.
     if (isModuleEnabled('tools', settings) && settings.tools.cold.includes(definition.name)) {
-      holdColdTool(definition)
+      hold(coldTools, definition)
       logLine('plugin', `tool ${definition.name} held behind ceulen_tools (tools.cold)`)
       return { requested: definition.name, actual: definition.name, renamed: false }
     }
@@ -240,7 +224,7 @@ export function registerToolSafe(ctx: PluginContext, definition: ToolDefinition)
     }
     ctx.tools.register({ ...definition, name: actual })
     // Keyed by the registered name, so a collision alias is one entry.
-    recordToolBudget(definition, actual)
+    toolBudget.set(actual, budgetEntry(definition, actual))
     if (renamed) logLine('plugin', `tool ${definition.name} collided; registered as ${actual}`)
   } catch (error) {
     logLine('plugin', `failed to register tool ${actual}: ${errorMessage(error)}`)
@@ -290,6 +274,22 @@ export function tuiStatusPublisher(ctx: PluginContext, key: string): (text: stri
   }
 }
 
+export interface TuiScenesLike {
+  register(descriptor: { id: string; title?: string; component: unknown }, identity?: unknown): () => void
+  open(id: string): boolean
+}
+
+/** The TUI's full-screen scene registry; absent in headless profiles. */
+export function sceneService(ctx: PluginContext): TuiScenesLike | undefined {
+  try {
+    const service = ctx.get('tuiScenes', false) as TuiScenesLike | undefined
+    if (service === undefined || typeof service.register !== 'function' || typeof service.open !== 'function') return undefined
+    return service
+  } catch {
+    return undefined
+  }
+}
+
 /** Register a system-prompt section, tolerating an absent prompt service. */
 export function registerPromptSection(ctx: PluginContext, section: Parameters<PluginContext['systemPrompt']['section']>[0]): boolean {
   try {
@@ -306,6 +306,22 @@ export function errorMessage(error: unknown): string {
   return String(error)
 }
 
+/** Levenshtein distance; used for "did you mean" suggestions on short names. */
+export function editDistance(a: string, b: string): number {
+  let previous = Array.from({ length: b.length + 1 }, (_, index) => index)
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i]
+    for (let j = 1; j <= b.length; j += 1) {
+      const insert = (previous[j] ?? 0) + 1
+      const remove = (current[j - 1] ?? 0) + 1
+      const swap = (previous[j - 1] ?? 0) + (a[i - 1] === b[j - 1] ? 0 : 1)
+      current[j] = Math.min(insert, remove, swap)
+    }
+    previous = current
+  }
+  return previous[b.length] ?? b.length
+}
+
 /** Build an object JSON Schema with no additional properties by default. */
 export function objectSchema(
   properties: Record<string, unknown>,
@@ -319,26 +335,23 @@ export function asRecord(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
 }
 
-export function asString(value: unknown, fallback = ''): string {
-  return typeof value === 'string' ? value : fallback
+/** Tool-call `arguments` as an object; providers send it parsed or as a JSON string. */
+export function toolArgs(raw: unknown): Record<string, unknown> {
+  if (typeof raw !== 'string') return asRecord(raw)
+  try {
+    return asRecord(JSON.parse(raw))
+  } catch {
+    return {}
+  }
 }
 
-export function asNumber(value: unknown, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
-}
-
-export function asBoolean(value: unknown, fallback: boolean): boolean {
-  return typeof value === 'boolean' ? value : fallback
+/** The calling session's working directory, falling back to the process cwd. */
+export function cwdOf(exec?: { agent?: { session?: { header?: { cwd?: string } } } }): string {
+  return exec?.agent?.session?.header?.cwd ?? process.cwd()
 }
 
 /** Clamp a command's output so a TUI transcript stays readable. */
 export function clampText(value: string, max = 4_000): string {
   if (value.length <= max) return value
   return `${value.slice(0, max)}\n… (${value.length - max} chars truncated)`
-}
-
-/** Render a simple aligned key/value block for command output. */
-export function renderPairs(pairs: readonly [string, string][]): string {
-  const width = pairs.reduce((max, [key]) => Math.max(max, key.length), 0)
-  return pairs.map(([key, value]) => `${key.padEnd(width)}  ${value}`).join('\n')
 }

@@ -1,6 +1,6 @@
 import type { AgentLike, PluginContext, UserMessageLike } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
-import { clampText, registerCommandSafe, registerPromptSection } from '../../core/tools.js'
+import { clampText, registerCommandSafe, registerPromptSection, errorMessage } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import { randomUUID } from 'node:crypto'
 
@@ -104,7 +104,7 @@ export function apply(ctx: PluginContext): void {
         try {
           agent.steer({ ...message, source: { kind: 'user' } })
         } catch (error) {
-          return { kind: 'error', text: `steer failed: ${error instanceof Error ? error.message : String(error)}` }
+          return { kind: 'error', text: `steer failed: ${errorMessage(error)}` }
         }
       }
       return { kind: 'success', text: 'Steered: delivered at the next step boundary, before the next LLM call.' }

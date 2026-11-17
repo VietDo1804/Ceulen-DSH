@@ -1,8 +1,8 @@
-import { readFileSync } from 'node:fs'
-import { isNewer, pluginVersion, releaseDistTag, releaseLine, upstreamBaseVersion } from './version.js'
+import { isNewer, pluginVersion, readLockedUpstreamVersion, releaseDistTag, releaseLine, upstreamBaseVersion } from './version.js'
 import { readJson, writeJsonAtomic } from './fsx.js'
 import { bundleCachePath, upstreamCachePath } from './paths.js'
 import { logLine } from './log.js'
+import { errorMessage } from './tools.js'
 
 export interface UpstreamRelease {
   version: string
@@ -30,10 +30,6 @@ export interface UpstreamDeps {
   timeoutMs?: number
 }
 
-interface UpstreamLock {
-  upstream?: { version?: string; commit?: string }
-}
-
 interface NpmLatest {
   version?: string
 }
@@ -43,21 +39,7 @@ const GITHUB_RELEASE = 'https://api.github.com/repos/ceulen-dev/ceulen/releases/
 
 /** Pinned upstream version: env override, lock file, then the bundle base. */
 export function readPinnedVersion(): string {
-  const override = process.env.CEULEN_UPSTREAM_PINNED?.trim()
-  if (override !== undefined && override.length > 0) return override
-  const lock = readJsonSync<UpstreamLock>('upstream.lock.json')
-  const version = lock?.upstream?.version
-  if (typeof version === 'string' && version.length > 0) return version
-  return upstreamBaseVersion()
-}
-
-function readJsonSync<T>(name: string): T | undefined {
-  try {
-    // Small build-time document; synchronous read keeps status rendering simple.
-    return JSON.parse(readFileSync(new URL(`../../${name}`, import.meta.url), 'utf8')) as T
-  } catch {
-    return undefined
-  }
+  return process.env.CEULEN_UPSTREAM_PINNED?.trim() || readLockedUpstreamVersion() || upstreamBaseVersion()
 }
 
 export async function readUpstreamCache(): Promise<UpstreamState | undefined> {
@@ -86,10 +68,6 @@ async function fetchJson<T>(url: string, deps: UpstreamDeps, headers: Record<str
   })
   if (!response.ok) throw new Error(`${url} returned HTTP ${response.status}`)
   return (await response.json()) as T
-}
-
-function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
 }
 
 /**
@@ -163,7 +141,7 @@ export async function checkUpstream(
     await writeJsonAtomic(upstreamCachePath(), state, 0o600).catch(() => undefined)
     return state
   } catch (error) {
-    const message = errorText(error)
+    const message = errorMessage(error)
     logLine('upstream', `check failed: ${message}`)
     if (cached !== undefined) return { ...cached, source: 'cache', error: message }
     return { schemaVersion: 1, checkedAt, source: 'pinned', latest: null, pinned, behind: false, error: message }
@@ -289,7 +267,7 @@ export async function checkBundleUpdate(
     await writeJsonAtomic(bundleCachePath(), state, 0o600).catch(() => undefined)
     return state
   } catch (error) {
-    const message = errorText(error)
+    const message = errorMessage(error)
     logLine('bundle', `update check failed: ${message}`)
     if (cached !== undefined) return { ...cached, error: message }
     return { schemaVersion: 1, checkedAt, latest: null, installed, behind: false, error: message }

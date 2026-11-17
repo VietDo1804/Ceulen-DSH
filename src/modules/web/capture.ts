@@ -41,21 +41,19 @@ export async function saveScreenshot(ctx: PluginContext, base64: string, name: s
       // Fall through to a file when the attachment store refuses the image.
     }
   }
-  const dir = join(ceulenHome(), 'captures')
-  await mkdir(dir, { recursive: true, mode: 0o700 })
-  const safe = name.replace(/[^a-z0-9._-]+/gi, '-').slice(0, 60)
-  const file = join(dir, `${safe}-${Date.now()}.png`)
-  await writeFile(file, bytes, { mode: 0o600 })
-  return { text: `Screenshot saved to ${file}. Use read_image to view it.` }
+  return { text: `Screenshot saved to ${await writeCapture(name, 'png', bytes)}. Use read_image to view it.` }
 }
 
-export async function savePdfFile(pdfBase64: string, name: string): Promise<string> {
+async function writeCapture(name: string, ext: string, bytes: Buffer): Promise<string> {
   const dir = join(ceulenHome(), 'captures')
   await mkdir(dir, { recursive: true, mode: 0o700 })
-  const safe = name.replace(/[^a-z0-9._-]+/gi, '-').slice(0, 60)
-  const file = join(dir, `${safe}-${Date.now()}.pdf`)
-  await writeFile(file, Buffer.from(pdfBase64, 'base64'), { mode: 0o600 })
+  const file = join(dir, `${name.replace(/[^a-z0-9._-]+/gi, '-').slice(0, 60)}-${Date.now()}.${ext}`)
+  await writeFile(file, bytes, { mode: 0o600 })
   return file
+}
+
+export function savePdfFile(pdfBase64: string, name: string): Promise<string> {
+  return writeCapture(name, 'pdf', Buffer.from(pdfBase64, 'base64'))
 }
 
 export const IMAGE_RESULT_SCHEMA = {

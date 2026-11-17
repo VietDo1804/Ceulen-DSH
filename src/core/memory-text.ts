@@ -45,3 +45,113 @@ export function clipSearchHits(text: string, keepFull = 3, maxBody = 800): strin
   }
   return [...out, ...tail].join('\n')
 }
+
+/** Both shapes: opimem `{versions, currentVersion}`, cloud `{data:[…]}`. */
+function versionList(result: unknown): { list: Record<string, unknown>[]; current?: number } {
+  const body = (result ?? {}) as Record<string, unknown>
+  const data = (body.data ?? body) as Record<string, unknown> | unknown[]
+  const holder = (Array.isArray(data) ? { data } : data) as Record<string, unknown>
+  const raw = holder.versions ?? holder.data
+  const list = Array.isArray(raw) ? raw as Record<string, unknown>[] : []
+  const current = typeof holder.currentVersion === 'number' ? holder.currentVersion : undefined
+  return { list, ...(current === undefined ? {} : { current }) }
+}
+
+export function formatVersions(key: string, result: unknown): string {
+  const { list, current } = versionList(result)
+  if (list.length === 0) return `No history for \`${key}\` (the server keeps versions only for stores it recorded).`
+  const newest = current ?? (typeof list[0]?.version === 'number' ? list[0].version as number : undefined)
+  const lines = list.slice(0, 20).map(entry => {
+    const version = entry.version ?? '?'
+    const stamp = typeof entry.createdAt === 'string' ? entry.createdAt.slice(0, 16).replace('T', ' ') : ''
+    const title = typeof entry.title === 'string' ? entry.title : (entry.snapshot as Record<string, unknown> | undefined)?.title
+    const size = typeof entry.bytes === 'number' ? ` ${entry.bytes}B` : ''
+    return `  v${version} ${stamp} · ${String(title ?? '')}${size}`
+  })
+  return [`Versions for \`${key}\`${newest === undefined ? '' : ` (current v${newest})`}:`, ...lines,
+    list.length > 20 ? `  … ${list.length - 20} older, newest 20 shown` : ''].filter(Boolean).join('\n')
+}
+
+/**
+ * Minimal consecutive-call dampener for one memory tool family; `reset` on any
+ * tool result from outside the family.
+ */
+export function callDampener(prefix: string): { check(toolName: string): string | undefined; reset(): void } {
+  let tool = ''
+  let count = 0
+  return {
+    check(toolName) {
+      if (tool !== toolName) {
+        tool = toolName
+        count = 1
+        return undefined
+      }
+      count += 1
+      if (count < 6) return undefined
+      count = 0
+      return `${toolName} has been called 6 times in a row with no new result. Stop repeating it; state what you found or call ${prefix}_store directly.`
+    },
+    reset() {
+      tool = ''
+      count = 0
+    },
+  }
+}
+
+interface BriefMemory {
+  title?: unknown
+  key?: unknown
+  pinned?: unknown
+  updatedAt?: unknown
+  createdAt?: unknown
+  validFrom?: unknown
+  verified?: unknown
+  status?: unknown
+  tags?: unknown
+}
+
+function memoryDate(memory: BriefMemory): number | undefined {
+  for (const value of [memory.updatedAt, memory.createdAt, memory.validFrom]) {
+    if (typeof value !== 'string') continue
+    const time = Date.parse(value)
+    if (Number.isFinite(time)) return time
+  }
+  return undefined
+}
+
+/** Pure: memories -> the brief block (`''` when nothing qualifies). */
+export function composeMemoryBrief(
+  memories: readonly unknown[],
+  options: { maxChars: number; recencyDays: number; now?: number; header: string },
+): string {
+  const now = options.now ?? Date.now()
+  const cutoff = now - options.recencyDays * 24 * 60 * 60 * 1000
+  const rows: { pinned: boolean; time: number; line: string }[] = []
+  for (const raw of memories) {
+    if (raw === null || typeof raw !== 'object') continue
+    const memory = raw as BriefMemory
+    if (memory.verified === false || memory.status === 'unverified') continue
+    if (Array.isArray(memory.tags) && memory.tags.includes('unverified')) continue
+    const title = typeof memory.title === 'string' && memory.title.trim() !== ''
+      ? memory.title.trim()
+      : typeof memory.key === 'string' ? memory.key.trim() : ''
+    if (title === '') continue
+    const pinned = memory.pinned === true
+    const time = memoryDate(memory)
+    // Pinned anchors are exempt from recency; everything else needs a date to
+    // prove it is current. A pinned memory with no date renders as `pinned`.
+    if (!pinned && (time === undefined || time < cutoff)) continue
+    const stamp = time === undefined ? 'pinned' : new Date(time).toISOString().slice(0, 10)
+    rows.push({ pinned, time: time ?? 0, line: `${stamp} · ${title}` })
+  }
+  rows.sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.time - a.time)
+  const header = options.header
+  const lines: string[] = []
+  let used = header.length + 1
+  for (const row of rows) {
+    if (used + row.line.length + 1 > options.maxChars) break
+    lines.push(row.line)
+    used += row.line.length + 1
+  }
+  return lines.length === 0 ? '' : [header, ...lines].join('\n')
+}

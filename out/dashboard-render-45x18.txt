@@ -1,18 +1,18 @@
- ⠋ CEULEN · Native Agent Dashboard · render…
- lead · test/gpt-6-astra · idle · usage —
- Live native session · route and execution …
- [Tasks] · Agents · Activity
- ╭─ Tasks · 0/25 done · 1-4 ───────────────╮
- │ >○ Task 0 你好 👩‍💻 long long long long … │
- │    pending · owner worker · not ready … │
- │  ○ Task 1 你好 👩‍💻 long long long long … │
- │    pending · owner worker · not ready … │
- │  ○ Task 2 你好 👩‍💻 long long long long … │
- │    pending · owner worker · not ready … │
- │  ○ Task 3 你好 👩‍💻 long long long long … │
- │    pending · owner worker · not ready … │
- │                                         │
+ ⠋ CEULEN · dashboard · render-session
+ Lead · IN 1.2k / OUT 300 · test/test · idle
+ [Tasks] · Workflow
+ ╭─ Tasks ─────────────────────────────────╮
+ │ session 0/2 · team 0/25 · 1-10/27       │
+ │ >◐ S Checklist item · in_progress · se… │
+ │  ○ S Second item · pending · session c… │
+ │  ○ T Task 0 你好 👩‍💻 long long long lon… │
+ │  ○ T Task 1 你好 👩‍💻 long long long lon… │
+ │  ○ T Task 2 你好 👩‍💻 long long long lon… │
+ │  ○ T Task 3 你好 👩‍💻 long long long lon… │
+ │  ○ T Task 4 你好 👩‍💻 long long long lon… │
+ │  ○ T Task 5 你好 👩‍💻 long long long lon… │
+ │  ○ T Task 6 你好 👩‍💻 long long long lon… │
+ │  ○ T Task 7 你好 👩‍💻 long long long lon… │
  ╰─────────────────────────────────────────╯
- Tab/Shift+Tab: region · arrows/PgUp/PgDn: …
- Esc: chat · assign work in the original co…
- Source: DSH channel/team/subagents · usage…
+ Tab: region · Enter · Esc: chat
+ Source: native checklist/team/subagents · …

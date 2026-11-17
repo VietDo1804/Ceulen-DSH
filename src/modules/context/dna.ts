@@ -341,9 +341,9 @@ export function describeSnapshot(snapshot: DnaSnapshot, step?: { index: number; 
 }
 
 /** The biggest items, one line each — the legend beside the bar. */
-export function renderItems(
+function renderItems(
   snapshot: DnaSnapshot,
-  options: { limit?: number; focus?: string; color?: boolean } = {},
+  options: { limit?: number; color?: boolean } = {},
 ): string[] {
   const limit = Math.max(1, options.limit ?? 6)
   const share = snapshot.total > 0 ? snapshot.total : 1
@@ -352,18 +352,17 @@ export function renderItems(
     .sort((a, b) => b.tokens - a.tokens)
     .slice(0, limit)
     .map(item => {
-      const marker = options.focus === item.key ? '❯' : ' '
       const swatch = `${BAND_GLYPHS[item.cat]}`
       const glyph = color ? `${BAND_COLORS[item.cat]}${swatch}${RESET}` : swatch
       const percent = ((item.tokens / share) * 100).toFixed(1)
-      return `${marker}${glyph} ${item.label.padEnd(16).slice(0, 16)} ${formatTokens(item.tokens).padStart(7)} ${percent.padStart(5)}%`
+      return ` ${glyph} ${item.label.padEnd(16).slice(0, 16)} ${formatTokens(item.tokens).padStart(7)} ${percent.padStart(5)}%`
     })
 }
 
 /** A full static frame: header, genome row, legend. Used when no scene is mounted. */
 export function renderFrame(
   snapshot: DnaSnapshot,
-  options: GenomeOptions & { limit?: number; focus?: string; color?: boolean } = { width: 80 },
+  options: GenomeOptions & { limit?: number; color?: boolean } = { width: 80 },
 ): string[] {
   return [
     describeSnapshot(snapshot),

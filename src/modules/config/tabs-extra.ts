@@ -1,6 +1,7 @@
-import type { CeulenSettings } from '../../core/settings.js'
-import { info, number, secret, text, toggle } from './rows.js'
-import { planTargets } from './helpers.js'
+import { REASONING_EFFORTS, type CeulenSettings, type ReasoningEffort } from '../../core/settings.js'
+import { info, number, option, secret, text, toggle } from './rows.js'
+import { planTargets, routeList, routeText, splitRoute } from './helpers.js'
+import { fallbackRows } from './tabs-core.js'
 import type { ConfigContext, ConfigTab } from './types.js'
 
 /** Shell, Tasks, Providers, Tools and Plugins tabs. */
@@ -33,15 +34,27 @@ export function buildExtraTabs(
           id: 'plan',
           label: 'Plan mode',
           rows: [
-            text('plan.model', 'Planning model', settings.plan.model, value => { settings.plan.model = value.trim() }, {
-              picker: true,
-              placeholder: 'client route',
-              description: 'provider/model[:effort] answering while plan mode is active. Empty inherits the route the client selected.',
-            }),
-            text('plan.implement', 'Implementation model', settings.plan.implement, value => { settings.plan.implement = value.trim() }, {
-              picker: true,
-              placeholder: 'client route',
-              description: 'provider/model[:effort] answering once a plan was submitted — approved execution, including a fresh approved session. Empty inherits the client route.',
+            ...(['model', 'implement'] as const).flatMap(phase => {
+              const label = phase === 'model' ? 'Planning' : 'Implementation'
+              const fallbacks = phase === 'model' ? 'fallbacks' : 'implementFallbacks'
+              return [
+                text(`plan.${phase}`, `${label} model`, settings.plan[phase], value => {
+                  splitRoute(value)
+                  settings.plan[phase] = value.trim()
+                }, { picker: true, placeholder: 'client route', description: 'provider/model[:effort]; empty inherits the client model. Choose a model before setting reasoning.' }),
+                option(`plan.${phase}.reasoning`, `${label} reasoning`, splitRoute(settings.plan[phase])?.effort ?? 'auto', ['auto', ...REASONING_EFFORTS], value => {
+                  const route = splitRoute(settings.plan[phase])
+                  if (route === null) {
+                    if (value !== 'auto') throw new Error('Choose a phase model before setting reasoning.')
+                    return
+                  }
+                  settings.plan[phase] = routeText(route.provider, route.model, value === 'auto' ? null : value as ReasoningEffort)
+                }, { description: 'Reasoning for this phase; auto uses the model default. Stored as the model route :effort suffix.' }),
+                text(`plan.${phase}.fallbacks`, `${label}: add fallback`, settings.plan[fallbacks].join(', '), value => {
+                  settings.plan[fallbacks] = routeList(value)
+                }, { picker: true, pickerAppend: true, placeholder: 'none', description: 'Ordered alternatives after native recovery is exhausted. Continues in a new turn on the next model; "-" clears the list.' }),
+                ...fallbackRows(`plan.${phase}`, () => settings.plan[fallbacks], value => { settings.plan[fallbacks] = value }),
+              ]
             }),
             info('plan.resolved', 'Resolves to', planTargets(settings), 'A /model switch during a phase stands the configured route down until the phase changes.'),
           ],

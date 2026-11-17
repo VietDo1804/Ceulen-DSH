@@ -3,7 +3,7 @@ import { dirname, join, resolve as resolvePath } from 'node:path'
 import type { PluginContext, ToolContent, ToolRunContext } from '../../core/types.js'
 import { readText } from '../../core/fsx.js'
 import { isModuleEnabled, loadSettingsSync, updateSettings, type UxMode } from '../../core/settings.js'
-import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerPromptSection, registerToolSafe } from '../../core/tools.js'
+import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerPromptSection, registerToolSafe, cwdOf } from '../../core/tools.js'
 import { audit, extractTokens, type AuditPair, type AuditResult } from '../../vendor/ceulen/ux/audit.js'
 import { saveScreenshot } from '../web/capture.js'
 import { contrastFixLine, nearestToken } from './fix.js'
@@ -17,10 +17,6 @@ const MODES = new Set(['off', 'lite', 'strict'])
 // ponytail: same cap as upstream — a model-supplied path can point at a
 // bundle far larger than one context window wants.
 const MAX_CSS_BYTES = 1024 * 1024
-
-function cwdOf(exec?: { agent?: { session?: { header?: { cwd?: string } } } }): string {
-  return exec?.agent?.session?.header?.cwd ?? process.cwd()
-}
 
 /**
  * Resolve the stylesheet to audit: a file `path` read verbatim (preferred —
@@ -103,10 +99,6 @@ export interface AuditToolOutput {
 const MAX_PAIR_LINES = 8
 const MAX_TOKEN_LINES = 6
 
-function gateList(failed: boolean[], labels: string[]): string {
-  return labels.filter((_, index) => failed[index]).join(', ')
-}
-
 /**
  * Static verdict, one line per finding, and the colour to use instead.
  * No appended JSON: the reported defect was ~1k tokens of duplicated gates.
@@ -131,27 +123,16 @@ export function formatStylesheetReport(
   }
 
   const verdict = gates.status === 'fail' ? 'FAIL' : gates.status === 'incomplete' ? 'INCOMPLETE' : 'PASS'
-  const failedGates = [
-    gates.contrast.status === 'fail',
-    gates.tokens.status === 'fail',
-    gates.states.status === 'fail',
-    gates.slopTells.status === 'fail',
-  ]
-  const incompleteGates = [
-    gates.contrast.status === 'incomplete',
-    gates.tokens.status === 'incomplete',
-    gates.states.status === 'incomplete',
-    gates.slopTells.status === 'incomplete',
-  ]
-  const labels = ['contrast', 'tokens', 'states', 'slop tells']
+  const gateOrder = [['contrast', gates.contrast], ['tokens', gates.tokens], ['states', gates.states], ['slop tells', gates.slopTells]] as const
+  const named = (status: 'fail' | 'incomplete'): string =>
+    gateOrder.filter(([, gate]) => gate.status === status).map(([label]) => label).join(', ')
 
   if (verdict === 'PASS') {
     lines.push('UX audit: PASS — gates passed. Visual review still required.')
   } else if (verdict === 'INCOMPLETE') {
-    const missing = gateList(incompleteGates, labels)
-    lines.push(`UX audit: INCOMPLETE — ${missing} had nothing to check. No PASS is claimed.`)
+    lines.push(`UX audit: INCOMPLETE — ${named('incomplete')} had nothing to check. No PASS is claimed.`)
   } else {
-    lines.push(`UX audit: FAIL — ${gateList(failedGates, labels)} failed${gateList(incompleteGates, labels) === '' ? '' : `; ${gateList(incompleteGates, labels)} not checked`}.`)
+    lines.push(`UX audit: FAIL — ${named('fail')} failed${named('incomplete') === '' ? '' : `; ${named('incomplete')} not checked`}.`)
   }
 
   if (contrast.status === 'fail') {

@@ -112,7 +112,9 @@ export function writeWeeklyReport(base, now = new Date(), { sessionsRoot } = {})
   const data = weeklyData(entries, now, loadFixes(base))
   const file = `evo-weekly-${reportStamp(now)}.html`
   const reportFile = `report-${stamp(now)}.md`
-  for (const name of ['report.css', 'motion.css', 'motion.js']) copyFileSync(join(root, 'evo-assets', name), join(reports, 'evo-assets', name))
+  copyFileSync(join(root, 'evo-assets', 'report.css'), join(reports, 'evo-assets', 'report.css'))
+  // The motion layer is the ux-design kit's, not a second copy.
+  for (const name of ['motion.css', 'motion.js']) copyFileSync(join(root, '..', 'skills', 'ux-design', 'kit', name), join(reports, 'evo-assets', name))
   writeFileSync(join(reports, file), weeklyHtml(data, { reportFile: join(reports, reportFile), toolUse: sessionsRoot === undefined ? undefined : collectToolUse(sessionsRoot, now) }))
   writeFileSync(join(reports, reportFile), reportText(data.history, 5, data.lists))
   return { file, reports, data }
@@ -157,4 +159,4 @@ async function main(argv) {
   console.log(JSON.stringify({ file: join(report.reports, report.file), url, candidates: report.data.candidates.length, fixGroups: report.data.lists.groups.length, workList: report.data.lists.work.length, weekSessions: report.data.week.sessions, weekFailures: report.data.week.failures, auditOnly: true }))
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) main(process.argv.slice(2)).catch(error => { console.error(redact(error.message)); process.exitCode = 1 })
+if (import.meta.main) main(process.argv.slice(2)).catch(error => { console.error(redact(error.message)); process.exitCode = 1 })

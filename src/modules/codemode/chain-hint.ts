@@ -96,7 +96,8 @@ export function noteToolCall(
   state.stepKey = stepKey
   state.stepCalls = 1
   state.stepReadOnly = isReadOnlyCall(call.name, call.arguments)
-  state.stepLabel = callLabel(call.name, call.arguments)
+  // The label is only read for a lone read-only step, so skip parsing write payloads.
+  state.stepLabel = state.stepReadOnly ? callLabel(call.name, call.arguments) : undefined
   if (threshold <= 0 || state.chain < threshold) return false
   if (state.hintedTurn === call.turn || call.name === 'codemode') return false
   state.hintedTurn = call.turn

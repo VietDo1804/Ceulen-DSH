@@ -19,8 +19,7 @@ export function apply(ctx: PluginContext): void {
   let clearTimer: ReturnType<typeof setTimeout> | undefined
   const flash = (text: string): void => {
     publish(text)
-    clearTimer?.unref?.()
-    if (clearTimer !== undefined) clearTimeout(clearTimer)
+    clearTimeout(clearTimer)
     clearTimer = setTimeout(() => publish(undefined), 15_000)
     clearTimer.unref?.()
   }
@@ -54,4 +53,3 @@ export function apply(ctx: PluginContext): void {
   })
 }
 
-export const _test = { pendingChanges }

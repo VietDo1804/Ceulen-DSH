@@ -108,7 +108,7 @@ export function renderResult(
   budget: number,
   calls: readonly CodemodeCall[] = [],
   rawChars = 0,
-): { text: string; spillPath?: string } {
+): string {
   const status = `${result.error === undefined ? 'Script completed' : 'Script failed'} (${wallSeconds.toFixed(1)}s)`
   const valueText = result.value !== undefined
     ? typeof result.value === 'string' ? result.value : JSON.stringify(result.value)
@@ -117,7 +117,7 @@ export function renderResult(
   // Measured before the budget cut: a script that returns 50k raw chars is the
   // wrapper the note is for, even though the model only sees 6k of it.
   const returnedChars = valueText.length + consoleBlock.length
-  const { text: body, spillPath } = applyOutputBudget(valueText, consoleBlock, budget)
+  const body = applyOutputBudget(valueText, consoleBlock, budget)
   const lines = [status]
   if (body.length > 0) lines.push(body)
   if (result.error !== undefined) lines.push(`Script error (${result.error.kind}): ${result.error.message}`)
@@ -125,7 +125,7 @@ export function renderResult(
   if (result.error !== undefined && calls.length > 0) lines.push(`Calls before failure:\n${formatCalls(calls.slice(-MAX_FAILURE_CALLS))}`)
   if (result.error === undefined && calls.length === 1 && rawChars > 0 && returnedChars * 2 >= rawChars) lines.push(singleCallNote(calls[0]!.name))
   if (lines.length === 1) lines.push('(no output)')
-  return { text: lines.join('\n'), spillPath }
+  return lines.join('\n')
 }
 
 /** The card renders its own receipt; drop the model-only notes from its body. */

@@ -1,16 +1,12 @@
-import type { PluginContext, ToolRunContext } from '../../core/types.js'
+import type { PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync, type RuleGuardMode } from '../../core/settings.js'
 import { ceulenHome } from '../../core/paths.js'
-import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerPromptSection, registerToolSafe } from '../../core/tools.js'
+import { asRecord, ceulenTool, clampText, objectSchema, registerCommandSafe, registerPromptSection, registerToolSafe, cwdOf } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import { clearRuleCache, displayPath, loadRules, type LoadedRule, type RuleModel } from '../../vendor/ceulen/rules/rules.js'
 
 export const name = 'ceulen-rules'
 export const inject = ['tools', 'commands', 'systemPrompt']
-
-function cwdOf(exec?: ToolRunContext): string {
-  return exec?.agent?.session.header?.cwd ?? process.cwd()
-}
 
 /**
  * Sticky rules the prompt block had no room for. The vendor renderer drops a
@@ -63,7 +59,7 @@ function statusText(model: RuleModel, cwd: string, mode: RuleGuardMode): string 
  * JSON arguments for everything else.
  */
 export function guardSubject(tool: string, args: unknown): string {
-  const record = args !== null && typeof args === 'object' && !Array.isArray(args) ? (args as Record<string, unknown>) : {}
+  const record = asRecord(args)
   if (tool === 'bash') return typeof record.command === 'string' ? record.command : ''
   if (tool === 'edit' || tool === 'write' || tool === 'apply_patch') {
     for (const key of ['file_path', 'path', 'patch']) {
@@ -81,7 +77,6 @@ export function guardSubject(tool: string, args: unknown): string {
 
 /** Compiled guard patterns; an invalid pattern never matches and logs once. */
 const patterns = new Map<string, RegExp | null>()
-const invalidLogged = new Set<string>()
 
 function guardPattern(rule: LoadedRule): RegExp | undefined {
   const source = rule.guard?.match
@@ -94,10 +89,7 @@ function guardPattern(rule: LoadedRule): RegExp | undefined {
     return compiled
   } catch {
     patterns.set(source, null)
-    if (!invalidLogged.has(source)) {
-      invalidLogged.add(source)
-      logLine('rules', `guard "${rule.name}" has an invalid when-match regex: /${source}/`)
-    }
+    logLine('rules', `guard "${rule.name}" has an invalid when-match regex: /${source}/`)
     return undefined
   }
 }
@@ -184,7 +176,6 @@ export function apply(ctx: PluginContext): void {
     parameters: objectSchema({
       name: { type: 'string', description: 'Rule name from the rulebook listing.' },
     }, ['name']),
-    outputSchema: { type: 'string' },
     async execute(args, exec) {
       const ruleName = String((args as { name?: unknown }).name ?? '').trim()
       if (ruleName.length === 0) throw new Error('name must be a non-empty string')
