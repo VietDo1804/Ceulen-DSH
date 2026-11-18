@@ -8,6 +8,7 @@
  * provider/model route. `delegate` starts a native spawn child through
  * `ctx.subagents`; `subagent`/`subagent_fork`/`workflow` stay untouched.
  */
+import { resolve } from 'node:path'
 import type { AgentLike, PluginContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync, type CeulenSettings } from '../../core/settings.js'
 import { asRecord, ceulenTool, cwdOf, objectSchema, registerCommandSafe, registerPromptSection, registerToolSafe, errorMessage } from '../../core/tools.js'
@@ -16,6 +17,9 @@ import { logLine } from '../../core/log.js'
 import { describeRoute, resolveRole, roleByName, roleNames, REVIEWER_SCHEMA, ROLES, type RoleDefinition } from './roles.js'
 import { contractBlock, parseTypedReply, type SchemaNode } from './schema.js'
 import { installOrchestrator } from './orchestrator.js'
+import { runInHerdr, type HerdrPermission, type HerdrRoute } from './herdr.js'
+import { herdrEnv } from '../../core/herdr.js'
+import { planActive } from '../../core/plan-mode.js'
 import { getPonytailInstructions } from '../../vendor/ceulen/ponytail/instructions.js'
 import { composeRulesBlock, loadRules } from '../../vendor/ceulen/rules/rules.js'
 
@@ -38,6 +42,11 @@ interface SubagentRuntimeLike {
     delivery: 'parent'
   }): Promise<{ readonly childId: unknown }>
 }
+
+const HERDR_HINT = 'This session runs inside a herdr pane: `delegate` with `runner: "herdr"` runs the child as a headless DSH in a visible pane beside this one and returns its final answer when it ends (it blocks this call). Use it only when the user wants to watch the child work; read the herdr skill before driving panes by hand.'
+
+/** Read-only roles keep a read-only sandbox in a herdr pane; plan mode makes every role read-only. */
+const READ_ONLY_ROLES = new Set(['planner', 'reviewer', 'scout'])
 
 const ROLE_HINTS = 'planner (read-only design), reviewer (independent review), scout (codebase recon), tester (verification), worker (isolated implementation)'
 
@@ -88,6 +97,7 @@ function promptText(): string {
       '## Ceulen subagent roles',
       '',
       `Role-shaped delegation uses \`delegate\`, which starts a fresh-context child with a role persona: ${ROLE_HINTS}. Each role resolves its provider/model route from \`subagent.roles\`, \`subagent.models\`, and \`subagent.thinking\` in the Ceulen settings (\`${displayPath(settingsPath())}\`); a \`*\` chain entry inherits this session's route. The child does not see this conversation, so make the task self-contained. Use native \`subagent\` for plain delegation and \`subagent_fork\` when the child needs this conversation.`,
+      ...(herdrEnv() === undefined ? [] : ['', HERDR_HINT]),
     ].join('\n')
   } catch {
     return ''
@@ -129,7 +139,19 @@ function parentRoute(agent: AgentLike | undefined): string {
   return provider !== undefined && model !== undefined ? `${provider}/${model}` : 'unknown'
 }
 
-function delegateTool(service: SubagentRuntimeLike) {
+function herdrRoute(resolution: NonNullable<ReturnType<typeof resolveRole>>, agent: AgentLike): HerdrRoute | undefined {
+  if (resolution.route !== undefined) return { provider: resolution.route.provider, model: resolution.route.model, effort: resolution.thinking }
+  const { provider, model } = agent.options
+  return provider !== undefined && model !== undefined ? { provider, model, effort: resolution.thinking } : undefined
+}
+
+function renderHerdr(role: string, value: Record<string, unknown>) {
+  const head = `${role} child in herdr pane ${String(value.pane)} exited ${String(value.exitCode)} after ${String(value.toolCalls)} tool calls (${String(value.permission)}, ${String(value.reason)})${value.paneKept === true ? '; pane kept open for inspection' : ''}. Run files: ${String(value.runDir)}`
+  const text = typeof value.text === 'string' && value.text.trim() !== '' ? value.text : '(no final text)'
+  return [{ type: 'text' as const, text: `${head}\n\n${text}` }]
+}
+
+function delegateTool(service: SubagentRuntimeLike, ctx: PluginContext, herdr: boolean) {
   return ceulenTool({
     name: 'delegate',
     description: `Delegate a self-contained task to a Ceulen role preset running in a fresh context: ${ROLE_HINTS}. The role persona is prepended to the task, and the child's provider/model route comes from the Ceulen subagent settings (an unset route inherits this session). Pass \`schema\` to make the child answer with one JSON object (the reviewer role has a default verdict/findings schema); validate the reply with \`validate_schema\`. This tool starts an independently managed subagent and immediately returns its id; the runtime notifies you when it finishes. Use native \`subagent\` for plain delegation and \`subagent_fork\` when the child needs the current conversation.`,
@@ -155,18 +177,34 @@ function delegateTool(service: SubagentRuntimeLike) {
         type: 'object',
         description: 'Optional reply schema (subset: type, required, properties, items, enum). Appended to the child prompt; check the reply with validate_schema.',
       },
+      ...(herdr ? {
+        runner: {
+          type: 'string',
+          enum: ['native', 'herdr'],
+          description: 'native (default): background DSH child. herdr: headless DSH child in a visible herdr pane beside this one; the call waits and returns its final answer. Only when the user wants to watch it.',
+        },
+      } : {}),
     }, ['role', 'task']),
     outputSchema: {
       type: 'object',
       additionalProperties: false,
       properties: {
-        kind: { type: 'string', const: 'activation' },
+        kind: { type: 'string', enum: ['activation', 'herdr'] },
         subagentId: { type: 'string' },
+        pane: { type: 'string' },
+        exitCode: { type: 'number' },
+        text: { type: 'string' },
+        reason: { type: 'string' },
+        toolCalls: { type: 'number' },
+        permission: { type: 'string' },
+        runDir: { type: 'string' },
+        paneKept: { type: 'boolean' },
       },
       required: ['kind', 'subagentId'],
     },
     render(args, value) {
       const role = typeof (args as { role?: unknown }).role === 'string' ? String((args as { role: string }).role) : 'role'
+      if ((value as { kind?: unknown }).kind === 'herdr') return renderHerdr(role, value as Record<string, unknown>)
       const id = typeof (value as { subagentId?: unknown }).subagentId === 'string' ? (value as { subagentId: string }).subagentId : '?'
       return [{ type: 'text', text: `started ${role} subagent ${id}` }]
     },
@@ -188,8 +226,14 @@ function delegateTool(service: SubagentRuntimeLike) {
       }
 
       const schema = asSchema(input.schema) ?? (role.name === 'reviewer' ? REVIEWER_SCHEMA : undefined)
+      const prompt = composePrompt(role, task, inheritedPolicy(settings, cwdOf(exec)), schema)
+      if (input.runner === 'herdr') {
+        const cwd = typeof input.cwd === 'string' && input.cwd.trim().length > 0 ? resolve(cwdOf(exec), input.cwd.trim()) : cwdOf(exec)
+        const permission: HerdrPermission = READ_ONLY_ROLES.has(role.name) || planActive(ctx, agent) ? 'read-only' : 'workspace-write'
+        return runInHerdr({ role: role.name, label: labelFor(input, role), prompt, cwd, route: herdrRoute(resolution, agent), permission, signal: exec.signal })
+      }
       const request: Record<string, unknown> = {
-        prompt: [{ type: 'text', text: composePrompt(role, task, inheritedPolicy(settings, cwdOf(exec)), schema) }],
+        prompt: [{ type: 'text', text: prompt }],
         parent: agent,
         signal: exec.signal,
       }
@@ -298,7 +342,7 @@ export function apply(ctx: PluginContext): void {
         return
       }
       if (service === undefined || typeof service.startActivation !== 'function') return
-      const tool = registerToolSafe(child, delegateTool(service))
+      const tool = registerToolSafe(child, delegateTool(service, ctx, herdrEnv() !== undefined))
       if (tool.actual === 'delegate') registered = true
     })
   } catch {

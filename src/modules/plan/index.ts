@@ -27,6 +27,7 @@ import { ensureDir, writeAtomic } from '../../core/fsx.js'
 import { parseRoute, type ParsedRoute } from '../../core/llm.js'
 import { registerCommandSafe, toolArgs } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
+import { planActive } from '../../core/plan-mode.js'
 
 export const name = 'ceulen-plan'
 export const inject = ['commands']
@@ -114,20 +115,6 @@ export function hasApprovedPlan(session: SessionLike | undefined): boolean {
   const messages = session?.deriveMessages?.() ?? []
   if (latestPlan(messages) !== undefined) return true
   return messages.some(message => message.content.some(block => block.type === 'text' && block.text.includes(HANDOFF_MARK)))
-}
-
-function planActive(ctx: PluginContext, agent: AgentLike): boolean {
-  try {
-    const service = ctx.get('planMode', false) as { get?(target: unknown): { active?: boolean; pending?: boolean } | undefined } | undefined
-    const state = service?.get?.(agent)
-    if (state !== undefined) return (state.pending ?? state.active) === true
-    // The TUI plugin host does not expose the kernel's planMode service.
-    return agent.session.snapshotEvents?.().reduce((active, event) => event.type === 'plan/mode'
-      ? (event.data as { active?: boolean } | undefined)?.active === true : active, false) ?? false
-  } catch {
-    // No plan-mode service composed (web/headless): stay on the client route.
-    return false
-  }
 }
 
 /**

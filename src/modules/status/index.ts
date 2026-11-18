@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AgentLike, CommandResult, PluginContext } from '../../core/types.js'
 import { loadSettingsSync, redactSettings, setModuleEnabled } from '../../core/settings.js'
+import { doctorLine as herdrDoctorLine } from '../../core/herdr.js'
 import { loadParity, formatParity, summary, isImplemented } from '../../core/parity.js'
 import {
   bundleStatusLine,
@@ -283,6 +284,7 @@ async function doctorText(ctx: PluginContext, agent?: AgentLike): Promise<string
     `binaries: git=${bins[0]} gh=${bins[1]} sg=${bins[2]} tar=${bins[3]}`,
     ...(await compatLines(ctx, agent)),
     `tui footer: ${tuiFooterState()}`,
+    await herdrDoctorLine(),
     `disabled: ${settings.disabled.length > 0 ? settings.disabled.join(', ') : '(none)'}`,
   ].join('\n')
 }
