@@ -139,6 +139,10 @@ export interface CeulenSettings {
     intervalMinutes: number
     providers: string[]
   }
+  agentbar: {
+    /** Open the Subagents side panel when a delegate starts (needs the tui-panel patch). */
+    autoOpen: boolean
+  }
   [key: string]: unknown
 }
 
@@ -212,6 +216,7 @@ export function defaultSettings(): CeulenSettings {
     // Both phases inherit the client's model until a route is configured.
     plan: { model: '', implement: '', fallbacks: [], implementFallbacks: [] },
     usage: { enabled: true, showStatus: true, intervalMinutes: 5, providers: [] },
+    agentbar: { autoOpen: true },
   }
 }
 
@@ -333,6 +338,7 @@ export function normalizeSettings(raw: unknown, env = true): CeulenSettings {
   const subagent = isRecord(raw.subagent) ? raw.subagent : {}
   const plan = isRecord(raw.plan) ? raw.plan : {}
   const usage = isRecord(raw.usage) ? raw.usage : {}
+  const agentbar = isRecord(raw.agentbar) ? raw.agentbar : {}
   const agentMode = isRecord(raw.agentMode) ? raw.agentMode : {}
 
   const settings: CeulenSettings = {
@@ -425,6 +431,9 @@ export function normalizeSettings(raw: unknown, env = true): CeulenSettings {
       showStatus: bool(usage.showStatus, base.usage.showStatus),
       intervalMinutes: num(usage.intervalMinutes, base.usage.intervalMinutes, 1, 60),
       providers: strArray(usage.providers),
+    },
+    agentbar: {
+      autoOpen: bool(agentbar.autoOpen, base.agentbar.autoOpen),
     },
   }
   return settings

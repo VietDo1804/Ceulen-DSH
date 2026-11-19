@@ -174,7 +174,7 @@ async function binaryVersion(binary: string, args: string[]): Promise<string> {
 
 /**
  * Whether the optional dsh-tui patches are applied (per-model effort, advisor transcript block,
- * /context redirect, tool-name aliases, plan-mode polish). They live in the
+ * /context redirect, tool-name aliases, plan-mode polish, side-panel reveal). They live in the
  * installed profile tree, so a dsh-tui update silently reverts them;
  * `/ceulen doctor` must make that visible instead of letting the loss rot
  * until someone notices a missing segment.
@@ -221,7 +221,9 @@ export function tuiFooterState(): string {
       has('ceulen-plan: Esc with feedback', 'components', 'questions', 'PlanReviewPanel.js')
     const effortPerModel = has('readRouteEffortPref(capture.provider, capture.model) ?? preferredEffort', 'dsh-adapter', 'channel', 'model-actions.js')
     const uiStyle = has('ceulen-style:', 'uiStyle.js')
-    states.push(`${profile}:${version} ${footer} · effort-per-model ${effortPerModel ? 'applied' : 'stock (one effort for every model; run scripts/tui-effort-patch.mjs apply)'} · ui-style ${uiStyle ? 'applied' : 'stock (layout stays dsh; run scripts/tui-style-patch.mjs apply)'} · advisor-block ${advisor ? 'applied' : 'stock (advisor notes stay out of the transcript; run scripts/tui-advisor-patch.mjs apply)'} · context-redirect ${contextRedirect ? 'applied' : 'stock (the built-in /context dump stays; run scripts/tui-context-patch.mjs apply)'} · tool-names ${toolNames ? 'applied' : 'stock (fff_grep renders as Fff_grep; run scripts/tui-toolname-patch.mjs apply)'} · plan-mode ${planMode ? 'applied' : 'stock (/plan asks on/off, Esc drops a typed answer and the footer may not name plan mode; run scripts/tui-plan-patch.mjs apply)'}`)
+    const panelReveal = has('ceulen-panel: open without moving keyboard focus', 'dsh-adapter', 'panels.js') &&
+      has("ceulen-panel: reveal keeps the chat focused", 'components', 'sidePanel', 'useSidePanel.js')
+    states.push(`${profile}:${version} ${footer} · effort-per-model ${effortPerModel ? 'applied' : 'stock (one effort for every model; run scripts/tui-effort-patch.mjs apply)'} · ui-style ${uiStyle ? 'applied' : 'stock (layout stays dsh; run scripts/tui-style-patch.mjs apply)'} · advisor-block ${advisor ? 'applied' : 'stock (advisor notes stay out of the transcript; run scripts/tui-advisor-patch.mjs apply)'} · context-redirect ${contextRedirect ? 'applied' : 'stock (the built-in /context dump stays; run scripts/tui-context-patch.mjs apply)'} · tool-names ${toolNames ? 'applied' : 'stock (fff_grep renders as Fff_grep; run scripts/tui-toolname-patch.mjs apply)'} · plan-mode ${planMode ? 'applied' : 'stock (/plan asks on/off, Esc drops a typed answer and the footer may not name plan mode; run scripts/tui-plan-patch.mjs apply)'} · panel-reveal ${panelReveal ? 'applied' : 'stock (the Subagents panel cannot open without taking focus, so it never auto-opens; run scripts/tui-panel-patch.mjs apply)'}`)
   }
   return states.length === 0 ? 'dsh-tui not installed' : states.join(' · ')
 }

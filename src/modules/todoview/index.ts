@@ -31,7 +31,8 @@ export function latestTodos(messages: readonly MessageLike[]): TodoItem[] | unde
   return latest
 }
 
-function parseTodos(raw: unknown): TodoItem[] | undefined {
+/** One `todo_write` call's board (object or JSON-string arguments). */
+export function parseTodos(raw: unknown): TodoItem[] | undefined {
   const todos = toolArgs(raw).todos
   if (!Array.isArray(todos)) return undefined
   return todos

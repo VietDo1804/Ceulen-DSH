@@ -31,6 +31,8 @@
       name: 'ceulen-dsh/modules/advisor'
     - id: ceulen-todoview
       name: 'ceulen-dsh/modules/todoview'
+    - id: ceulen-agentbar
+      name: 'ceulen-dsh/modules/agentbar'
     - id: ceulen-subagent
       name: 'ceulen-dsh/modules/subagent'
     - id: ceulen-cron

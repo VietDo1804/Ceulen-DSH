@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { join, resolve } from 'node:path'
 import { test } from 'node:test'
 
-const patches = ['advisor', 'context', 'toolname', 'plan', 'effort', 'style', 'usage']
+const patches = ['advisor', 'context', 'toolname', 'plan', 'effort', 'style', 'usage', 'panel']
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const command = (file, args, cwd) => {
   const result = spawnSync(file, args, { cwd, encoding: 'utf8', timeout: 120_000 })
@@ -85,6 +85,7 @@ for (const version of ['0.20.0', '0.20.1']) {
       for (const [patch, file, anchor] of [
         ['advisor', 'lib/types/components/MessageList.js', "        case 'notice':"],
         ['toolname', 'lib/types/components/messages/AssistantToolUseMessage.js', '    if (name.length === 0)'],
+        ['panel', 'lib/types/components/sidePanel/useSidePanel.js', '            view.openPanel(request.id, { focus: true });'],
       ]) {
         const path = join(root, file)
         const original = readFileSync(path, 'utf8')

@@ -142,6 +142,15 @@
       "rowId": "ceulen-todoview"
     },
     {
+      "name": "agentbar",
+      "category": "Tasks",
+      "status": "native",
+      "dsh": "Subagents side panel (tuiPanels.register; auto-open via the tui-panel patch's reveal) + band above the prompt (tuiStatus.registerView, up to 3 rows) + /agentbar roster",
+      "phase": 0,
+      "notes": "Ceulen-DSH-only, after the savvy-progress mod for Claude Code. One store fed by session/event for every child session (header.parentSession): subagent/descriptor gives label/model/effort, the delegate prompt the role, request/context the model window, assistant/message the narration, context size and cumulative cache reads, todo_write the todo list (a direct tool/call, or tool/ptc-dispatch when the ptc preset calls it inside run_code), turn/end the outcome, with subagent/end and agent/disposed as backstops so an interrupted child never spins forever. The side panel shows a card per running child (moving Working…, todo list, ctx/window, cache hit; no tool names) and opens when a batch starts, closing 60 s after it ends unless the user focused or opened it. Auto-open needs scripts/tui-panel-patch.mjs (dsh-tui plugin layer only: tuiPanels.reveal opens without taking focus); a stock tree keeps the panel on Ctrl+B and never steals focus. The band covers inline mode, narrow terminals and a closed panel, hides while the panel shows, and lingers 60 s. agentbar.autoOpen turns auto-open off. No step-report tool and no cost: routes are not Anthropic-priced. Herdr-runner children run out of process and are not tracked (their panes are visible). /ceulen module off agentbar removes it.",
+      "rowId": "ceulen-agentbar"
+    },
+    {
       "name": "ux",
       "category": "Appearance",
       "status": "port",

@@ -32,6 +32,60 @@ delegation does not create Team tasks. `/subagent` shows the configured worker
 routes. Orchestrator mode requires the subagent module/runtime, does not open a
 second chat, and does not change the lead model, permissions, or approvals.
 
+## Subagent progress
+
+While children run, the `agentbar` module opens a **Subagents** side panel
+beside the chat (about a third of the width, the dsh-tui `sidePanel.ratio`
+default of 0.68), so you never scroll back to the delegate card:
+
+```
+ chat …                                        │ ◆ Subagents        2 running · 1 done
+                                               │
+                                               │ ⠼ scout · Survey auth code       41s
+                                               │   muse-spark-1.3-contributor · xhigh
+                                               │   Working…
+                                               │   todo ━━━━━━━━──────────── 2/5
+                                               │    ✓ Find the emitter
+                                               │    ▸ Capture exact lines
+                                               │    ○ Report back
+                                               │   ctx 26k/1M · 3% · cache 47%
+                                               │
+                                               │ ✓ worker · Add login form      1m12s
+                                               │ Ctrl+A dashboard
+```
+
+Each running child is a card: role and label, model and effort, a moving
+`Working…`, its `todo_write` list, its context against the model window, and
+the share of prompt tokens served from cache. Tool names are left out (under
+the `ptc` preset every call is `run_code`). Finished children shrink to one
+line. When the panel is short, cards shrink (only the active todo, then no
+model line) so every running child stays in view; the rest scroll with the
+wheel, or ↑/↓ once the panel has focus (`Ctrl+B`; `Esc` returns to the chat).
+The panel opens when a batch starts and closes 60 s after the last child
+ends, unless you focused it or opened it yourself. Typing is never
+interrupted: auto-open needs `node scripts/tui-panel-patch.mjs apply`, which
+adds an open that leaves focus in the prompt. Without that patch the panel
+stays on `Ctrl+B`. `/ceulen doctor` shows `panel-reveal applied|stock`, and
+`/dsh-update` re-applies the patch after a dsh-tui update.
+`/agentbar auto off` keeps it manual (saved as `agentbar.autoOpen`, applied
+from the next batch); `/agentbar auto on` turns it back on.
+
+The split needs fullscreen mode and at least 93 columns. Elsewhere (inline
+mode, a narrow terminal, a closed panel) the same data shows as up to three
+rows above the prompt:
+
+```
+◆ Subagents  2 running · 1 done                         Ctrl+B panel · /agentbar
+  ⠹ scout · Survey auth code   ⏵ Narrowing the search…   todo 2/5 · 7 steps · ctx 22k · 1m12s
+  ⠼ worker · Add login form    Writing the form component…   4 steps · ctx 31k · 48s
+```
+
+After the batch, one summary row stays for 60 s. `/agentbar` prints every
+child of the session; the native dashboard (`Ctrl+A`) remains the detail view.
+Both views cover every in-process child session (`delegate` and the native
+subagent tools). Herdr-runner children already have their own pane, so they are
+left out. `/ceulen module off agentbar` removes the panel and the band.
+
 ## Requirements
 
 - DSH `0.2.2-rc.1` (the `dsh` CLI and `dsh-tui` 0.20.1 profile)
@@ -116,7 +170,7 @@ You should see the release line (`ceulen-dsh 0.2.6 (stable)`), the pinned
 Ceulen version, and the mounted/native/planned modules.
 
 Installation is per machine and profile, not inherited from this checkout. The bundle composes
-34 rows. See `docs/live-verification.md` and `docs/dashboard.md` for the evidence.
+35 rows. See `docs/live-verification.md` and `docs/dashboard.md` for the evidence.
 
 ### Release line
 

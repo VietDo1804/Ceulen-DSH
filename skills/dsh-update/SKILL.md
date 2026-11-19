@@ -101,10 +101,10 @@ If a bundle is now denied, the startup error names it — fix `engines.dsh`
 dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@^<minor>
 node -p "require(process.env.HOME+'/.dsh/profiles/tui/node_modules/@deepseek-harness-tui/dsh-tui/package.json').version"
 
-# ALL SIX patches: each edits a file inside the installed dsh-tui package, so
+# ALL SEVEN patches: each edits a file inside the installed dsh-tui package, so
 # an add/remove/reinstall wipes every one of them.
-for p in advisor context toolname plan effort style; do node scripts/tui-$p-patch.mjs apply || exit 1; done
-for p in advisor context toolname plan effort style; do node scripts/tui-$p-patch.mjs check || exit 1; done
+for p in advisor context toolname plan effort style panel; do node scripts/tui-$p-patch.mjs apply || exit 1; done
+for p in advisor context toolname plan effort style panel; do node scripts/tui-$p-patch.mjs check || exit 1; done
 ```
 
 Repeat for every profile with an installed TUI, passing `--tui <resolved-dir>`
@@ -125,13 +125,13 @@ anchor uniqueness and all-or-nothing writes. A version-only gate extension is
 valid only after confirming unchanged anchors and passing patch tests.
 For example, 0.20.0 required extending the style patch's exact 0.19.0 gate;
 the other five patches already worked. Test check/apply/idempotence/revert,
-byte-identical restoration, all-six coexistence, changed-JS syntax and refusal
+byte-identical restoration, all-seven coexistence, changed-JS syntax and refusal
 without writes. Negative fixtures must assign an unsupported JSON version,
 not replace a literal old version that becomes a no-op after an upgrade.
 
 - `dsh plugin update` respects the profile's existing `^range` and will not
   cross a minor. `add` with the new spec is what moves it.
-- Six patches ride the installed dsh-tui tree, and a missed one breaks silently:
+- Seven patches ride the installed dsh-tui tree, and a missed one breaks silently:
   `advisor` (reviewer notes in the transcript), `context` (`/context` opens the
   dashboard instead of the loaded-context text dump), `toolname` (grep tool
   renders as `fff`, not `Fff_grep`), `plan` (bare `/plan` toggles and the footer
@@ -139,19 +139,29 @@ not replace a literal old version that becomes a no-op after an upgrade.
   when not applied.
 - `style` adds live `/theme style dsh|pi|omp` layout selection without changing
   the color theme; `ui-style.json` shares the effort preference directory.
+- `panel` (TUI plugin layer only: `dsh-adapter/panels.js` and
+  `components/sidePanel/useSidePanel.js`, never the dsh core) adds
+  `tuiPanels.reveal(id)`, an open that leaves keyboard focus in the chat. The
+  agentbar module auto-opens its Subagents side panel only when `reveal`
+  exists; without the patch the panel stays Ctrl+B-only (no focus stealing,
+  no error), so a lost patch shows up only as `panel-reveal stock` in doctor.
+  The script gates exact versions (`SUPPORTED`); on a new TUI confirm the four
+  anchors (the class `open(id)` head and its `request('open', …)` line, the
+  bridge `request.kind === 'open'` branch and its `openPanel(…, { focus: true })`)
+  before extending the gate.
 - dsh-tui 0.19.0 dropped the context patch with no warning (2026-11-06):
   `/context` still answered, it just dumped the stock report again. That is why
-  the loop now covers all six, not the two this section used to list.
-- `/ceulen doctor` prints all six states (`advisor-block`, `context-redirect`,
-  `tool-names`, `plan-mode`, `effort-per-model`, `ui-style`); a `stock (…)` segment names the script to run.
+  the loop now covers all seven, not the two this section used to list.
+- `/ceulen doctor` prints all seven states (`advisor-block`, `context-redirect`,
+  `tool-names`, `plan-mode`, `effort-per-model`, `ui-style`, `panel-reveal`); a `stock (…)` segment names the script to run.
 - Usage uses native `tuiStatus.setField` on **dsh-tui >= 0.17.0**; the old
   0.16.1 footer patch is obsolete. On **0.20.0**, the host still clamps
   `maxCells: 64` to 32, cutting off monthly usage. After the last package
   mutation, additionally run `node scripts/tui-usage-patch.mjs apply --tui <resolved-dir>`
   and `check` on every installed 0.20.0 TUI. Repeat this usage-cap check at the
-  final six-patch gate. It raises the bounded cap to 64, preserving the default
+  final seven-patch gate. It raises the bounded cap to 64, preserving the default
   16 and field-count limits; do not apply it to unverified versions.
-- Re-apply all six after every `dsh plugin add/remove`/`update` — pnpm rewrites
+- Re-apply all seven after every `dsh plugin add/remove`/`update` — pnpm rewrites
   the package tree and the patch files live inside it.
 
 ## 5. Sync ceulen-dsh
@@ -192,7 +202,7 @@ do not assume a trimmed or full bundle. Missing/unused profiles need no setup.
 Run one read-only independent review of the compatibility delta, distinguishing
 pre-existing user edits; fix blockers and rerun affected checks before reporting.
 
-After review and any resulting fixes/package operations, run all six patch
+After review and any resulting fixes/package operations, run all seven patch
 `check` commands again for every installed TUI profile. This is the final gate,
 not just a step-4 check: bundle installs or reinstalls later in the task can
 replace patched files even when the TUI version is unchanged. If any check
@@ -230,7 +240,7 @@ TUI; report required restarts. Respect disabled approval prompts.
 Verify after restart:
 
 - `/ceulen doctor` → `tui footer: tui:<version> footer-native` (or
-  `footer-applied` on 0.16.x) and all six patches `applied`; a `stock (…)`
+  `footer-applied` on 0.16.x) and all seven patches `applied`; a `stock (…)`
   segment means that patch is missing — run its script and restart again.
 - `/context` renders the colour dashboard (that is `context-redirect applied`
   proving itself).
@@ -252,8 +262,8 @@ npm i -g --allow-scripts=@deepseek-ai/dsh-subprocess-local,koffi,node-pty,@googl
   @deepseek-ai/dsh@<old-core>
 # restore engines.dsh + README pins, then:
 dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@<exact-old-tui>
-for p in advisor context toolname plan effort style; do node scripts/tui-$p-patch.mjs apply || exit 1; done
-for p in advisor context toolname plan effort style; do node scripts/tui-$p-patch.mjs check || exit 1; done
+for p in advisor context toolname plan effort style panel; do node scripts/tui-$p-patch.mjs apply || exit 1; done
+for p in advisor context toolname plan effort style panel; do node scripts/tui-$p-patch.mjs check || exit 1; done
 ```
 
 Restore only update-owned compatibility hunks (including `dshTui` and release
