@@ -1,10 +1,16 @@
 #!/usr/bin/env node
-/** UI layouts for dsh-tui 0.19.0/0.20.0/0.20.1. Usage: apply|check|revert [--tui <dir>]. */
+/** UI layouts for dsh-tui 0.19.0/0.20.0/0.20.1. Usage: apply|check|revert [--tui <dir>].
+ *  The skins layout lives in scripts/tui-style-skins.js (after hellosverre/claude-skins, MIT). */
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 const PREFS = 'lib/types/uiStyle.js'
+const SKINS = 'lib/types/uiStyleSkins.js'
+const TABLE = 'lib/types/components/MarkdownTable.js'
+const CODE = 'lib/types/components/CodeBlockFrame.js'
+const SPINNER = 'lib/types/components/Spinner/SpinnerAnimationRow.js'
+const THINKING = 'lib/types/components/messages/AssistantThinkingMessage.js'
 const CHAT = 'lib/types/screens/Chat.js'
 const BORDER = 'lib/types/components/EffortInputBorder.js'
 const PROMPT = 'lib/types/components/PromptInput.js'
@@ -31,6 +37,7 @@ export const UI_STYLES = [
     { id: 'dsh', label: 'DSH', description: 'Stock dsh-tui layout.' },
     { id: 'pi', label: 'Pi', description: 'Flat prompts and shaded tool blocks, with a compact status bar.' },
     { id: 'omp', label: 'OMP', description: 'Rounded input with status borders and a two-column welcome card.' },
+    { id: 'skins', label: 'Skins', description: 'Tool rows with glyphs and timings; diff, shell, table and code cards; a usage band.' },
 ];
 const valid = id => UI_STYLES.some(style => style.id === id);
 const file = join(DATA_DIR, 'ui-style.json');
@@ -88,15 +95,16 @@ const STYLE_COMMAND = `                const parts = rawInput.trim().split(/\\s+
                     }
                     const id = parts[1];
                     if (!UI_STYLES.some(style => style.id === id) || parts.length !== 2) {
-                        channel.notify('Unknown UI style: ' + id + '. Use dsh, pi or omp.', { color: 'error' });
+                        channel.notify('Unknown UI style: ' + id + '. Use ' + UI_STYLES.map(style => style.id).join(', ') + '.', { color: 'error' });
                         return true;
                     }
                     if (!setUiStyle(id)) {
                         channel.notify('Could not save UI style: ' + id + '.', { color: 'error' });
                         return true;
                     }
-                    channel.notify('UI style: ' + id + (id === 'pi' && themeName !== 'ceulen-pi-mirage'
-                        ? ' Tip: /theme ceulen-pi-mirage gives the Pi colors.' : ''), { color: 'success' });
+                    const tip = id === 'pi' && themeName !== 'ceulen-pi-mirage' ? ' Tip: /theme ceulen-pi-mirage gives the Pi colors.'
+                        : id === 'skins' && !String(themeName).startsWith('ceulen-noir') ? ' Tip: /theme ceulen-noir (or ceulen-noir-light) gives the noir colors.' : '';
+                    channel.notify('UI style: ' + id + tip, { color: 'success' });
                     return true;
                 }
                 if (parts[0] === 'status') {
@@ -219,7 +227,7 @@ function toolCardSwap(source) {
   }
   swap(end, `children: footnote })] })), _jsx(Text, { color: 'subtle', dimColor: true,
       children: isRunning ? 'running…' : elapsedMs === undefined ? '' : 'Took ' + formatDuration(elapsedMs) })] }) }));`)
-  const branch = `    // ceulen-style: pi-tool begin\n    function renderPiToolCard() {\n${pi}\n    }\n    if (uiStyle === 'pi') return renderPiToolCard();\n    // ceulen-style: pi-tool end\n${original}`
+  const branch = `    // ceulen-style: pi-tool begin\n    function renderPiToolCard() {\n${pi}\n    }\n    if (uiStyle === 'pi') return renderPiToolCard();\n    if (uiStyle === 'skins') {\n        const skins = renderSkinsTool({ tool, view, name, sendMessage, title: headerTitle, displayArgs, filePath, isRunning, isError, elapsedMs,\n            interactive, hovered, setHovered, isSelected, isExpanded, verbose, onClick, marginTopOnTurn, viewportRef, lines, liveLines, footnote, columns });\n        if (skins !== undefined) return skins;\n    }\n    // ceulen-style: pi-tool end\n${original}`
   return [TOOL, original, branch]
 }
 const LOGO_HELPERS = String.raw`
@@ -258,11 +266,14 @@ function renderOmpLogo({ model, provider, columns }) {
 `
 const LAUNCH_LOGO = '_jsx(LogoV2, { fontId: font.id, egg: dailyEgg, whale: layout.showWhale && whale, whaleIdle: whaleIdle, whaleGirl: layout.showWhale && whaleGirl, brand: brand, companionSkin: companionSkin, mascotBox: mascotBox, starred: starred, onStarClick: onStarClick, skipIntro: true, align: "center", chrome: "minimal", arrangement: "column" })'
 const swaps = [
-  [CHAT, IMPORT, IMPORT + "\nimport { UI_STYLES, setUiStyle, useUiStyle } from '../uiStyle.js'; // ceulen-style"],
+  [CHAT, IMPORT, IMPORT + "\nimport { UI_STYLES, setUiStyle, useUiStyle } from '../uiStyle.js'; // ceulen-style\nimport { SkinsUsageBand } from '../uiStyleSkins.js';"],
   [CHAT, '    const [themeName, setTheme] = useTheme();', '    const [themeName, setTheme] = useTheme();\n    const uiStyle = useUiStyle(); // ceulen-style'],
   [CHAT, THEME_PARTS, STYLE_COMMAND],
   // 0.20.1 inserts mentionProviders before suspended; anchor on the stable prefix.
-  [CHAT, '_jsx(PromptInput, { channel: channel,', '_jsx(PromptInput, { channel: channel, styleFields: statusFields, styleBackendMode: backendModeStatus,'],
+  // skins: its phase spinner takes the slot the working-activity line would hold.
+  [CHAT, "workingActivity.phase !== 'idle' ? (_jsx(Box, { marginTop: 1, children: _jsx(ActivityLine,", "workingActivity.phase !== 'idle' && uiStyle !== 'skins' ? (_jsx(Box, { marginTop: 1, children: _jsx(ActivityLine,"],
+  // skins: the usage band sits just above the prompt, as a sibling in the same children list.
+  [CHAT, '_jsx(PromptInput, { channel: channel,', "uiStyle === 'skins' ? _jsx(SkinsUsageBand, { fields: statusFields }, \"skins-band\") : null, _jsx(PromptInput, { channel: channel, styleFields: statusFields, styleBackendMode: backendModeStatus,"],
   [BORDER, "import { useContext, useEffect, useReducer, useState } from 'react';", "import { cloneElement, useContext, useEffect, useReducer, useState } from 'react';\nimport { useUiStyle, fitSegments, piBackground } from '../uiStyle.js';\nimport { formatTokens } from '../terminal-utils/format.js';\nimport { displayWorkingDirectory, formatProject } from '../sessions/format.js';\nimport { homeDir } from '../utils/paths.js';\nimport { channelContextOccupancy } from '../screens/StatusMetrics.js';"],
   [BORDER, 'export function EffortInputBorder({ effort, levels, columns, idleColor, topRightLabel, children, }) {', INPUT_HELPERS + 'export function EffortInputBorder({ effort, levels, columns, idleColor, topRightLabel, children, channel, styleFields, styleBackendMode, }) {\n    const uiStyle = useUiStyle();'],
   [BORDER, '    return (_jsxs(Box, { flexDirection: "column", alignItems: "flex-start", justifyContent: "flex-start", width: "100%", flexShrink: 0, children:', '    if (uiStyle === \'pi\') return renderPiInput({ channel, columns, idleColor, sweepColors, children, styleFields, styleBackendMode, themeName });\n    if (uiStyle === \'omp\') return renderOmpInput({ channel, columns, idleColor, sweepColors, children, styleFields, styleBackendMode, themeName });\n    return (_jsxs(Box, { flexDirection: "column", alignItems: "flex-start", justifyContent: "flex-start", width: "100%", flexShrink: 0, children:'],
@@ -270,17 +281,19 @@ const swaps = [
   // 0.20.1 inserts mentionProviders after channel; anchor on the stable prefix.
   [PROMPT, 'export function PromptInput({ channel,', 'export function PromptInput({ channel, styleFields, styleBackendMode,'],
   [PROMPT, '    const nativeCursor = useNativeCursor();', '    const uiStyle = useUiStyle();\n    const nativeCursor = useNativeCursor();'],
-  [PROMPT, '    const homeButtonCols = onOpenSessions === undefined ? 0 : HOME_BUTTON_COLS;', "    const homeButtonCols = uiStyle === 'dsh' ? (onOpenSessions === undefined ? 0 : HOME_BUTTON_COLS) : uiStyle === 'pi' ? 3 : 2;"],
-  [PROMPT, '    const inputWidth = expanded\n', "    const inputWidth = !expanded && uiStyle !== 'dsh' ? Math.max(1, columns - 5 - vimBadgeCols) : expanded\n"],
+  [PROMPT, '    const homeButtonCols = onOpenSessions === undefined ? 0 : HOME_BUTTON_COLS;', "    const homeButtonCols = uiStyle === 'dsh' || uiStyle === 'skins' ? (onOpenSessions === undefined ? 0 : HOME_BUTTON_COLS) : uiStyle === 'pi' ? 3 : 2;"],
+  [PROMPT, '    const inputWidth = expanded\n', "    const inputWidth = !expanded && (uiStyle === 'pi' || uiStyle === 'omp') ? Math.max(1, columns - 5 - vimBadgeCols) : expanded\n"],
   [PROMPT, '_jsx(EffortInputBorder, { effort: channel.reasoningEffort,', '_jsx(EffortInputBorder, { channel: channel, styleFields: styleFields, styleBackendMode: styleBackendMode, effort: channel.reasoningEffort,'],
-  [FOOTER, "import React from 'react';", "import React from 'react';\nimport { useUiStyle } from '../uiStyle.js';"],
+  [FOOTER, "import React from 'react';", "import React from 'react';\nimport { useUiStyle } from '../uiStyle.js';\nimport { skinsFooterFields } from '../uiStyleSkins.js';"],
+  // skins: usage the band above the prompt draws is not repeated in the footer.
+  [FOOTER, 'applyPluginFieldsOrder(pluginFields ?? NO_PLUGIN_FIELDS,', 'applyPluginFieldsOrder(skinsFooterFields(uiStyle, pluginFields) ?? NO_PLUGIN_FIELDS,'],
   [FOOTER, '    const { columns } = useTerminalSize();', '    const uiStyle = useUiStyle();\n    const { columns } = useTerminalSize();'],
-  [FOOTER, '    return (_jsx(Box, { paddingX: 1, width: columns, flexShrink: 0, children:', "    if (uiStyle !== 'dsh') return null; // ceulen-style: safety and plugin fields are in the input rail.\n    return (_jsx(Box, { paddingX: 1, width: columns, flexShrink: 0, children:"],
-  [USER, "import { POINTER } from '../../terminal-utils/figures.js';", "import { POINTER } from '../../terminal-utils/figures.js';\nimport { useUiStyle, piBackground } from '../../uiStyle.js';"],
+  [FOOTER, '    return (_jsx(Box, { paddingX: 1, width: columns, flexShrink: 0, children:', "    if (uiStyle === 'pi' || uiStyle === 'omp') return null; // ceulen-style: safety and plugin fields are in the input rail.\n    return (_jsx(Box, { paddingX: 1, width: columns, flexShrink: 0, children:"],
+  [USER, "import { POINTER } from '../../terminal-utils/figures.js';", "import { POINTER } from '../../terminal-utils/figures.js';\nimport { useUiStyle, piBackground } from '../../uiStyle.js';\nimport { renderSkinsUserPrompt } from '../../uiStyleSkins.js';"],
   [USER, "import { Box, Text, useTerminalSize } from '../../ui.js';", "import { Box, Text, useTerminalSize, useTheme } from '../../ui.js';"],
   [USER, 'export function UserPromptMessage({ text, marginTopOnTurn, isSelected = false, onClick, }) {', USER_HELPER + 'export function UserPromptMessage({ text, marginTopOnTurn, isSelected = false, onClick, }) {\n    const uiStyle = useUiStyle();\n    const [themeName] = useTheme();'],
-  [USER, '    return (_jsx(Box, { flexDirection: "column", marginTop: marginTopOnTurn ? 1 : 0, backgroundColor:', "    if (uiStyle === 'pi') return renderPiUserPrompt({ text, columns, marginTopOnTurn, onClick, themeName });\n    return (_jsx(Box, { flexDirection: \"column\", marginTop: marginTopOnTurn ? 1 : 0, backgroundColor:"],
-  [TOOL, "import React from 'react';", "import React from 'react';\nimport { useUiStyle } from '../../uiStyle.js';"],
+  [USER, '    return (_jsx(Box, { flexDirection: "column", marginTop: marginTopOnTurn ? 1 : 0, backgroundColor:', "    if (uiStyle === 'pi') return renderPiUserPrompt({ text, columns, marginTopOnTurn, onClick, themeName });\n    if (uiStyle === 'skins') return renderSkinsUserPrompt({ text, columns, marginTopOnTurn, onClick, isSelected });\n    return (_jsx(Box, { flexDirection: \"column\", marginTop: marginTopOnTurn ? 1 : 0, backgroundColor:"],
+  [TOOL, "import React from 'react';", "import React from 'react';\nimport { useUiStyle } from '../../uiStyle.js';\nimport { renderSkinsTool } from '../../uiStyleSkins.js';"],
   [TOOL, '    useRevealVersion(revealVersion === undefined);', '    const uiStyle = useUiStyle();\n    useRevealVersion(revealVersion === undefined);'],
   [LOGO, "import React from 'react';", "import React from 'react';\nimport { useUiStyle } from '../uiStyle.js';"],
   [LOGO, "export function LogoV2({ model = '',", LOGO_HELPERS + "export function LogoV2({ provider = '', model = '',"],
@@ -290,17 +303,37 @@ const swaps = [
   [LIST, "import React, { useState } from 'react';", "import React, { useState } from 'react';\nimport { useUiStyle } from '../uiStyle.js';"],
   [LIST, 'export function LogoHeader({ model, effort, cwd,', "function renderStyleLogoHeader({ model, effort, cwd, provider }) {\n    return _jsx(Box, { flexDirection: 'column', marginBottom: 1, children: _jsx(LogoV2, { model, effort, cwd, provider, skipIntro: true }) });\n}\nexport function LogoHeader({ provider, model, effort, cwd,"],
   [LIST, '    // The minimal UI drops the whole splash (whale art AND wordmark)', '    const uiStyle = useUiStyle();\n    // The minimal UI drops the whole splash (whale art AND wordmark)'],
-  [LIST, '    return (_jsx(Box, { flexDirection: "column", marginBottom: 1, children: _jsx(LogoV2,', "    if (uiStyle !== 'dsh') return renderStyleLogoHeader({ model, effort, cwd, provider });\n    return (_jsx(Box, { flexDirection: \"column\", marginBottom: 1, children: _jsx(LogoV2,"],
+  [LIST, '    return (_jsx(Box, { flexDirection: "column", marginBottom: 1, children: _jsx(LogoV2,', "    if (uiStyle === 'pi' || uiStyle === 'omp') return renderStyleLogoHeader({ model, effort, cwd, provider });\n    return (_jsx(Box, { flexDirection: \"column\", marginBottom: 1, children: _jsx(LogoV2,"],
   [CHAT, '_jsx(Launchpad, { query: launchpadDraft,', '_jsx(Launchpad, { provider: channel.provider, query: launchpadDraft,'],
   [LAUNCH, 'export function Launchpad({ query,', 'export function Launchpad({ provider, query,'],
   [LAUNCH, '    const { columns, rows } = useTerminalSize();', '    const uiStyle = useUiStyle();\n    const { columns, rows } = useTerminalSize();'],
-  [LAUNCH, LAUNCH_LOGO, "(uiStyle === 'dsh' ? " + LAUNCH_LOGO + ' : _jsx(LogoV2, { provider, model, effort, cwd, skipIntro: true }))'],
+  [LAUNCH, LAUNCH_LOGO, "(uiStyle === 'dsh' || uiStyle === 'skins' ? " + LAUNCH_LOGO + ' : _jsx(LogoV2, { provider, model, effort, cwd, skipIntro: true }))'],
   [LAUNCH, "import React", "import { useUiStyle } from '../uiStyle.js';\nimport React"],
-  // Slash suggestions: `/theme ` offers `style`, `/theme style ` offers the three styles.
+  // skins: table, code and spinner draw through uiStyleSkins.js; every other style keeps the stock path.
+  // The settled thinking marker reads the style when the row renders (stock ⚓, skins ✻).
+  // Both thinking headers subscribe, so a settled row repaints when the style changes.
+  // The main header subscribes after its hook-free early return (a hook before it changes the hook count, React #310).
+  [THINKING, '    const tickerText = textFull ?? thinking;\n', '    const tickerText = textFull ?? thinking;\n    useUiStyle(); // ceulen-style\n'],
+  // The streaming glyph becomes the swimming whale and the label carries the light band.
+  [THINKING, '    const pulseColor = interpolateColor(BRAND, ICE, pulse);\n    const frameText = THINKING_SPINNER_FRAMES[frame % THINKING_SPINNER_FRAMES.length];\n    // Hover', "    const pulseColor = interpolateColor(BRAND, ICE, pulse);\n    const frameText = getUiStyle() === 'skins' ? skinsWhaleFrame(frame, THINKING_SPINNER_INTERVAL_MS) : THINKING_SPINNER_FRAMES[frame % THINKING_SPINNER_FRAMES.length]; // ceulen-style\n    // Hover"],
+  [THINKING, "_jsx(Text, { dimColor: !hovered, color: hovered ? 'text' : undefined, italic: true, children: ` ${label}` })", "(getUiStyle() === 'skins' ? renderSkinsThinkingLabel(label, frame, hovered) : _jsx(Text, { dimColor: !hovered, color: hovered ? 'text' : undefined, italic: true, children: ` ${label}` }))"],
+  [THINKING, '    const frameText = THINKING_SPINNER_FRAMES[frame % THINKING_SPINNER_FRAMES.length];\n    return (_jsx(Box, { flexDirection: "row", marginTop', "    const frameText = getUiStyle() === 'skins' ? skinsWhaleFrame(frame, THINKING_SPINNER_INTERVAL_MS) : THINKING_SPINNER_FRAMES[frame % THINKING_SPINNER_FRAMES.length]; // ceulen-style\n    return (_jsx(Box, { flexDirection: \"row\", marginTop"],
+  [THINKING, 'function ThinkingTokensHeader({ tokens, streaming, marginTopOnTurn, isSelected, onClick, }) {', 'function ThinkingTokensHeader({ tokens, streaming, marginTopOnTurn, isSelected, onClick, }) {\n    useUiStyle(); // ceulen-style'],
+  [THINKING, "THINKING_SETTLED_MARKER, } from '../../terminal-utils/figures.js';", "THINKING_SETTLED_MARKER as STOCK_SETTLED_MARKER, } from '../../terminal-utils/figures.js';\nimport { getUiStyle, useUiStyle } from '../../uiStyle.js';\nimport { SKINS_THINKING_MARKER, renderSkinsThinkingLabel, skinsWhaleFrame } from '../../uiStyleSkins.js';\n// ceulen-style: a template literal calls toString, so every row asks for the current style.\nconst THINKING_SETTLED_MARKER = { toString: () => (getUiStyle() === 'skins' ? SKINS_THINKING_MARKER : STOCK_SETTLED_MARKER) };"],
+  [TABLE, "import { formatToken, padAligned } from '../terminal-utils/markdown.js';", "import { formatToken, padAligned } from '../terminal-utils/markdown.js';\nimport { useUiStyle } from '../uiStyle.js';\nimport { renderSkinsTable } from '../uiStyleSkins.js';"],
+  [TABLE, '    const { columns: actualWidth } = useTerminalSize();', '    const uiStyle = useUiStyle();\n    const { columns: actualWidth } = useTerminalSize();'],
+  [TABLE, '    const borderOverhead = 1 + columnCount * 3;', "    if (uiStyle === 'skins') { // ceulen-style: card table, or the stock one when it cannot fit\n        const skins = renderSkinsTable({ headerCells, rowCells, minWidths, idealWidths, align: token.align, terminalWidth, allocateWidths, wrapText, maxRowLines: MAX_ROW_LINES });\n        if (skins !== undefined) return skins;\n    }\n    const borderOverhead = 1 + columnCount * 3;"],
+  [CODE, "import { getCodeFrameStyle, subscribeCodeFrameStyle } from '../tuiDisplayPrefs.js';", "import { getCodeFrameStyle, subscribeCodeFrameStyle } from '../tuiDisplayPrefs.js';\nimport { useUiStyle } from '../uiStyle.js';\nimport { renderSkinsCode } from '../uiStyleSkins.js';"],
+  [CODE, '    const { columns } = useTerminalSize();', '    const uiStyle = useUiStyle();\n    const { columns } = useTerminalSize();'],
+  [CODE, '    if (contentWidth - FRAME_OVERHEAD < MIN_NET_BODY_WIDTH) {', "    if (uiStyle === 'skins' && contentWidth >= 24) return renderSkinsCode({ label, body, dimColor }); // ceulen-style\n    if (contentWidth - FRAME_OVERHEAD < MIN_NET_BODY_WIDTH) {"],
+  [SPINNER, "import { useTheme } from '../design-system/ThemeProvider.js';", "import { useTheme } from '../design-system/ThemeProvider.js';\nimport { useUiStyle } from '../../uiStyle.js';\nimport { renderSkinsSpinner } from '../../uiStyleSkins.js';"],
+  [SPINNER, '    const [viewportRef, time] = useAnimationFrame(reducedMotion ? null : 50);', '    const [viewportRef, time] = useAnimationFrame(reducedMotion ? null : 50);\n    const uiStyle = useUiStyle();'],
+  [SPINNER, '    return (_jsxs(Box, { ref: viewportRef, flexDirection: "row", flexWrap: "wrap", marginTop: 1, width: "100%", children: [_jsx(SpinnerGlyph,', "    if (uiStyle === 'skins') return renderSkinsSpinner({ viewportRef, mode, time, reducedMotion, elapsedTimeMs, status, formatDuration }); // ceulen-style\n    return (_jsxs(Box, { ref: viewportRef, flexDirection: \"row\", flexWrap: \"wrap\", marginTop: 1, width: \"100%\", children: [_jsx(SpinnerGlyph,"],
+  // Slash suggestions: `/theme ` offers `style`, `/theme style ` offers every style.
   [COMPLETE, "import { listThemeCatalog } from '../../themeCatalog.js';", "import { listThemeCatalog } from '../../themeCatalog.js';\nimport { UI_STYLES, getUiStyle } from '../../uiStyle.js'; // ceulen-style"],
-  [COMPLETE, "                    { name: 'status', description: 'Show the current theme', descriptionKey: 'sugg-status-desc' },", "                    { name: 'style', description: 'Switch the UI style: dsh, pi or omp' }, // ceulen-style\n                    { name: 'status', description: 'Show the current theme', descriptionKey: 'sugg-status-desc' },"],
+  [COMPLETE, "                    { name: 'status', description: 'Show the current theme', descriptionKey: 'sugg-status-desc' },", "                    { name: 'style', description: 'Switch the UI style: dsh, pi, omp or skins' }, // ceulen-style\n                    { name: 'status', description: 'Show the current theme', descriptionKey: 'sugg-status-desc' },"],
   [COMPLETE, "            if (path.length === 1 && path[0] === 'color')", "            if (path.length === 2 && path[0] === 'theme' && path[1] === 'style') // ceulen-style\n                return UI_STYLES.map(style => ({ name: style.id, description: style.description, ...(getUiStyle() === style.id ? { tag: 'current' } : {}) }));\n            if (path.length === 1 && path[0] === 'color')"],
-  [COMMANDS, "    { name: 'theme', description: 'Switch the color theme (auto, built-in or custom)' },", "    { name: 'theme', description: 'Switch the color theme, or the UI style with /theme style (dsh, pi, omp)' }, // ceulen-style"],
+  [COMMANDS, "    { name: 'theme', description: 'Switch the color theme (auto, built-in or custom)' },", "    { name: 'theme', description: 'Switch the color theme, or the UI style with /theme style (dsh, pi, omp, skins)' }, // ceulen-style"],
 ]
 
 const args = process.argv.slice(2)
@@ -324,22 +357,26 @@ try {
   if (!['0.19.0', '0.20.0', '0.20.1'].includes(version)) fail('UI style patch requires dsh-tui 0.19.0, 0.20.0 or 0.20.1; found ' + version + '. Nothing written.')
   swaps.push(toolCardSwap(readFileSync(join(root, TOOL), 'utf8')))
   const sources = new Map(swaps.map(([file]) => [file, readFileSync(join(root, file), 'utf8')]))
-  const prefs = existsSync(join(root, PREFS)) ? readFileSync(join(root, PREFS), 'utf8') : undefined
-  const applied = prefs === UI_STYLE && swaps.every(([file, , patched]) => count(sources.get(file), patched) === 1)
-  const stock = (prefs === undefined || prefs === UI_STYLE) && swaps.every(([file, original, patched]) => count(sources.get(file), original) === 1 && count(sources.get(file), patched) === 0)
+  // Modules the patch creates beside the vendor files; each holds exactly what this script writes.
+  const created = [[PREFS, UI_STYLE], [SKINS, readFileSync(new URL('./tui-style-skins.js', import.meta.url), 'utf8')]]
+  const current = created.map(([file]) => existsSync(join(root, file)) ? readFileSync(join(root, file), 'utf8') : undefined)
+  const prefs = current[0]
+  const ours = created.every(([, text], index) => current[index] === undefined || current[index] === text)
+  const applied = created.every(([, text], index) => current[index] === text) && swaps.every(([file, , patched]) => count(sources.get(file), patched) === 1)
+  const stock = ours && swaps.every(([file, original, patched]) => count(sources.get(file), original) === 1 && count(sources.get(file), patched) === 0)
   if (action === 'check') {
     console.log('dsh-tui ' + version + ' UI style patch ' + (applied ? 'applied' : 'NOT applied'))
     process.exit(applied ? 0 : 1)
   }
   if ((action === 'apply' && applied) || (action === 'revert' && stock)) {
-    if (action === 'revert' && prefs === UI_STYLE) unlinkSync(join(root, PREFS))
+    if (action === 'revert') for (const [file] of created) if (existsSync(join(root, file))) unlinkSync(join(root, file))
     console.log('UI style patch already ' + (applied ? 'applied' : 'stock'))
     process.exit(0)
   }
   // A prefix anchor matches its own patched form, so apply requires the whole
   // tree to be stock: an interrupted apply (patched files, no uiStyle.js) must
   // fail loudly instead of injecting a second copy of the props.
-  if (action === 'apply' ? !stock : prefs !== UI_STYLE) fail('the tree does not match the expected stock or patched state. Nothing written.')
+  if (action === 'apply' ? !stock : (prefs !== UI_STYLE || !ours)) fail('the tree does not match the expected stock or patched state. Nothing written.')
   // Validate every anchor before writing any file, including the newly created module.
   for (const [file, original, patched] of swaps) {
     const from = action === 'apply' ? original : patched
@@ -348,8 +385,10 @@ try {
     sources.set(file, source.replace(from, action === 'apply' ? patched : original))
   }
   for (const [file, source] of sources) writeFileSync(join(root, file), source)
-  if (action === 'apply') writeFileSync(join(root, PREFS), UI_STYLE)
-  else unlinkSync(join(root, PREFS))
+  for (const [file, text] of created) {
+    if (action === 'apply') writeFileSync(join(root, file), text)
+    else if (existsSync(join(root, file))) unlinkSync(join(root, file))
+  }
   console.log('UI style patch ' + (action === 'apply' ? 'applied' : 'reverted') + ' on dsh-tui ' + version + '.')
 } catch (error) {
   fail(String(error))

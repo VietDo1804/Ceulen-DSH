@@ -12,3 +12,11 @@ unmodified vendored files and to report locally modified ones.
 
 Ceulen is a Pi coding-agent bundle. DeepSeek Harness is a different runtime;
 this project is an independent adaptation, not an official Ceulen release.
+
+The `skins` UI style (`scripts/tui-style-skins.js`, applied by
+`scripts/tui-style-patch.mjs`) and the `ceulen-noir` themes
+(`src/themes/noir.ts`) follow the look of claude-skins
+(https://github.com/hellosverre/claude-skins, MIT licensed, Copyright (c)
+hellosverre). They are written for dsh-tui's Ink components; a few small
+helpers (the block meter, the call-time format and the spinner's light band)
+follow claude-skins' own code.
