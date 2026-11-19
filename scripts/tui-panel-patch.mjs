@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Target: dsh-tui 0.20.0 / 0.20.1 (TUI plugin layer only; the dsh harness is untouched).
+ * Target: dsh-tui 0.20.0 / 0.20.1 / 0.20.2 (TUI plugin layer only; the dsh harness is untouched).
  *
  * `ctx.tuiPanels.open(id)` always moves keyboard focus into the side panel,
  * so a panel that opens itself (the agentbar Subagents panel when a delegate
@@ -16,7 +16,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-const SUPPORTED = ['0.20.0', '0.20.1']
+const SUPPORTED = ['0.20.0', '0.20.1', '0.20.2']
 const SERVICE = 'lib/types/dsh-adapter/panels.js'
 const CONTROLLER = 'lib/types/components/sidePanel/useSidePanel.js'
 

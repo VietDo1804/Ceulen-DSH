@@ -21,6 +21,7 @@ const KINDS = {
     web: { glyph: '◍', color: 'toolDotWeb' },
     agent: { glyph: '◈', color: 'toolDotTask' },
     mcp: { glyph: '◇', color: 'accent' },
+    files: { glyph: '▤', color: 'toolDotWrite' },
     other: { glyph: '•', color: 'accent' },
 };
 /** Collapsed cards: diff rows and shell output fold to this many rows. */
@@ -32,6 +33,8 @@ const OPEN_ROWS = 400;
 
 export function skinsKind(name, category, card) {
     const n = String(name ?? '').toLowerCase();
+    if (card === 'files' || n === 'present')
+        return 'files';
     if (card === 'terminal' || category === 'exec' || /^(bash|bashpersistent|sh|shell|terminal|powershell|rtk|job_)/.test(n))
         return 'run';
     if (card === 'diff' || category === 'mutate' || /^(edit|write|multiedit|notebookedit|apply_patch)$/.test(n))
@@ -47,6 +50,25 @@ export function skinsKind(name, category, card) {
     if (/subagent|delegate|send_message|sendmessage|advisor|task/.test(n))
         return 'agent';
     return 'other';
+}
+
+/** `present` deliverables (dsh-tui 0.20.2+): the host's own rows (type badge,
+ *  name, size · time; resolved path and note once opened) in the skins gutter,
+ *  without the stock card's fill. A file row opens the host's file menu. */
+function skinsFileRows(lines, onOpenFile) {
+    return (lines ?? []).filter(line => line.tone !== 'hint').map((line, index) => {
+        const target = line.target ?? (line.tone === 'path' ? line.text : undefined);
+        const label = _jsx(Text, { bold: line.bold === true, underline: line.tone === 'path',
+            color: line.tone === 'path' ? 'ide' : line.tone === 'dim' ? 'subtle' : 'text', children: line.text || ' ' });
+        return _jsxs(Box, { flexDirection: 'row', paddingLeft: 2, children: [
+            line.lead !== undefined && _jsx(NoSelect, { flexShrink: 0, children: _jsx(Text, { color: line.lead.color, children: line.lead.text }) }),
+            _jsx(Box, { flexShrink: 1, onClick: target !== undefined && onOpenFile !== undefined
+                    // The row's own click folds the card; a file click opens the file instead.
+                    ? event => { event.stopImmediatePropagation(); onOpenFile(target); }
+                    : undefined, children: label }),
+            line.suffix !== undefined && _jsx(Box, { flexShrink: 0, children: _jsx(Text, { color: 'subtle', children: line.suffix }) }),
+        ] }, 'file' + index);
+    });
 }
 
 /** A call's own time: `0.4s`, `2.1s`, `1m 4s`. */
@@ -297,6 +319,9 @@ export function renderSkinsTool(o) {
         if ((output ?? '').trim() !== '' || (live ?? []).length > 0 || (rv?.exitCode ?? 0) !== 0)
             body.push(shellCard({ output, exitCode: rv?.exitCode, signal: rv?.signal, isRunning, isError, open, live, width: o.columns }));
         expandable = String(output ?? '').split('\n').length > OUTPUT_HEAD + OUTPUT_TAIL + 1;
+    }
+    else if (view?.card === 'files') {
+        body.push(...skinsFileRows(o.lines, o.onOpenFile));
     }
     else {
         // Reads, searches and the rest stay one row; opening the row shows the body.

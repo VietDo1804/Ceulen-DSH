@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** UI layouts for dsh-tui 0.19.0/0.20.0/0.20.1. Usage: apply|check|revert [--tui <dir>].
+/** UI layouts for dsh-tui 0.19.0/0.20.0/0.20.1/0.20.2. Usage: apply|check|revert [--tui <dir>].
  *  The skins layout lives in scripts/tui-style-skins.js (after hellosverre/claude-skins, MIT). */
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -203,8 +203,14 @@ function toolCardSwap(source) {
     pi = pi.replace(from, to)
   }
   swap(start, '    return (_jsx(Box, { paddingX: 1, paddingY: 1, ref: viewportRef,')
-  swap("backgroundColor: isSelected ? 'messageActionsBackground' : hoverTint ? 'toolCardBackground' : ordinaryBackground",
-    "backgroundColor: isSelected || hoverTint ? 'toolCardBackground' : 'toolCardBackgroundDim'")
+  // 0.20.2 gives the `present` delivery card its own surface; pi keeps it.
+  const presentAware = pi.includes("hoverTint ? presentSurface?.hover ?? 'toolCardBackground'")
+  swap(presentAware
+    ? "backgroundColor: isSelected ? 'messageActionsBackground' : hoverTint ? presentSurface?.hover ?? 'toolCardBackground' : ordinaryBackground"
+    : "backgroundColor: isSelected ? 'messageActionsBackground' : hoverTint ? 'toolCardBackground' : ordinaryBackground",
+    presentAware
+      ? "backgroundColor: isSelected || hoverTint ? presentSurface?.hover ?? 'toolCardBackground' : presentSurface?.background ?? 'toolCardBackgroundDim'"
+      : "backgroundColor: isSelected || hoverTint ? 'toolCardBackground' : 'toolCardBackgroundDim'")
   swap('_jsx(ToolUseLoader, { shouldAnimate: isRunning, isUnresolved: isRunning, isError: isError, toolName: tool.name })', 'null')
   const headerStart = '_jsx(HeaderTitle, { name: name,'
   const headerEnd = 'headerTextBudget: headerTextBudget })'
@@ -212,7 +218,7 @@ function toolCardSwap(source) {
   const header = pi.slice(pi.indexOf(headerStart), pi.indexOf(headerEnd) + headerEnd.length)
   swap(header, `_jsxs(Box, { flexDirection: 'column', flexGrow: 1, children: [
       _jsx(Text, { bold: true, color: isError ? 'error' : toolNameColor(tool.name, view?.category ?? tool.callView?.category), children: name }),
-      displayArgs !== '' && _jsx(Text, { color: 'text', children: displayArgs })] })`)
+      displayArgs !== '' && view?.card !== 'files' && _jsx(Text, { color: 'text', children: displayArgs })] })`)
   swap('!isRunning && (_jsx(Box, { flexWrap: "nowrap", children: _jsx(Text, { dimColor: !hovered, children: elapsedText }) }))', 'false')
   for (const prefix of [
     "useSplitDiff && view?.card === 'diff' ? (",
@@ -227,7 +233,7 @@ function toolCardSwap(source) {
   }
   swap(end, `children: footnote })] })), _jsx(Text, { color: 'subtle', dimColor: true,
       children: isRunning ? 'running…' : elapsedMs === undefined ? '' : 'Took ' + formatDuration(elapsedMs) })] }) }));`)
-  const branch = `    // ceulen-style: pi-tool begin\n    function renderPiToolCard() {\n${pi}\n    }\n    if (uiStyle === 'pi') return renderPiToolCard();\n    if (uiStyle === 'skins') {\n        const skins = renderSkinsTool({ tool, view, name, sendMessage, title: headerTitle, displayArgs, filePath, isRunning, isError, elapsedMs,\n            interactive, hovered, setHovered, isSelected, isExpanded, verbose, onClick, marginTopOnTurn, viewportRef, lines, liveLines, footnote, columns });\n        if (skins !== undefined) return skins;\n    }\n    // ceulen-style: pi-tool end\n${original}`
+  const branch = `    // ceulen-style: pi-tool begin\n    function renderPiToolCard() {\n${pi}\n    }\n    if (uiStyle === 'pi') return renderPiToolCard();\n    if (uiStyle === 'skins') {\n        const skins = renderSkinsTool({ tool, view, name, sendMessage, title: headerTitle, displayArgs, filePath, isRunning, isError, elapsedMs,\n            interactive, hovered, setHovered, isSelected, isExpanded, verbose, onClick, marginTopOnTurn, viewportRef, lines, liveLines, footnote, columns, onOpenFile });\n        if (skins !== undefined) return skins;\n    }\n    // ceulen-style: pi-tool end\n${original}`
   return [TOOL, original, branch]
 }
 const LOGO_HELPERS = String.raw`
@@ -354,7 +360,7 @@ const fail = message => {
 const count = (text, anchor) => text.split(anchor).length - 1
 try {
   const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version
-  if (!['0.19.0', '0.20.0', '0.20.1'].includes(version)) fail('UI style patch requires dsh-tui 0.19.0, 0.20.0 or 0.20.1; found ' + version + '. Nothing written.')
+  if (!['0.19.0', '0.20.0', '0.20.1', '0.20.2'].includes(version)) fail('UI style patch requires dsh-tui 0.19.0, 0.20.0, 0.20.1 or 0.20.2; found ' + version + '. Nothing written.')
   swaps.push(toolCardSwap(readFileSync(join(root, TOOL), 'utf8')))
   const sources = new Map(swaps.map(([file]) => [file, readFileSync(join(root, file), 'utf8')]))
   // Modules the patch creates beside the vendor files; each holds exactly what this script writes.

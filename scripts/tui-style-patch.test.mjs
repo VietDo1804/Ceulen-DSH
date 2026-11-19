@@ -20,7 +20,7 @@ const snapshot = root => Object.fromEntries(readdirSync(root, { recursive: true,
 
 // ponytail: pinned npm tarballs exercise real upstream anchors without a local
 // profile or installed dependencies; npm's cache avoids repeat downloads.
-for (const version of ['0.20.0', '0.20.1']) {
+for (const version of ['0.20.0', '0.20.1', '0.20.2']) {
   test(`stock dsh-tui ${version}: reversible patches and refusal without writes`, { timeout: 300_000 }, () => {
     const workspace = resolve('.devhome')
     mkdirSync(workspace, { recursive: true })
@@ -53,9 +53,15 @@ for (const version of ['0.20.0', '0.20.1']) {
       for (const [file, hash] of Object.entries(applied)) {
         if (file.endsWith('.js') && hash !== stock[file]) command(process.execPath, ['--check', join(root, file)])
       }
-      if (version === '0.20.1') {
+      if (version !== '0.20.0') {
         assert.match(readFileSync(join(root, 'lib/types/screens/Chat.js'), 'utf8'), /mentionProviders: extensionMentions/)
         assert.match(readFileSync(join(root, 'lib/types/components/PromptInput.js'), 'utf8'), /styleBackendMode, mentionProviders,/)
+      }
+      if (version === '0.20.2') {
+        const card = readFileSync(join(root, 'lib/types/components/messages/AssistantToolUseMessage.js'), 'utf8')
+        assert.match(card, /presentSurface\?\.background \?\? 'toolCardBackgroundDim'/)
+        assert.match(card, /columns, onOpenFile \}\);/)
+        assert.match(readFileSync(join(root, 'lib/types/uiStyleSkins.js'), 'utf8'), /view\?\.card === 'files'/)
       }
       const helperFile = join(root, 'lib/types/uiStyle.js')
       const helper = readFileSync(helperFile)

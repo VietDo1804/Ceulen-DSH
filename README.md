@@ -88,7 +88,7 @@ left out. `/ceulen module off agentbar` removes the panel and the band.
 
 ## Requirements
 
-- DSH `0.2.2-rc.1` (the `dsh` CLI and `dsh-tui` 0.20.1 profile)
+- DSH `0.2.2-rc.1` (the `dsh` CLI and `dsh-tui` 0.20.2 profile)
 - Node.js `>=24.9.0` for a fresh installation (required by the pinned DSH CLI; the bundle itself supports `>=22.19`)
 - Optional backends: `gh`, `sg`/`ast-grep`, `rtk`, Serena, Chrome/Chromium, a Munin server, a Brave Search key, an OpenAI-compatible router, A2A peers
 
@@ -135,7 +135,7 @@ Send `release/ceulen-dsh-0.2.6.tgz` to your friend after building it. With Node
 24.9+ and the pinned DSH CLI installed, they can run (replace the tarball path):
 
 ```sh
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.1 file:/absolute/path/to/ceulen-dsh-0.2.6.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.6.tgz
 dsh --profile tui
 ```
 
@@ -149,7 +149,7 @@ directly from a Git URL: compiled `lib/` is not committed. See
 After `npm ci --include=dev` and `npm run build`, link this checkout instead:
 
 ```sh
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.1 link:"$PWD"
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 link:"$PWD"
 dsh --profile tui
 ```
 
@@ -447,7 +447,7 @@ Refresh defaults to every 5 minutes; `usage.intervalMinutes` and
 clears or shows `unavailable`) and never block a turn.
 
 dsh-tui 0.17.0+ has a native footer slot (`ctx.tuiStatus.setField`, shipped in
-the installed 0.20.1), so the `ceulen:usage` segment joins the head of the
+the installed 0.20.2), so the `ceulen:usage` segment joins the head of the
 footer's right group beside the model/effort/mode/cwd fields
 (`Go · 5h 86% · W 88% · M 94%`) with no patch. The 0.16.1 footer patch was
 deleted for this reason (plan 5.5); `/ceulen doctor` still prints

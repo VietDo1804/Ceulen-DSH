@@ -123,7 +123,10 @@ tests and installed upstream files. Adapt the smallest compatible change;
 never bypass a gate blindly or broaden it to untested future versions. Keep
 anchor uniqueness and all-or-nothing writes. A version-only gate extension is
 valid only after confirming unchanged anchors and passing patch tests.
-For example, 0.20.0 required extending the style patch's exact 0.19.0 gate;
+On 0.20.2 the style patch's pi tool-card anchor moved (the `present` card's
+own `presentSurface` hover); `skins` also draws the new `files` card itself
+(`skinsFileRows`, reusing the host's rows and `onOpenFile`), so a new card kind
+upstream needs a skins branch or an explicit stock fallback. For example, 0.20.0 required extending the style patch's exact 0.19.0 gate;
 the other five patches already worked. Test check/apply/idempotence/revert,
 byte-identical restoration, all-seven coexistence, changed-JS syntax and refusal
 without writes. Negative fixtures must assign an unsupported JSON version,
@@ -158,7 +161,7 @@ not replace a literal old version that becomes a no-op after an upgrade.
   0.16.1 footer patch is obsolete. On **0.20.0**, the host still clamps
   `maxCells: 64` to 32, cutting off monthly usage. After the last package
   mutation, additionally run `node scripts/tui-usage-patch.mjs apply --tui <resolved-dir>`
-  and `check` on every installed 0.20.0 TUI. Repeat this usage-cap check at the
+  and `check` on every installed 0.20.x TUI (gate: 0.20.0/0.20.1/0.20.2). Repeat this usage-cap check at the
   final seven-patch gate. It raises the bounded cap to 64, preserving the default
   16 and field-count limits; do not apply it to unverified versions.
 - Re-apply all seven after every `dsh plugin add/remove`/`update` — pnpm rewrites

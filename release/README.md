@@ -41,7 +41,7 @@ dsh --version
 `dsh` ships templates for `web`, `headless`, `acp`, and `sdk-minimal` — **not**
 `tui`. A profile named `tui` created by `dsh plugin add` therefore gets the base
 harness plus this bundle, but no TUI app. If the target has no TUI yet, use the
-wrapper from this release folder, which adds `@deepseek-harness-tui/dsh-tui@0.20.1`
+wrapper from this release folder, which adds `@deepseek-harness-tui/dsh-tui@0.20.2`
 in the same command (keep `install.sh` beside the supplied tarball):
 
 ```sh
@@ -54,7 +54,7 @@ exact `dsh plugin` invocation without touching anything.
 With only a tarball, no wrapper is required:
 
 ```sh
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.1 file:/absolute/path/to/ceulen-dsh-0.2.6.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.6.tgz
 dsh --profile tui
 ```
 
@@ -125,11 +125,11 @@ done
 `/ceulen doctor` reports `tui footer: … · advisor-block applied|stock …`, and each
 script's `check` exits non-zero when its patch is missing. The footer patch was
 deleted — dsh-tui 0.17.0+ renders plugin footer fields natively. Patches target
-dsh-tui 0.20.1; re-apply after every upgrade. Doctor reports the six UI patches;
+dsh-tui 0.20.2 (gates also accept 0.20.0/0.20.1); re-apply after every upgrade. Doctor reports the six UI patches;
 check the usage-cap patch separately with the script loop above.
 
 Portable regression checks (Node.js, npm and `tar`; downloads the pinned stock
-TUI 0.20.0/0.20.1 tarballs, or reuses npm's cache):
+TUI 0.20.0/0.20.1/0.20.2 tarballs, or reuses npm's cache):
 
 ```sh
 node --test scripts/tui-*-patch.test.mjs
