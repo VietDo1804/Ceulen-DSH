@@ -1,12 +1,17 @@
 #!/usr/bin/env node
 /** UI layouts for dsh-tui 0.19.0/0.20.0/0.20.1/0.20.2. Usage: apply|check|revert [--tui <dir>].
- *  The skins layout lives in scripts/tui-style-skins.js (after hellosverre/claude-skins, MIT). */
+ *  The skins layout lives in scripts/tui-style-skins.js (after hellosverre/claude-skins, MIT);
+ *  the thread layout in scripts/tui-style-thread.js. */
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 const PREFS = 'lib/types/uiStyle.js'
 const SKINS = 'lib/types/uiStyleSkins.js'
+const THREAD = 'lib/types/uiStyleThread.js'
+const TEXT = 'lib/types/components/messages/AssistantTextMessage.js'
+const PROVIDER = 'lib/types/components/design-system/ThemeProvider.js'
+const PICKER = 'lib/types/components/ThemePicker.js'
 const TABLE = 'lib/types/components/MarkdownTable.js'
 const CODE = 'lib/types/components/CodeBlockFrame.js'
 const SPINNER = 'lib/types/components/Spinner/SpinnerAnimationRow.js'
@@ -38,6 +43,7 @@ export const UI_STYLES = [
     { id: 'pi', label: 'Pi', description: 'Flat prompts and shaded tool blocks, with a compact status bar.' },
     { id: 'omp', label: 'OMP', description: 'Rounded input with status borders and a two-column welcome card.' },
     { id: 'skins', label: 'Skins', description: 'Tool rows with glyphs and timings; diff, shell, table and code cards; a usage band.' },
+    { id: 'thread', label: 'Thread', description: 'One rail per turn: calls hang off it, subagents run as lanes, the plan is pinned above the prompt.' },
 ];
 const valid = id => UI_STYLES.some(style => style.id === id);
 const file = join(DATA_DIR, 'ui-style.json');
@@ -67,6 +73,22 @@ export function subscribeUiStyle(fn) {
 }
 export function useUiStyle() {
     return useSyncExternalStore(subscribeUiStyle, getUiStyle, getUiStyle);
+}
+/** The /theme picker's live preview: the focused theme paints the whole UI until the
+ *  picker closes (Enter keeps it through setTheme, Esc drops back). Never persisted. */
+let themePreview;
+const previewListeners = new Set();
+export function getThemePreview() {
+    return themePreview;
+}
+export function setThemePreview(name) {
+    if (name === themePreview) return;
+    themePreview = name;
+    for (const fn of previewListeners) fn();
+}
+export function subscribeThemePreview(fn) {
+    previewListeners.add(fn);
+    return () => previewListeners.delete(fn);
 }
 /** Segments are {id, text}; the separator occupies three terminal cells. */
 export function fitSegments(segments, width) {
@@ -103,7 +125,8 @@ const STYLE_COMMAND = `                const parts = rawInput.trim().split(/\\s+
                         return true;
                     }
                     const tip = id === 'pi' && themeName !== 'ceulen-pi-mirage' ? ' Tip: /theme ceulen-pi-mirage gives the Pi colors.'
-                        : id === 'skins' && !String(themeName).startsWith('ceulen-noir') ? ' Tip: /theme ceulen-noir (or ceulen-noir-light) gives the noir colors.' : '';
+                        : id === 'skins' && !String(themeName).startsWith('ceulen-noir') ? ' Tip: /theme ceulen-noir (or ceulen-noir-light) gives the noir colors.'
+                        : id === 'thread' && !String(themeName).startsWith('ceulen-ink') ? ' Tip: /theme ceulen-ink (or ceulen-ink-light) gives the thread colors.' : '';
                     channel.notify('UI style: ' + id + tip, { color: 'success' });
                     return true;
                 }
@@ -233,7 +256,7 @@ function toolCardSwap(source) {
   }
   swap(end, `children: footnote })] })), _jsx(Text, { color: 'subtle', dimColor: true,
       children: isRunning ? 'running…' : elapsedMs === undefined ? '' : 'Took ' + formatDuration(elapsedMs) })] }) }));`)
-  const branch = `    // ceulen-style: pi-tool begin\n    function renderPiToolCard() {\n${pi}\n    }\n    if (uiStyle === 'pi') return renderPiToolCard();\n    if (uiStyle === 'skins') {\n        const skins = renderSkinsTool({ tool, view, name, sendMessage, title: headerTitle, displayArgs, filePath, isRunning, isError, elapsedMs,\n            interactive, hovered, setHovered, isSelected, isExpanded, verbose, onClick, marginTopOnTurn, viewportRef, lines, liveLines, footnote, columns, onOpenFile });\n        if (skins !== undefined) return skins;\n    }\n    // ceulen-style: pi-tool end\n${original}`
+  const branch = `    // ceulen-style: pi-tool begin\n    function renderPiToolCard() {\n${pi}\n    }\n    if (uiStyle === 'pi') return renderPiToolCard();\n    if (uiStyle === 'skins') {\n        const skins = renderSkinsTool({ tool, view, name, sendMessage, title: headerTitle, displayArgs, filePath, isRunning, isError, elapsedMs,\n            interactive, hovered, setHovered, isSelected, isExpanded, verbose, onClick, marginTopOnTurn, viewportRef, lines, liveLines, footnote, columns, onOpenFile });\n        if (skins !== undefined) return skins;\n    }\n    if (uiStyle === 'thread') {\n        const thread = renderThreadTool({ tool, view, name, sendMessage, title: headerTitle, displayArgs, filePath, isRunning, isError, elapsedMs,\n            interactive, hovered, setHovered, isSelected, isExpanded, verbose, onClick, marginTopOnTurn, viewportRef, lines, liveLines, footnote, columns, onOpenFile });\n        if (thread !== undefined) return thread;\n    }\n    // ceulen-style: pi-tool end\n${original}`
   return [TOOL, original, branch]
 }
 const LOGO_HELPERS = String.raw`
@@ -272,14 +295,20 @@ function renderOmpLogo({ model, provider, columns }) {
 `
 const LAUNCH_LOGO = '_jsx(LogoV2, { fontId: font.id, egg: dailyEgg, whale: layout.showWhale && whale, whaleIdle: whaleIdle, whaleGirl: layout.showWhale && whaleGirl, brand: brand, companionSkin: companionSkin, mascotBox: mascotBox, starred: starred, onStarClick: onStarClick, skipIntro: true, align: "center", chrome: "minimal", arrangement: "column" })'
 const swaps = [
-  [CHAT, IMPORT, IMPORT + "\nimport { UI_STYLES, setUiStyle, useUiStyle } from '../uiStyle.js'; // ceulen-style\nimport { SkinsUsageBand } from '../uiStyleSkins.js';"],
+  [CHAT, IMPORT, IMPORT + "\nimport { UI_STYLES, setUiStyle, useUiStyle } from '../uiStyle.js'; // ceulen-style\nimport { SkinsUsageBand } from '../uiStyleSkins.js';\nimport { ThreadPlanDock, threadStatusEntries } from '../uiStyleThread.js';"],
   [CHAT, '    const [themeName, setTheme] = useTheme();', '    const [themeName, setTheme] = useTheme();\n    const uiStyle = useUiStyle(); // ceulen-style'],
   [CHAT, THEME_PARTS, STYLE_COMMAND],
   // 0.20.1 inserts mentionProviders before suspended; anchor on the stable prefix.
   // skins: its phase spinner takes the slot the working-activity line would hold.
-  [CHAT, "workingActivity.phase !== 'idle' ? (_jsx(Box, { marginTop: 1, children: _jsx(ActivityLine,", "workingActivity.phase !== 'idle' && uiStyle !== 'skins' ? (_jsx(Box, { marginTop: 1, children: _jsx(ActivityLine,"],
-  // skins: the usage band sits just above the prompt, as a sibling in the same children list.
-  [CHAT, '_jsx(PromptInput, { channel: channel,', "uiStyle === 'skins' ? _jsx(SkinsUsageBand, { fields: statusFields }, \"skins-band\") : null, _jsx(PromptInput, { channel: channel, styleFields: statusFields, styleBackendMode: backendModeStatus,"],
+  [CHAT, "workingActivity.phase !== 'idle' ? (_jsx(Box, { marginTop: 1, children: _jsx(ActivityLine,", "workingActivity.phase !== 'idle' && uiStyle !== 'skins' && uiStyle !== 'thread' ? (_jsx(Box, { marginTop: 1, children: _jsx(ActivityLine,"],
+  // skins and thread: the usage band sits just above the prompt, as a sibling in the same children list.
+  [CHAT, '_jsx(PromptInput, { channel: channel,', "uiStyle === 'skins' || uiStyle === 'thread' ? _jsx(SkinsUsageBand, { fields: statusFields }, \"skins-band\") : null, _jsx(PromptInput, { channel: channel, styleFields: statusFields, styleBackendMode: backendModeStatus,"],
+  // thread: the plan dock replaces the todo footer (a live goal keeps the stock panel); the transcript learns when a turn is still open.
+  [CHAT, '&& !todoFooterHidden && (_jsx(GoalTodoPanel, { channel: channel, collapsed: todoCollapsed, onToggle: toggleTodoFooter, idleDismissal: true }))', "&& !todoFooterHidden && (uiStyle === 'thread' && channel.goal === undefined ? _jsx(ThreadPlanDock, { channel: channel, collapsed: todoCollapsed, onToggle: toggleTodoFooter }) : _jsx(GoalTodoPanel, { channel: channel, collapsed: todoCollapsed, onToggle: toggleTodoFooter, idleDismissal: true }))"],
+  [CHAT, 'statusEntries.length > 0 && (_jsx(Text, { dimColor: true, wrap: "truncate", children: statusEntries.map(entry => entry.text).join(\' · \') }))', "threadStatusEntries(uiStyle, statusEntries).length > 0 && (_jsx(Text, { dimColor: true, wrap: \"truncate\", children: threadStatusEntries(uiStyle, statusEntries).map(entry => entry.text).join(' · ') }))"],
+  // thread keeps the dock above the prompt even while the side panel is split.
+  [CHAT, "!(sidePanel.split && sidePanel.enabledPanelIds.includes('todo'))", "(uiStyle === 'thread' || !(sidePanel.split && sidePanel.enabledPanelIds.includes('todo')))"],
+  [CHAT, '_jsx(MessageList, { rows: channel.rows,', '_jsx(MessageList, { threadWorking: channel.working, rows: channel.rows,'],
   [BORDER, "import { useContext, useEffect, useReducer, useState } from 'react';", "import { cloneElement, useContext, useEffect, useReducer, useState } from 'react';\nimport { useUiStyle, fitSegments, piBackground } from '../uiStyle.js';\nimport { formatTokens } from '../terminal-utils/format.js';\nimport { displayWorkingDirectory, formatProject } from '../sessions/format.js';\nimport { homeDir } from '../utils/paths.js';\nimport { channelContextOccupancy } from '../screens/StatusMetrics.js';"],
   [BORDER, 'export function EffortInputBorder({ effort, levels, columns, idleColor, topRightLabel, children, }) {', INPUT_HELPERS + 'export function EffortInputBorder({ effort, levels, columns, idleColor, topRightLabel, children, channel, styleFields, styleBackendMode, }) {\n    const uiStyle = useUiStyle();'],
   [BORDER, '    return (_jsxs(Box, { flexDirection: "column", alignItems: "flex-start", justifyContent: "flex-start", width: "100%", flexShrink: 0, children:', '    if (uiStyle === \'pi\') return renderPiInput({ channel, columns, idleColor, sweepColors, children, styleFields, styleBackendMode, themeName });\n    if (uiStyle === \'omp\') return renderOmpInput({ channel, columns, idleColor, sweepColors, children, styleFields, styleBackendMode, themeName });\n    return (_jsxs(Box, { flexDirection: "column", alignItems: "flex-start", justifyContent: "flex-start", width: "100%", flexShrink: 0, children:'],
@@ -287,33 +316,65 @@ const swaps = [
   // 0.20.1 inserts mentionProviders after channel; anchor on the stable prefix.
   [PROMPT, 'export function PromptInput({ channel,', 'export function PromptInput({ channel, styleFields, styleBackendMode,'],
   [PROMPT, '    const nativeCursor = useNativeCursor();', '    const uiStyle = useUiStyle();\n    const nativeCursor = useNativeCursor();'],
-  [PROMPT, '    const homeButtonCols = onOpenSessions === undefined ? 0 : HOME_BUTTON_COLS;', "    const homeButtonCols = uiStyle === 'dsh' || uiStyle === 'skins' ? (onOpenSessions === undefined ? 0 : HOME_BUTTON_COLS) : uiStyle === 'pi' ? 3 : 2;"],
+  [PROMPT, '    const homeButtonCols = onOpenSessions === undefined ? 0 : HOME_BUTTON_COLS;', "    const homeButtonCols = uiStyle === 'dsh' || uiStyle === 'skins' || uiStyle === 'thread' ? (onOpenSessions === undefined ? 0 : HOME_BUTTON_COLS) : uiStyle === 'pi' ? 3 : 2;"],
   [PROMPT, '    const inputWidth = expanded\n', "    const inputWidth = !expanded && (uiStyle === 'pi' || uiStyle === 'omp') ? Math.max(1, columns - 5 - vimBadgeCols) : expanded\n"],
   [PROMPT, '_jsx(EffortInputBorder, { effort: channel.reasoningEffort,', '_jsx(EffortInputBorder, { channel: channel, styleFields: styleFields, styleBackendMode: styleBackendMode, effort: channel.reasoningEffort,'],
-  [FOOTER, "import React from 'react';", "import React from 'react';\nimport { useUiStyle } from '../uiStyle.js';\nimport { skinsFooterFields } from '../uiStyleSkins.js';"],
+  [FOOTER, "import React from 'react';", "import React from 'react';\nimport { useUiStyle } from '../uiStyle.js';\nimport { skinsFooterFields } from '../uiStyleSkins.js';\nimport { renderThreadFooter } from '../uiStyleThread.js';"],
   // skins: usage the band above the prompt draws is not repeated in the footer.
   [FOOTER, 'applyPluginFieldsOrder(pluginFields ?? NO_PLUGIN_FIELDS,', 'applyPluginFieldsOrder(skinsFooterFields(uiStyle, pluginFields) ?? NO_PLUGIN_FIELDS,'],
   [FOOTER, '    const { columns } = useTerminalSize();', '    const uiStyle = useUiStyle();\n    const { columns } = useTerminalSize();'],
-  [FOOTER, '    return (_jsx(Box, { paddingX: 1, width: columns, flexShrink: 0, children:', "    if (uiStyle === 'pi' || uiStyle === 'omp') return null; // ceulen-style: safety and plugin fields are in the input rail.\n    return (_jsx(Box, { paddingX: 1, width: columns, flexShrink: 0, children:"],
-  [USER, "import { POINTER } from '../../terminal-utils/figures.js';", "import { POINTER } from '../../terminal-utils/figures.js';\nimport { useUiStyle, piBackground } from '../../uiStyle.js';\nimport { renderSkinsUserPrompt } from '../../uiStyleSkins.js';"],
+  [FOOTER, '    return (_jsx(Box, { paddingX: 1, width: columns, flexShrink: 0, children:', "    if (uiStyle === 'pi' || uiStyle === 'omp') return null; // ceulen-style: safety and plugin fields are in the input rail.\n    // ceulen-style: thread draws one line of its own (badges, tok/s, cache, limits, ctx, branch).\n    if (uiStyle === 'thread') return renderThreadFooter({ channel, columns, fields: visibleFields, backendMode, occupancy, cacheRate: formatCacheHitRate(usage), modelPicker });\n    return (_jsx(Box, { paddingX: 1, width: columns, flexShrink: 0, children:"],
+  [USER, "import { POINTER } from '../../terminal-utils/figures.js';", "import { POINTER } from '../../terminal-utils/figures.js';\nimport { useUiStyle, piBackground } from '../../uiStyle.js';\nimport { renderSkinsUserPrompt } from '../../uiStyleSkins.js';\nimport { renderThreadUserPrompt } from '../../uiStyleThread.js';"],
   [USER, "import { Box, Text, useTerminalSize } from '../../ui.js';", "import { Box, Text, useTerminalSize, useTheme } from '../../ui.js';"],
   [USER, 'export function UserPromptMessage({ text, marginTopOnTurn, isSelected = false, onClick, }) {', USER_HELPER + 'export function UserPromptMessage({ text, marginTopOnTurn, isSelected = false, onClick, }) {\n    const uiStyle = useUiStyle();\n    const [themeName] = useTheme();'],
-  [USER, '    return (_jsx(Box, { flexDirection: "column", marginTop: marginTopOnTurn ? 1 : 0, backgroundColor:', "    if (uiStyle === 'pi') return renderPiUserPrompt({ text, columns, marginTopOnTurn, onClick, themeName });\n    if (uiStyle === 'skins') return renderSkinsUserPrompt({ text, columns, marginTopOnTurn, onClick, isSelected });\n    return (_jsx(Box, { flexDirection: \"column\", marginTop: marginTopOnTurn ? 1 : 0, backgroundColor:"],
-  [TOOL, "import React from 'react';", "import React from 'react';\nimport { useUiStyle } from '../../uiStyle.js';\nimport { renderSkinsTool } from '../../uiStyleSkins.js';"],
+  [USER, '    return (_jsx(Box, { flexDirection: "column", marginTop: marginTopOnTurn ? 1 : 0, backgroundColor:', "    if (uiStyle === 'pi') return renderPiUserPrompt({ text, columns, marginTopOnTurn, onClick, themeName });\n    if (uiStyle === 'skins') return renderSkinsUserPrompt({ text, columns, marginTopOnTurn, onClick, isSelected });\n    if (uiStyle === 'thread') return renderThreadUserPrompt({ text, columns, marginTopOnTurn, onClick, isSelected });\n    return (_jsx(Box, { flexDirection: \"column\", marginTop: marginTopOnTurn ? 1 : 0, backgroundColor:"],
+  [TOOL, "import React from 'react';", "import React from 'react';\nimport { useUiStyle } from '../../uiStyle.js';\nimport { renderSkinsTool } from '../../uiStyleSkins.js';\nimport { renderThreadTool } from '../../uiStyleThread.js';"],
   [TOOL, '    useRevealVersion(revealVersion === undefined);', '    const uiStyle = useUiStyle();\n    useRevealVersion(revealVersion === undefined);'],
   [LOGO, "import React from 'react';", "import React from 'react';\nimport { useUiStyle } from '../uiStyle.js';"],
   [LOGO, "export function LogoV2({ model = '',", LOGO_HELPERS + "export function LogoV2({ provider = '', model = '',"],
   [LOGO, '    const [sequence] = React.useState(() => OPENING_SEQUENCES[intro ?? pickOpeningSequence().id]);', '    const uiStyle = useUiStyle();\n    const [sequence] = React.useState(() => OPENING_SEQUENCES[intro ?? pickOpeningSequence().id]);'],
   [LOGO, '    return (_jsxs(Box, { ref: ref, flexDirection: "column", marginTop: 1,', "    if (uiStyle === 'pi') return renderPiLogo({ model, cwd });\n    if (uiStyle === 'omp') return renderOmpLogo({ model, provider, columns });\n    return (_jsxs(Box, { ref: ref, flexDirection: \"column\", marginTop: 1,"],
   [CHAT, '_jsx(LogoHeader, { model: channel.modelDisplay ?? channel.model,', '_jsx(LogoHeader, { provider: channel.provider, model: channel.modelDisplay ?? channel.model,'],
-  [LIST, "import React, { useState } from 'react';", "import React, { useState } from 'react';\nimport { useUiStyle } from '../uiStyle.js';"],
+  [LIST, "import React, { useState } from 'react';", "import React, { useState } from 'react';\nimport { getUiStyle, useUiStyle } from '../uiStyle.js';\nimport { ThreadLane, renderThreadRow, threadRailMap } from '../uiStyleThread.js';"],
+  // thread: the rail. Rails are worked out over the whole visible list (so a windowed
+  // row keeps its mark), and a wrapper draws each row's gutter inside the measured ref.
+  [LIST, 'export function MessageList({ rows,', 'export function MessageList({ threadWorking = false, rows,'],
+  [LIST, '    const lang = React.useSyncExternalStore(subscribeLang, getLang);', '    const lang = React.useSyncExternalStore(subscribeLang, getLang);\n    const uiStyle = useUiStyle(); // ceulen-style'],
+  [LIST, '    const margins = visibleRowsCacheRef.current.margins;', "    const margins = visibleRowsCacheRef.current.margins;\n    const threadRails = uiStyle === 'thread' ? threadRailMap(visibleRows, margins, threadWorking) : undefined; // ceulen-style"],
+  [LIST, 'return (_jsx(MemoRow, { rowId: row.id, kind: row.kind,', 'return (_jsx(MemoRow, { threadRail: threadRails?.get(row.id), rowId: row.id, kind: row.kind,'],
+  // A row's height depends on the style (the rail takes two columns), so the cache key carries it.
+  [LIST, '    signatureScratch.push(columns, row.kind, displayTextLen);', '    signatureScratch.push(columns, row.kind, displayTextLen, getUiStyle());'],
+  [LIST, 'function TranscriptRow({ rowId,', `const NO_ROW_REF = () => { };
+// ceulen-style: thread draws the rail beside the row; every other style renders the row as before.
+function TranscriptRow(props) {
+    const size = useTerminalSize();
+    const { setRowRef, rowId, threadRail } = props;
+    const rowRef = React.useCallback((el) => { setRowRef(rowId, el); }, [setRowRef, rowId]);
+    if (threadRail === undefined || (props.kind === 'turn-summary' && props.turnUsage === undefined))
+        return _jsx(TranscriptRowBody, { ...props });
+    return renderThreadRow({ rail: threadRail, rowRef, size, body: _jsx(TranscriptRowBody, { ...props, threadRail: undefined, marginTopOnTurn: false, setRowRef: NO_ROW_REF }) });
+}
+function TranscriptRowBody({ rowId,`],
+  // The rail's ╰ / │ stands where the stock ● marks a reply.
+  [LIST, String.raw`_jsx(Box, { minWidth: 2, children: _jsx(Text, { color: "text", children: "\u25CF" }) })`, String.raw`(getUiStyle() === 'thread' ? null : _jsx(Box, { minWidth: 2, children: _jsx(Text, { color: "text", children: "\u25CF" }) }))`],
+  [LIST, '_jsx(SubagentMessage, { subagent: subagent, marginTopOnTurn: marginTopOnTurn,', "getUiStyle() === 'thread' && !isExpanded ? _jsx(ThreadLane, { subagent: subagent, marginTopOnTurn: marginTopOnTurn, onClick: openSubagent }) : _jsx(SubagentMessage, { subagent: subagent, marginTopOnTurn: marginTopOnTurn,"],
+  // Live theme preview: moving through /theme repaints the whole UI in the focused theme.
+  [PROVIDER, "import { readThemePref, writeThemePref } from '../../themePrefs.js';", "import { readThemePref, writeThemePref } from '../../themePrefs.js';\nimport { getThemePreview, subscribeThemePreview } from '../../uiStyle.js'; // ceulen-style"],
+  [PROVIDER, 'export function ThemeProvider({ children, theme, themeHost, }) {\n', 'export function ThemeProvider({ children, theme, themeHost, }) {\n    const themePreview = useSyncExternalStore(subscribeThemePreview, getThemePreview); // ceulen-style\n'],
+  [PROVIDER, '    const renderedTheme = (() => {', '    const renderedTheme = themePreview !== undefined && isThemeAvailable(themePreview) ? themePreview : (() => {'],
+  [PICKER, "import { useRuntimeThemeSnapshot } from '../hooks/useRuntimeThemeSnapshot.js';", "import { useRuntimeThemeSnapshot } from '../hooks/useRuntimeThemeSnapshot.js';\nimport { setThemePreview } from '../uiStyle.js'; // ceulen-style"],
+  [PICKER, '    const options = React.useMemo(() => optionsFrom(entries), [entries]);\n', '    const options = React.useMemo(() => optionsFrom(entries), [entries]);\n    // ceulen-style: the focused theme previews across the whole UI; closing the picker drops it.\n    // ✓ keeps marking the saved theme: the provider reports the previewed one while the picker is open.\n    const [savedTheme] = React.useState(currentTheme);\n    const previewName = options[focusIndex]?.value;\n    React.useEffect(() => { setThemePreview(previewName); }, [previewName]);\n    React.useEffect(() => () => setThemePreview(undefined), []);\n'],
+  [PICKER, 'isSelected: option.value === currentTheme,', 'isSelected: option.value === savedTheme,'],
+  [TEXT, "import { Markdown } from '../Markdown.js';", "import { Markdown } from '../Markdown.js';\nimport { useUiStyle } from '../../uiStyle.js';"],
+  [TEXT, 'export function AssistantTextMessage({ text, marginTopOnTurn, isSelected = false, isExpanded = false, }) {\n', "export function AssistantTextMessage({ text, marginTopOnTurn, isSelected = false, isExpanded = false, }) {\n    const uiStyle = useUiStyle(); // ceulen-style: thread's rail marks the reply instead of ●\n"],
+  [TEXT, "children: [_jsx(NoSelect, { fromLeftEdge: true, minWidth: 2, children: _jsx(Text, { color: isSelected ? 'suggestion' : 'text', children: BLACK_CIRCLE }) }),", "children: [uiStyle === 'thread' ? null : _jsx(NoSelect, { fromLeftEdge: true, minWidth: 2, children: _jsx(Text, { color: isSelected ? 'suggestion' : 'text', children: BLACK_CIRCLE }) }),"],
   [LIST, 'export function LogoHeader({ model, effort, cwd,', "function renderStyleLogoHeader({ model, effort, cwd, provider }) {\n    return _jsx(Box, { flexDirection: 'column', marginBottom: 1, children: _jsx(LogoV2, { model, effort, cwd, provider, skipIntro: true }) });\n}\nexport function LogoHeader({ provider, model, effort, cwd,"],
   [LIST, '    // The minimal UI drops the whole splash (whale art AND wordmark)', '    const uiStyle = useUiStyle();\n    // The minimal UI drops the whole splash (whale art AND wordmark)'],
   [LIST, '    return (_jsx(Box, { flexDirection: "column", marginBottom: 1, children: _jsx(LogoV2,', "    if (uiStyle === 'pi' || uiStyle === 'omp') return renderStyleLogoHeader({ model, effort, cwd, provider });\n    return (_jsx(Box, { flexDirection: \"column\", marginBottom: 1, children: _jsx(LogoV2,"],
   [CHAT, '_jsx(Launchpad, { query: launchpadDraft,', '_jsx(Launchpad, { provider: channel.provider, query: launchpadDraft,'],
   [LAUNCH, 'export function Launchpad({ query,', 'export function Launchpad({ provider, query,'],
   [LAUNCH, '    const { columns, rows } = useTerminalSize();', '    const uiStyle = useUiStyle();\n    const { columns, rows } = useTerminalSize();'],
-  [LAUNCH, LAUNCH_LOGO, "(uiStyle === 'dsh' || uiStyle === 'skins' ? " + LAUNCH_LOGO + ' : _jsx(LogoV2, { provider, model, effort, cwd, skipIntro: true }))'],
+  [LAUNCH, LAUNCH_LOGO, "(uiStyle === 'dsh' || uiStyle === 'skins' || uiStyle === 'thread' ? " + LAUNCH_LOGO + ' : _jsx(LogoV2, { provider, model, effort, cwd, skipIntro: true }))'],
   [LAUNCH, "import React", "import { useUiStyle } from '../uiStyle.js';\nimport React"],
   // skins: table, code and spinner draw through uiStyleSkins.js; every other style keeps the stock path.
   // The settled thinking marker reads the style when the row renders (stock ⚓, skins ✻).
@@ -321,11 +382,11 @@ const swaps = [
   // The main header subscribes after its hook-free early return (a hook before it changes the hook count, React #310).
   [THINKING, '    const tickerText = textFull ?? thinking;\n', '    const tickerText = textFull ?? thinking;\n    useUiStyle(); // ceulen-style\n'],
   // The streaming glyph becomes the swimming whale and the label carries the light band.
-  [THINKING, '    const pulseColor = interpolateColor(BRAND, ICE, pulse);\n    const frameText = THINKING_SPINNER_FRAMES[frame % THINKING_SPINNER_FRAMES.length];\n    // Hover', "    const pulseColor = interpolateColor(BRAND, ICE, pulse);\n    const frameText = getUiStyle() === 'skins' ? skinsWhaleFrame(frame, THINKING_SPINNER_INTERVAL_MS) : THINKING_SPINNER_FRAMES[frame % THINKING_SPINNER_FRAMES.length]; // ceulen-style\n    // Hover"],
-  [THINKING, "_jsx(Text, { dimColor: !hovered, color: hovered ? 'text' : undefined, italic: true, children: ` ${label}` })", "(getUiStyle() === 'skins' ? renderSkinsThinkingLabel(label, frame, hovered) : _jsx(Text, { dimColor: !hovered, color: hovered ? 'text' : undefined, italic: true, children: ` ${label}` }))"],
-  [THINKING, '    const frameText = THINKING_SPINNER_FRAMES[frame % THINKING_SPINNER_FRAMES.length];\n    return (_jsx(Box, { flexDirection: "row", marginTop', "    const frameText = getUiStyle() === 'skins' ? skinsWhaleFrame(frame, THINKING_SPINNER_INTERVAL_MS) : THINKING_SPINNER_FRAMES[frame % THINKING_SPINNER_FRAMES.length]; // ceulen-style\n    return (_jsx(Box, { flexDirection: \"row\", marginTop"],
+  [THINKING, '    const pulseColor = interpolateColor(BRAND, ICE, pulse);\n    const frameText = THINKING_SPINNER_FRAMES[frame % THINKING_SPINNER_FRAMES.length];\n    // Hover', "    const pulseColor = interpolateColor(BRAND, ICE, pulse);\n    const frameText = WHALE_STYLES.has(getUiStyle()) ? skinsWhaleFrame(frame, THINKING_SPINNER_INTERVAL_MS) : THINKING_SPINNER_FRAMES[frame % THINKING_SPINNER_FRAMES.length]; // ceulen-style\n    // Hover"],
+  [THINKING, "_jsx(Text, { dimColor: !hovered, color: hovered ? 'text' : undefined, italic: true, children: ` ${label}` })", "(WHALE_STYLES.has(getUiStyle()) ? renderSkinsThinkingLabel(label, frame, hovered) : _jsx(Text, { dimColor: !hovered, color: hovered ? 'text' : undefined, italic: true, children: ` ${label}` }))"],
+  [THINKING, '    const frameText = THINKING_SPINNER_FRAMES[frame % THINKING_SPINNER_FRAMES.length];\n    return (_jsx(Box, { flexDirection: "row", marginTop', "    const frameText = WHALE_STYLES.has(getUiStyle()) ? skinsWhaleFrame(frame, THINKING_SPINNER_INTERVAL_MS) : THINKING_SPINNER_FRAMES[frame % THINKING_SPINNER_FRAMES.length]; // ceulen-style\n    return (_jsx(Box, { flexDirection: \"row\", marginTop"],
   [THINKING, 'function ThinkingTokensHeader({ tokens, streaming, marginTopOnTurn, isSelected, onClick, }) {', 'function ThinkingTokensHeader({ tokens, streaming, marginTopOnTurn, isSelected, onClick, }) {\n    useUiStyle(); // ceulen-style'],
-  [THINKING, "THINKING_SETTLED_MARKER, } from '../../terminal-utils/figures.js';", "THINKING_SETTLED_MARKER as STOCK_SETTLED_MARKER, } from '../../terminal-utils/figures.js';\nimport { getUiStyle, useUiStyle } from '../../uiStyle.js';\nimport { SKINS_THINKING_MARKER, renderSkinsThinkingLabel, skinsWhaleFrame } from '../../uiStyleSkins.js';\n// ceulen-style: a template literal calls toString, so every row asks for the current style.\nconst THINKING_SETTLED_MARKER = { toString: () => (getUiStyle() === 'skins' ? SKINS_THINKING_MARKER : STOCK_SETTLED_MARKER) };"],
+  [THINKING, "THINKING_SETTLED_MARKER, } from '../../terminal-utils/figures.js';", "THINKING_SETTLED_MARKER as STOCK_SETTLED_MARKER, } from '../../terminal-utils/figures.js';\nimport { getUiStyle, useUiStyle } from '../../uiStyle.js';\nimport { SKINS_THINKING_MARKER, renderSkinsThinkingLabel, skinsWhaleFrame } from '../../uiStyleSkins.js';\n// ceulen-style: a template literal calls toString, so every row asks for the current style.\nconst WHALE_STYLES = new Set(['skins', 'thread']);\nconst THINKING_SETTLED_MARKER = { toString: () => (WHALE_STYLES.has(getUiStyle()) ? SKINS_THINKING_MARKER : STOCK_SETTLED_MARKER) };"],
   [TABLE, "import { formatToken, padAligned } from '../terminal-utils/markdown.js';", "import { formatToken, padAligned } from '../terminal-utils/markdown.js';\nimport { useUiStyle } from '../uiStyle.js';\nimport { renderSkinsTable } from '../uiStyleSkins.js';"],
   [TABLE, '    const { columns: actualWidth } = useTerminalSize();', '    const uiStyle = useUiStyle();\n    const { columns: actualWidth } = useTerminalSize();'],
   [TABLE, '    const borderOverhead = 1 + columnCount * 3;', "    if (uiStyle === 'skins') { // ceulen-style: card table, or the stock one when it cannot fit\n        const skins = renderSkinsTable({ headerCells, rowCells, minWidths, idealWidths, align: token.align, terminalWidth, allocateWidths, wrapText, maxRowLines: MAX_ROW_LINES });\n        if (skins !== undefined) return skins;\n    }\n    const borderOverhead = 1 + columnCount * 3;"],
@@ -334,12 +395,12 @@ const swaps = [
   [CODE, '    if (contentWidth - FRAME_OVERHEAD < MIN_NET_BODY_WIDTH) {', "    if (uiStyle === 'skins' && contentWidth >= 24) return renderSkinsCode({ label, body, dimColor }); // ceulen-style\n    if (contentWidth - FRAME_OVERHEAD < MIN_NET_BODY_WIDTH) {"],
   [SPINNER, "import { useTheme } from '../design-system/ThemeProvider.js';", "import { useTheme } from '../design-system/ThemeProvider.js';\nimport { useUiStyle } from '../../uiStyle.js';\nimport { renderSkinsSpinner } from '../../uiStyleSkins.js';"],
   [SPINNER, '    const [viewportRef, time] = useAnimationFrame(reducedMotion ? null : 50);', '    const [viewportRef, time] = useAnimationFrame(reducedMotion ? null : 50);\n    const uiStyle = useUiStyle();'],
-  [SPINNER, '    return (_jsxs(Box, { ref: viewportRef, flexDirection: "row", flexWrap: "wrap", marginTop: 1, width: "100%", children: [_jsx(SpinnerGlyph,', "    if (uiStyle === 'skins') return renderSkinsSpinner({ viewportRef, mode, time, reducedMotion, elapsedTimeMs, status, formatDuration }); // ceulen-style\n    return (_jsxs(Box, { ref: viewportRef, flexDirection: \"row\", flexWrap: \"wrap\", marginTop: 1, width: \"100%\", children: [_jsx(SpinnerGlyph,"],
+  [SPINNER, '    return (_jsxs(Box, { ref: viewportRef, flexDirection: "row", flexWrap: "wrap", marginTop: 1, width: "100%", children: [_jsx(SpinnerGlyph,', "    if (uiStyle === 'skins' || uiStyle === 'thread') return renderSkinsSpinner({ viewportRef, mode, time, reducedMotion, elapsedTimeMs, status, formatDuration }); // ceulen-style\n    return (_jsxs(Box, { ref: viewportRef, flexDirection: \"row\", flexWrap: \"wrap\", marginTop: 1, width: \"100%\", children: [_jsx(SpinnerGlyph,"],
   // Slash suggestions: `/theme ` offers `style`, `/theme style ` offers every style.
   [COMPLETE, "import { listThemeCatalog } from '../../themeCatalog.js';", "import { listThemeCatalog } from '../../themeCatalog.js';\nimport { UI_STYLES, getUiStyle } from '../../uiStyle.js'; // ceulen-style"],
-  [COMPLETE, "                    { name: 'status', description: 'Show the current theme', descriptionKey: 'sugg-status-desc' },", "                    { name: 'style', description: 'Switch the UI style: dsh, pi, omp or skins' }, // ceulen-style\n                    { name: 'status', description: 'Show the current theme', descriptionKey: 'sugg-status-desc' },"],
+  [COMPLETE, "                    { name: 'status', description: 'Show the current theme', descriptionKey: 'sugg-status-desc' },", "                    { name: 'style', description: 'Switch the UI style: dsh, pi, omp, skins or thread' }, // ceulen-style\n                    { name: 'status', description: 'Show the current theme', descriptionKey: 'sugg-status-desc' },"],
   [COMPLETE, "            if (path.length === 1 && path[0] === 'color')", "            if (path.length === 2 && path[0] === 'theme' && path[1] === 'style') // ceulen-style\n                return UI_STYLES.map(style => ({ name: style.id, description: style.description, ...(getUiStyle() === style.id ? { tag: 'current' } : {}) }));\n            if (path.length === 1 && path[0] === 'color')"],
-  [COMMANDS, "    { name: 'theme', description: 'Switch the color theme (auto, built-in or custom)' },", "    { name: 'theme', description: 'Switch the color theme, or the UI style with /theme style (dsh, pi, omp, skins)' }, // ceulen-style"],
+  [COMMANDS, "    { name: 'theme', description: 'Switch the color theme (auto, built-in or custom)' },", "    { name: 'theme', description: 'Switch the color theme, or the UI style with /theme style (dsh, pi, omp, skins, thread)' }, // ceulen-style"],
 ]
 
 const args = process.argv.slice(2)
@@ -364,7 +425,8 @@ try {
   swaps.push(toolCardSwap(readFileSync(join(root, TOOL), 'utf8')))
   const sources = new Map(swaps.map(([file]) => [file, readFileSync(join(root, file), 'utf8')]))
   // Modules the patch creates beside the vendor files; each holds exactly what this script writes.
-  const created = [[PREFS, UI_STYLE], [SKINS, readFileSync(new URL('./tui-style-skins.js', import.meta.url), 'utf8')]]
+  const created = [[PREFS, UI_STYLE], [SKINS, readFileSync(new URL('./tui-style-skins.js', import.meta.url), 'utf8')],
+    [THREAD, readFileSync(new URL('./tui-style-thread.js', import.meta.url), 'utf8')]]
   const current = created.map(([file]) => existsSync(join(root, file)) ? readFileSync(join(root, file), 'utf8') : undefined)
   const prefs = current[0]
   const ours = created.every(([, text], index) => current[index] === undefined || current[index] === text)

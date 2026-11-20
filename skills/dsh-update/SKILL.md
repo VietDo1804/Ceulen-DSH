@@ -126,7 +126,12 @@ valid only after confirming unchanged anchors and passing patch tests.
 On 0.20.2 the style patch's pi tool-card anchor moved (the `present` card's
 own `presentSurface` hover); `skins` also draws the new `files` card itself
 (`skinsFileRows`, reusing the host's rows and `onOpenFile`), so a new card kind
-upstream needs a skins branch or an explicit stock fallback. For example, 0.20.0 required extending the style patch's exact 0.19.0 gate;
+upstream needs a skins branch or an explicit stock fallback. The `thread` style
+(`scripts/tui-style-thread.js`) also anchors on MessageList (the rail wraps
+`TranscriptRow`), AssistantTextMessage, the GoalTodoPanel call in Chat and the
+StatusLine return; the style patch also gives `/theme` a live preview
+(ThemeProvider reads a preview store, ThemePicker sets it for the focused row); it falls back to the same stock card for
+an unknown card kind. For example, 0.20.0 required extending the style patch's exact 0.19.0 gate;
 the other five patches already worked. Test check/apply/idempotence/revert,
 byte-identical restoration, all-seven coexistence, changed-JS syntax and refusal
 without writes. Negative fixtures must assign an unsupported JSON version,

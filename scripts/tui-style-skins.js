@@ -55,7 +55,7 @@ export function skinsKind(name, category, card) {
 /** `present` deliverables (dsh-tui 0.20.2+): the host's own rows (type badge,
  *  name, size · time; resolved path and note once opened) in the skins gutter,
  *  without the stock card's fill. A file row opens the host's file menu. */
-function skinsFileRows(lines, onOpenFile) {
+export function skinsFileRows(lines, onOpenFile) {
     return (lines ?? []).filter(line => line.tone !== 'hint').map((line, index) => {
         const target = line.target ?? (line.tone === 'path' ? line.text : undefined);
         const label = _jsx(Text, { bold: line.bold === true, underline: line.tone === 'path',
@@ -94,12 +94,12 @@ export function skinsPath(path) {
     return path.startsWith(home + '/') ? '~' + path.slice(home.length) : path;
 }
 
-function firstLine(text) {
+export function firstLine(text) {
     const line = String(text ?? '').split('\n').find(part => part.trim() !== '') ?? '';
     return line.trim();
 }
 
-function targetOf({ name, title, displayArgs, filePath }) {
+export function targetOf({ name, title, displayArgs, filePath }) {
     let text = title !== undefined && title.trim() !== '' ? title.trim() : String(displayArgs ?? '');
     // `Read /path (1 - 100)` and `Bash(cmd)` both lead with the tool's own name.
     if (text.toLowerCase().startsWith(String(name).toLowerCase()))

@@ -2,11 +2,12 @@ import type { PluginContext, TuiThemeService } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { THEMES as PI_THEMES } from '../../themes/generated.js'
 import { NOIR_THEMES } from '../../themes/noir.js'
+import { INK_THEMES } from '../../themes/ink.js'
 import { logLine } from '../../core/log.js'
 import { errorMessage } from '../../core/tools.js'
 
-// Converted Pi themes plus the noir pair that goes with `/theme style skins`.
-const THEMES = [...PI_THEMES, ...NOIR_THEMES]
+// Converted Pi themes, the noir pair for `/theme style skins` and the ink pair for `/theme style thread`.
+const THEMES = [...PI_THEMES, ...NOIR_THEMES, ...INK_THEMES]
 
 export const name = 'ceulen-themes'
 export const inject = []
