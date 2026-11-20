@@ -350,6 +350,24 @@ export function cwdOf(exec?: { agent?: { session?: { header?: { cwd?: string } }
   return exec?.agent?.session?.header?.cwd ?? process.cwd()
 }
 
+/**
+ * The calling session's file policy (mode + workspace roots) from DSH's
+ * `sandboxPolicy` service, or undefined when none is mounted. A filesystem
+ * mutation must carry it: without it `ctx.fs` falls back to the deployment
+ * default, so a `danger-full-access` session was refused outside the
+ * workspace and a `read-only` one could still write inside it.
+ */
+export function sessionSandboxPolicy(ctx: PluginContext, session: unknown): unknown {
+  if (session === undefined) return undefined
+  try {
+    const service = ctx.get('sandboxPolicy', false) as { resolve?(options: { session: unknown }): unknown } | undefined
+    if (service === undefined || typeof service.resolve !== 'function') return undefined
+    return service.resolve({ session })
+  } catch {
+    return undefined
+  }
+}
+
 /** Clamp a command's output so a TUI transcript stays readable. */
 export function clampText(value: string, max = 4_000): string {
   if (value.length <= max) return value

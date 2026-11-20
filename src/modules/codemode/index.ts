@@ -17,7 +17,7 @@
 
 import type { AgentLike, PluginContext, ToolRunContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
-import { ceulenTool, coldToolEntries, errorMessage, nativeToolEntries, objectSchema, text } from '../../core/tools.js'
+import { ceulenTool, coldToolEntries, errorMessage, nativeToolEntries, objectSchema, sessionSandboxPolicy, text } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import { randomUUID } from 'node:crypto'
 import { commitState, exitBindings, forgetState, stateBindings } from './bindings.js'
@@ -30,7 +30,6 @@ import type {
   Json,
   PtcRuntimeLike,
   RegistryLike,
-  SandboxPolicyLike,
 } from './types.js'
 
 export const name = 'ceulen-codemode'
@@ -83,17 +82,6 @@ const OUTPUT_SCHEMA = {
 function serviceOf<T>(ctx: PluginContext, name: string): T | undefined {
   try {
     return ctx.get(name, false) as T | undefined
-  } catch {
-    return undefined
-  }
-}
-
-/** Resolve the calling session's file policy; omit it to keep the runtime default. */
-function sandboxPolicyOf(ctx: PluginContext, session: unknown): unknown {
-  try {
-    const service = ctx.get('sandboxPolicy', false) as SandboxPolicyLike | undefined
-    if (service === undefined || typeof service.resolve !== 'function') return undefined
-    return service.resolve({ session })
   } catch {
     return undefined
   }
@@ -189,7 +177,7 @@ function codemodeTool(ctx: PluginContext) {
           ],
           cwd: session?.header?.cwd ?? process.cwd(),
           signal: exec.signal,
-          sandboxPolicy: session === undefined ? undefined : sandboxPolicyOf(ctx, session),
+          sandboxPolicy: sessionSandboxPolicy(ctx, session),
           ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
         })
       } catch (error) {

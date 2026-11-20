@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve as resolvePath }
 import type { AgentLike, PluginContext, ToolContent, ToolDefinition } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { logLine } from '../../core/log.js'
-import { ceulenTool, clampText, coldTool, editDistance, nativeTool, objectSchema, registerToolSafe, cwdOf, errorMessage } from '../../core/tools.js'
+import { ceulenTool, clampText, coldTool, editDistance, nativeTool, objectSchema, registerToolSafe, cwdOf, errorMessage, sessionSandboxPolicy } from '../../core/tools.js'
 import { missingRequired, synthesizeUsage } from '../../core/toolguard.js'
 
 export const name = 'ceulen-repair'
@@ -206,7 +206,7 @@ function applyHunks(text: string, hunks: Hunk[], path: string): { text: string; 
 interface FsLike {
   resolve(path: string, opts?: { cwd?: string; signal?: AbortSignal }): Promise<unknown>
   readText(target: unknown, signal?: AbortSignal): Promise<string>
-  writeText(target: unknown, content: string, expected?: unknown, signal?: AbortSignal): Promise<unknown>
+  writeText(target: unknown, content: string, expected?: unknown, signal?: AbortSignal, sandboxPolicy?: unknown): Promise<unknown>
 }
 
 function fsService(ctx: PluginContext): FsLike {
@@ -488,11 +488,14 @@ export function apply(ctx: PluginContext): void {
       }
       // ponytail: preflight prevents invalid-patch partial writes; I/O is not a multi-file transaction.
       const writes = [...staged.values()]
+      // The session's mode, as DSH's own write/edit pass it; omitted, ctx.fs
+      // applies the deployment default instead of this session's choice.
+      const policy = sessionSandboxPolicy(ctx, exec.agent?.session)
       let completed = 0
       try {
         for (const entry of writes) {
           exec.signal.throwIfAborted()
-          await fs.writeText(entry.target, entry.text, undefined, exec.signal)
+          await fs.writeText(entry.target, entry.text, undefined, exec.signal, policy)
           completed += 1
         }
       } catch (error) {
