@@ -5,7 +5,9 @@
  * (the codemode chain hint was followed 4/14), so the lead gets a concrete
  * notice at the moment it matters, at most once per turn and kind:
  *
- * - recon: N local discovery calls in one turn with no delegation yet.
+ * - recon: N local discovery calls in one turn with no delegation yet, and
+ *   nothing written yet: once the lead edits, recon is over and a scout is moot
+ *   (a 2026-11-20 OpenMotion session got the notice after its MP4 render).
  * - review: the turn has edited M distinct files and no reviewer ran yet.
  *
  * Pure state machine here; the wiring is `installNudges` at the bottom.
@@ -25,6 +27,8 @@ export interface NudgeState {
   delegated: boolean
   reviewed: boolean
   edited: Set<string>
+  /** The turn has written files (edit tools, a writing script or shell write). */
+  wrote: boolean
   reconSent: boolean
   reviewSent: boolean
 }
@@ -47,10 +51,12 @@ const PATCH_FILE = /^\*\*\* (?:Update|Add) File: (.+)$/gm
 // which chain-hint's start-anchored pattern does not see. Any search/read token
 // counts, unless the command also writes, moves, deletes, builds or tests.
 const BASH_LOOKS = /(?:^|[\s;&|(])(?:grep|rg|find|fd|cat|ls|tree|head|tail|sed\s+-n|nl|wc|awk)\b/
+// A shell command that writes files ends recon; a test or build run does not.
+const BASH_WRITES = /(?:^|[^>&0-9])>(?!&)|>>|\bsed\s+-i\b|\b(?:mv|cp|tee|touch|mkdir)\b|write_text|writeFileSync/
 const BASH_ACTS = /(?:^|[^>&0-9])>(?!&)|>>|\bsed\s+-i\b|\b(?:rm|mv|cp|mkdir|touch|tee|chmod|git\s+(?:add|commit|checkout|reset|push|apply|stash))\b|write_text|writeFileSync|\b(?:npm|pnpm|yarn|npx|node|python3?|tsc|vitest|jest|pytest|cargo|go|make)\b/
 
 export function createNudgeState(): NudgeState {
-  return { discovery: 0, labels: [], delegated: false, reviewed: false, edited: new Set(), reconSent: false, reviewSent: false }
+  return { discovery: 0, labels: [], delegated: false, reviewed: false, edited: new Set(), wrote: false, reconSent: false, reviewSent: false }
 }
 
 function args(argumentsJson: string | undefined): Record<string, unknown> {
@@ -69,6 +75,12 @@ function editedPaths(name: string, input: Record<string, unknown>): string[] {
   }
   const path = input.path ?? input.file_path
   return typeof path === 'string' && path.length > 0 ? [path] : []
+}
+
+function writes(name: string, input: Record<string, unknown>): boolean {
+  if (name === 'codemode') return SCRIPT_WRITES.test(String(input.code ?? input.script ?? ''))
+  if (name === 'bash') return BASH_WRITES.test(typeof input.command === 'string' ? input.command : '')
+  return false
 }
 
 /** A codemode script counts as discovery unless it writes or delegates. */
@@ -121,6 +133,7 @@ export function noteCall(
     return undefined
   }
   if (EDITING.has(call.name)) {
+    state.wrote = true
     for (const path of editedPaths(call.name, input)) state.edited.add(path)
     if (limits.reviewAfterFiles > 0 && !state.reviewed && !state.reviewSent && state.edited.size >= limits.reviewAfterFiles) {
       state.reviewSent = true
@@ -128,10 +141,11 @@ export function noteCall(
     }
     return undefined
   }
+  if (writes(call.name, input)) state.wrote = true
   if (!isDiscovery(call.name, call.arguments, input)) return undefined
   state.discovery += 1
   state.labels.push(callLabel(call.name, call.arguments))
-  if (limits.discoveryAfter <= 0 || state.delegated || state.reconSent || state.discovery < limits.discoveryAfter) return undefined
+  if (limits.discoveryAfter <= 0 || state.delegated || state.wrote || state.reconSent || state.discovery < limits.discoveryAfter) return undefined
   if (limits.reconMinContext > 0 && (call.context ?? 0) < limits.reconMinContext) return undefined
   state.reconSent = true
   return { kind: 'recon', text: reconText(state.discovery, state.labels) }

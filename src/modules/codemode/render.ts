@@ -3,6 +3,9 @@ import type { ToolRunContext } from '../../core/types.js'
 import { applyOutputBudget } from './script.js'
 import { SELF_NAMES, type BindingFunction, type CodemodeCall, type PtcRunResult, type RegistryLike } from './types.js'
 
+/** The tool that dispatches `tools.cold` entries. */
+export const COLD_DISPATCHER = 'ceulen_tools'
+
 /** One short line for a card row; never a multi-line paste. */
 export function clipOneLine(value: string, max = 80): string {
   const one = value.replace(/\s+/g, ' ').trim()
@@ -54,37 +57,52 @@ export function formatCalls(calls: readonly CodemodeCall[]): string {
  * which avoids the silent alias collisions Pi's `_` normalization can create.
  * The step's `toolSet` rides along on both the listing and every nested call,
  * so a conditional tool is bound exactly when this step admitted it.
+ *
+ * Cold tools (`tools.cold`) have no schema of their own, so the listing never
+ * names them; when `ceulen_tools` is bound they are bound too and dispatched
+ * through it. Without this, `tools.mcp__openmotion__…` failed with "is not a
+ * function" (2 of 9 flash scripts in one 2026-11-20 OpenMotion session).
  */
 export function toolBindings(
   registry: RegistryLike,
   exec: ToolRunContext,
   calls: CodemodeCall[],
   usage: { rawChars: number } = { rawChars: 0 },
+  coldNames: readonly string[] = [],
 ): Record<string, BindingFunction> {
   const functions: Record<string, BindingFunction> = Object.create(null) as Record<string, BindingFunction>
   let sequence = 0
-  for (const schema of registry.schemas(exec.agent, exec.toolSet)) {
-    if (SELF_NAMES.has(schema.name)) continue
-    functions[schema.name] = async args => {
+  const bind = (label: string, target: string, wrap: (args: unknown) => unknown): void => {
+    functions[label] = async args => {
       const startedAt = Date.now()
       const detail = argSummary(args)
       try {
         const batch = await registry.execute({
-          calls: [{ id: `${exec.callId ?? 'codemode'}:codemode:${++sequence}`, name: schema.name, arguments: JSON.stringify(args ?? {}) }],
+          calls: [{ id: `${exec.callId ?? 'codemode'}:codemode:${++sequence}`, name: target, arguments: JSON.stringify(wrap(args) ?? {}) }],
           ...(exec.agent === undefined ? {} : { agent: exec.agent }),
           ...(exec.signal === undefined ? {} : { signal: exec.signal }),
           ...(exec.toolSet === undefined ? {} : { toolSet: exec.toolSet }),
         })
         const settled = batch?.results?.[0]?.result
-        if (settled === undefined) throw new Error(`${schema.name} settled without a result`)
-        if (settled.isError) throw new Error(settled.error?.message ?? `${schema.name} failed`)
-        calls.push({ name: schema.name, detail, status: 'ok', ms: Date.now() - startedAt })
+        if (settled === undefined) throw new Error(`${label} settled without a result`)
+        if (settled.isError) throw new Error(settled.error?.message ?? `${label} failed`)
+        calls.push({ name: label, detail, status: 'ok', ms: Date.now() - startedAt })
         usage.rawChars += JSON.stringify(settled.value ?? null)?.length ?? 0
         return settled.value ?? null
       } catch (error) {
-        calls.push({ name: schema.name, detail, status: 'error', ms: Date.now() - startedAt, error: errorMessage(error) })
+        calls.push({ name: label, detail, status: 'error', ms: Date.now() - startedAt, error: errorMessage(error) })
         throw error
       }
+    }
+  }
+  for (const schema of registry.schemas(exec.agent, exec.toolSet)) {
+    if (SELF_NAMES.has(schema.name)) continue
+    bind(schema.name, schema.name, args => args)
+  }
+  if (functions[COLD_DISPATCHER] !== undefined) {
+    for (const name of coldNames) {
+      if (functions[name] !== undefined || SELF_NAMES.has(name)) continue
+      bind(name, COLD_DISPATCHER, args => ({ action: 'call', name, arguments: args ?? {} }))
     }
   }
   return functions

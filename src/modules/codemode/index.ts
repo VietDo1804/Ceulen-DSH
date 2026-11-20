@@ -17,7 +17,7 @@
 
 import type { AgentLike, PluginContext, ToolRunContext } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
-import { ceulenTool, errorMessage, objectSchema, text } from '../../core/tools.js'
+import { ceulenTool, coldToolEntries, errorMessage, nativeToolEntries, objectSchema, text } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import { randomUUID } from 'node:crypto'
 import { commitState, exitBindings, forgetState, stateBindings } from './bindings.js'
@@ -39,7 +39,7 @@ export const inject = ['tools']
 const DESCRIPTION = [
   "Run one JavaScript program that calls this session's tools.",
   '',
-  '`code` is the body of an async function: top-level `await` and `return` work. `tools.<name>(args)` calls any tool the session can call and resolves to its structured value (see the shapes below); arguments follow that tool\'s declared schema (DSH\'s `bash` also requires `description`). Tool names are exact; use `tools[\'name\']` when the name is not a JavaScript identifier. A failed, blocked or denied call rejects with the tool\'s error text — use `Promise.allSettled()` to keep the calls that succeed, and when a call fails on its arguments retry the fallback shape inside `try { … } catch { … }` so the wrong variant costs no extra model round trip.',
+  '`code` is the body of an async function: top-level `await` and `return` work. `tools.<name>(args)` calls any tool the session can call, cold ones held behind `ceulen_tools` included (search there for their arguments), and resolves to its structured value (see the shapes below); arguments follow that tool\'s declared schema (DSH\'s `bash` also requires `description`). Tool names are exact; use `tools[\'name\']` when the name is not a JavaScript identifier. A failed, blocked or denied call rejects with the tool\'s error text — use `Promise.allSettled()` to keep the calls that succeed, and when a call fails on its arguments retry the fallback shape inside `try { … } catch { … }` so the wrong variant costs no extra model round trip.',
   '',
   'Result shapes: `bash` → `{ exitCode, stdout: { text, truncated }, stderr: { text, truncated } }`, so the output is `r.stdout.text`, never `r.stdout`; a non-zero exit does not reject, check `exitCode`. `read` → `{ path, lines: [{ number, text }], totalLines }`. `web_search({ queries: [\'…\'] })` (an array, not `query`) → `{ content?, sources: [{ url, title?, snippet?, publishedAt?, summary? }], truncated }`; `content` is the provider\'s answer text when it gives one, and there is no `answer` field.',
   '',
@@ -176,7 +176,7 @@ function codemodeTool(ctx: PluginContext) {
       const calls: CodemodeCall[] = []
       const session = exec.agent?.session
       const usage = { rawChars: 0 }
-      const functions = toolBindings(registry, exec, calls, usage)
+      const functions = toolBindings(registry, exec, calls, usage, [...coldToolEntries(), ...nativeToolEntries()].map(entry => entry.name))
       const pending = new Map<string, Json>()
       let spec: unknown
       try {
