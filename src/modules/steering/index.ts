@@ -2,11 +2,25 @@ import type { AgentLike, PluginContext, UserMessageLike } from '../../core/types
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { clampText, registerCommandSafe, registerPromptSection, errorMessage } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
+import { agentRoute, routeWanted } from '../../core/route.js'
 import { randomUUID } from 'node:crypto'
+import { lookupReplacements, redirectText } from './bash-search.js'
+import { PLAYBOOK } from './playbook.js'
 
 export const name = 'ceulen-steering'
 
 export const inject = ['commands', 'systemPrompt']
+
+/** True when `agent` runs on a route listed in `steering.models`. */
+function steeredRoute(agent: unknown): boolean {
+  return routeWanted(loadSettingsSync().steering.models, agentRoute(agent as Partial<AgentLike> | undefined))
+}
+
+/** The playbook's delegation advice is for leads; children do not delegate. */
+function steeredLead(agent: unknown): boolean {
+  const lead = agent as Partial<AgentLike> | undefined
+  return lead !== undefined && lead.session?.header?.parentSession === undefined && steeredRoute(lead)
+}
 
 // One text for every route: a prompt section cannot see the selected model,
 // so a line addressed to one model family would be read by all of them.
@@ -57,6 +71,49 @@ export function apply(ctx: PluginContext): void {
     name: 'ceulen:steering',
     order: 85,
     text: GUIDANCE,
+  })
+
+  // Evaluated per request with the live agent as scope, so a /model switch
+  // adds or drops it; the text itself never varies, which keeps the cache warm.
+  registerPromptSection(ctx, {
+    name: 'ceulen:playbook',
+    order: 86,
+    interpolate: false,
+    text: (context = {}) => steeredLead(context.scope) ? PLAYBOOK : '',
+  })
+
+  // Nested codemode calls run through the same pipeline, so this sees
+  // `tools.bash(...)` inside scripts as well as direct bash calls. A command
+  // re-issued unchanged after a redirect runs: the model has a reason the
+  // dedicated tool cannot cover (a binary file, a pattern ripgrep rejects…).
+  const redirected = new Map<string, Set<string>>()
+  ctx.on('agent/disposed', (payload: { agent?: AgentLike } | undefined) => {
+    const id = payload?.agent?.session?.id
+    if (id !== undefined) redirected.delete(String(id))
+  })
+  ctx.on('tools/pre-execute', async (exec: { name?: string; arguments?: unknown; agent?: unknown }, next: () => Promise<unknown>) => {
+    if (exec?.name !== 'bash') return next()
+    try {
+      if (loadSettingsSync().steering.bashLookups !== 'redirect' || !steeredRoute(exec.agent)) return next()
+      const input = typeof exec.arguments === 'string' ? JSON.parse(exec.arguments) as unknown : exec.arguments
+      const command = (input as { command?: unknown } | undefined)?.command
+      if (typeof command !== 'string') return next()
+      const calls = lookupReplacements(command)
+      if (calls === undefined) return next()
+      const session = String((exec.agent as Partial<AgentLike> | undefined)?.session?.id ?? '')
+      const seen = redirected.get(session) ?? new Set<string>()
+      if (seen.has(command)) {
+        logLine('steering', `bash lookup re-issued, allowed: ${clampText(command, 160)}`)
+        return next()
+      }
+      seen.add(command)
+      redirected.set(session, seen)
+      logLine('steering', `bash lookup redirected: ${clampText(command, 160)} → ${calls.map(call => call.call).join(' | ').slice(0, 200)}`)
+      return { kind: 'deny', reason: redirectText(command, calls) }
+    } catch (error) {
+      logLine('steering', `bash lookup check failed: ${errorMessage(error)}`)
+      return next()
+    }
   })
 
   registerCommandSafe(ctx, {

@@ -113,6 +113,12 @@ export interface CeulenSettings {
   rtk: {
     enabled: boolean
   }
+  /** Harness playbook and bash-lookup redirect for lead routes matching `models` (substring; `*` = all; [] = off). */
+  steering: {
+    models: string[]
+    /** `redirect` denies bash calls that only grep/cat/sed -n/find files and names the dedicated call; `off` lets them run. */
+    bashLookups: 'redirect' | 'off'
+  }
   subagent: {
     /** Function alias (`fast`, `coder`, `smart`) -> ordered `provider/model[:effort]` chain. */
     roles: Record<string, string[]>
@@ -122,6 +128,16 @@ export interface CeulenSettings {
     thinking: Record<string, ReasoningEffort>
     /** Per-role DSH agent preset; omission inherits the parent's composition. */
     presets: Record<string, string>
+    /** Delegation notices for lead routes matching `models` (substring of provider/model; `*` = all; [] = off). */
+    nudge: {
+      models: string[]
+      /** Recon notice after N local discovery calls in one turn with no delegation; 0 disables. */
+      discoveryAfter: number
+      /** Review notice once a turn has edited N distinct files with no reviewer; 0 disables. */
+      reviewAfterFiles: number
+      /** Recon notice waits for this much lead context (tokens); 0 = no floor. */
+      reconMinContext: number
+    }
   }
   /** Per-phase routes over the native plan mode: plan on one model, execute on another. */
   plan: {
@@ -204,15 +220,16 @@ export function defaultSettings(): CeulenSettings {
     rules: { guards: 'audit' },
     ponytail: { level: 'full' },
     ux: { mode: 'off' },
-    // DeepSeek V4.1 Flash is the agent-mode default on both provider routes.
-    agentMode: { models: ['opencode-go/deepseek-v4.1-flash', 'deepseek/deepseek-flash'] },
+    // Agent Mode is a translation role: no route loads it by default.
+    agentMode: { models: [] },
     web: {},
     a2a: { peers: [] },
     gh: { enabled: true },
     codemode: { enabled: true, chainHintAfter: 2 },
     rtk: { enabled: true },
+    steering: { models: ['deepseek-v4.1-flash', 'deepseek-flash'], bashLookups: 'redirect' },
     // ponytail: `*` = inherit the parent route, so a fresh install assumes no provider.
-    subagent: { roles: { fast: ['*'], coder: ['*'], smart: ['*'] }, models: {}, thinking: {}, presets: {} },
+    subagent: { roles: { fast: ['*'], coder: ['*'], smart: ['*'] }, models: {}, thinking: {}, presets: {}, nudge: { models: ['deepseek-v4.1-flash', 'deepseek-flash'], discoveryAfter: 10, reviewAfterFiles: 3, reconMinContext: 60_000 } },
     // Both phases inherit the client's model until a route is configured.
     plan: { model: '', implement: '', fallbacks: [], implementFallbacks: [] },
     usage: { enabled: true, showStatus: true, intervalMinutes: 5, providers: [] },
@@ -335,7 +352,9 @@ export function normalizeSettings(raw: unknown, env = true): CeulenSettings {
   const gh = isRecord(raw.gh) ? raw.gh : {}
   const codemode = isRecord(raw.codemode) ? raw.codemode : {}
   const rtk = isRecord(raw.rtk) ? raw.rtk : {}
+  const steering = isRecord(raw.steering) ? raw.steering : {}
   const subagent = isRecord(raw.subagent) ? raw.subagent : {}
+  const nudge = isRecord(subagent.nudge) ? subagent.nudge : {}
   const plan = isRecord(raw.plan) ? raw.plan : {}
   const usage = isRecord(raw.usage) ? raw.usage : {}
   const agentbar = isRecord(raw.agentbar) ? raw.agentbar : {}
@@ -414,11 +433,21 @@ export function normalizeSettings(raw: unknown, env = true): CeulenSettings {
       chainHintAfter: num((codemode as Record<string, unknown>).chainHintAfter, base.codemode.chainHintAfter, 0, 20),
     },
     rtk: { enabled: bool(rtk.enabled, base.rtk.enabled) },
+    steering: {
+      models: Array.isArray(steering.models) ? strArray(steering.models) : base.steering.models,
+      bashLookups: steering.bashLookups === 'off' ? 'off' : 'redirect',
+    },
     subagent: {
       roles: { ...base.subagent.roles, ...chainRecord(subagent.roles) },
       models: stringRecord(subagent.models),
       thinking: effortRecord(subagent.thinking),
       presets: stringRecord(subagent.presets),
+      nudge: {
+        models: Array.isArray(nudge.models) ? strArray(nudge.models) : base.subagent.nudge.models,
+        discoveryAfter: num(nudge.discoveryAfter, base.subagent.nudge.discoveryAfter, 0, 50),
+        reviewAfterFiles: num(nudge.reviewAfterFiles, base.subagent.nudge.reviewAfterFiles, 0, 50),
+        reconMinContext: num(nudge.reconMinContext, base.subagent.nudge.reconMinContext, 0, 1_000_000),
+      },
     },
     plan: {
       model: str(plan.model, base.plan.model).trim(),

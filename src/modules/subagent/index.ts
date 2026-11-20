@@ -17,6 +17,7 @@ import { logLine } from '../../core/log.js'
 import { describeRoute, resolveRole, roleByName, roleNames, REVIEWER_SCHEMA, ROLES, type RoleDefinition } from './roles.js'
 import { contractBlock, parseTypedReply, type SchemaNode } from './schema.js'
 import { installOrchestrator } from './orchestrator.js'
+import { installNudges } from './nudge.js'
 import { runInHerdr, type HerdrPermission, type HerdrRoute } from './herdr.js'
 import { herdrEnv } from '../../core/herdr.js'
 import { planActive } from '../../core/plan-mode.js'
@@ -290,6 +291,7 @@ export function apply(ctx: PluginContext): void {
   if (!isModuleEnabled('subagent', loadSettingsSync())) return
 
   installOrchestrator(ctx)
+  installNudges(ctx)
 
   registerPromptSection(ctx, {
     name: 'ceulen:subagent',
