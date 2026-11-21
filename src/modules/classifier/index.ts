@@ -50,6 +50,11 @@ function hasFlag(args: string, letter: string): boolean {
   return SHORT_FLAG(letter).test(args)
 }
 
+/** A pathspec naming the whole tree: `.`, `./`, `:/`, `*`, `:(top)`. */
+function wholeTree(args: string): boolean {
+  return args.split(/\s+/).some(token => /^(?:\.\/?|:\/\.?|\*|:\(top\)\.?)$/.test(token))
+}
+
 /** `rm` with a recursive+force combination in any spelling. */
 function rmDestructive(command: string): boolean {
   for (const match of command.matchAll(/\brm\b([^;|&\n]*)/gu)) {
@@ -67,13 +72,20 @@ function rmDestructive(command: string): boolean {
 function gitDestructive(command: string): boolean {
   for (const match of command.matchAll(/\bgit\b([^;|&\n]*)/gu)) {
     const rest = (match[1] ?? '').replace(/["']/g, '')
-    const sub = /(?:^|\s)(reset|clean|push)\b/.exec(rest)
+    const sub = /(?:^|\s)(reset|clean|push|checkout|restore|switch)\b/.exec(rest)
     if (sub === null) continue
     const args = rest.slice(sub.index + sub[0].length)
     if (sub[1] === 'reset' && LONG_FLAG('--hard').test(args)) return true
     // `-f` alone deletes untracked files (i.e. uncommitted new work); `-x` only
     // widens that to ignored files, so force is the condition that matters.
     if (sub[1] === 'clean' && (hasFlag(args, 'f') || LONG_FLAG('--force').test(args))) return true
+    // Whole-tree discards drop uncommitted work like `reset --hard`. A single
+    // path stays ungated: agents revert their own side effects that way
+    // (a build-touched tsconfig.json), and gating it would mostly misfire.
+    if (sub[1] === 'checkout' && (hasFlag(args, 'f') || LONG_FLAG('--force').test(args) || wholeTree(args))) return true
+    if (sub[1] === 'switch' && (hasFlag(args, 'f') || LONG_FLAG('--force').test(args) || LONG_FLAG('--discard-changes').test(args))) return true
+    // `restore` touches the worktree unless only --staged/-S is given.
+    if (sub[1] === 'restore' && wholeTree(args) && (!/(?:^|\s)(--staged|-S)(?=\s|$)/.test(args) || /(?:^|\s)(--worktree|-W|-SW|-WS)(?=\s|$)/.test(args))) return true
     if (sub[1] === 'push') {
       if (/(?:^|\s)--force/.test(args) || hasFlag(args, 'f')) return true
       if (/(?:^|\s)\+\S/.test(args)) return true // +<refspec> is a force push
