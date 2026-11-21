@@ -364,19 +364,6 @@ async function gateCommand(ctx: PluginContext, command: string, cwd: string, age
   }
 }
 
-/** The chat audit's `{reversible, serves_task}` judgments, asked as typed questions. */
-const AUDIT_QUESTIONS: Question[] = [
-  { id: 'reversible', type: 'noul', instructions: 'Is this shell command reversible, or does it only touch regenerable files? Be strict about destructive or credential-touching commands.' },
-  { id: 'serves_task', type: 'noul', instructions: 'Does this shell command look like ordinary development work (build, test, inspect, edit project files)?' },
-]
-
-function auditFromAnswers(answers: Record<string, unknown>): Record<string, unknown> {
-  const p = (id: string): number | undefined => (answers[id] as { probability?: number } | undefined)?.probability
-  const reversible = p('reversible')
-  const serves = p('serves_task')
-  return { reversible: reversible === undefined ? null : reversible >= GATE_THRESHOLD, serves_task: serves === undefined ? null : serves >= GATE_THRESHOLD, p_reversible: reversible, p_serves_task: serves }
-}
-
 function auditVerdict(command: string, verdict: unknown): void {
   logLine('classifier', JSON.stringify({ at: new Date().toISOString(), command: clampText(command, 500), verdict }))
 }
@@ -446,10 +433,9 @@ export function apply(ctx: PluginContext): void {
         } else {
           const route = routesFor(exec.agent)[0]
           if (route !== undefined && isSystemOneRoute(route)) {
-            // Detached like the chat audit below; same three judgments as typed questions.
-            void askClassifier(ctx, exec.agent, { command: clampText(command, 2_000) }, AUDIT_QUESTIONS, Date.now() + 10_000)
-              .then(answers => auditVerdict(command, { static: 'ok', model: auditFromAnswers(answers) }))
-              .catch((error: unknown) => auditVerdict(command, { static: 'ok', model: `unavailable: ${errorMessage(error)}` }))
+            // A decision model decides (gate, ux level, the classify tool); it
+            // does not grade every command for a log nobody acts on.
+            auditVerdict(command, { static: 'ok', model: 'skipped: decision model' })
           } else if (route !== undefined) {
             const controller = new AbortController()
             // Detached audit: it never delays the turn, so give a reasoning
