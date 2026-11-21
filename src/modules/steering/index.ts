@@ -5,6 +5,7 @@ import { logLine } from '../../core/log.js'
 import { agentRoute, routeWanted } from '../../core/route.js'
 import { randomUUID } from 'node:crypto'
 import { lookupReplacements, redirectText } from './bash-search.js'
+import { captureRedirectText, chromeScreenshotCalls } from './bash-capture.js'
 import { PLAYBOOK } from './playbook.js'
 
 export const name = 'ceulen-steering'
@@ -99,17 +100,22 @@ export function apply(ctx: PluginContext): void {
       const command = (input as { command?: unknown } | undefined)?.command
       if (typeof command !== 'string') return next()
       const calls = lookupReplacements(command)
-      if (calls === undefined) return next()
+      const shot = calls === undefined ? chromeScreenshotCalls(command) : undefined
+      if (calls === undefined && shot === undefined) return next()
       const session = String((exec.agent as Partial<AgentLike> | undefined)?.session?.id ?? '')
       const seen = redirected.get(session) ?? new Set<string>()
       if (seen.has(command)) {
-        logLine('steering', `bash lookup re-issued, allowed: ${clampText(command, 160)}`)
+        logLine('steering', `bash ${shot === undefined ? 'lookup' : 'screenshot'} re-issued, allowed: ${clampText(command, 160)}`)
         return next()
       }
       seen.add(command)
       redirected.set(session, seen)
-      logLine('steering', `bash lookup redirected: ${clampText(command, 160)} → ${calls.map(call => call.call).join(' | ').slice(0, 200)}`)
-      return { kind: 'deny', reason: redirectText(command, calls) }
+      if (shot !== undefined) {
+        logLine('steering', `bash screenshot redirected: ${clampText(command, 160)} → ${shot.map(call => call.call).join(' | ').slice(0, 200)}`)
+        return { kind: 'deny', reason: captureRedirectText(command, shot) }
+      }
+      logLine('steering', `bash lookup redirected: ${clampText(command, 160)} → ${calls!.map(call => call.call).join(' | ').slice(0, 200)}`)
+      return { kind: 'deny', reason: redirectText(command, calls!) }
     } catch (error) {
       logLine('steering', `bash lookup check failed: ${errorMessage(error)}`)
       return next()
