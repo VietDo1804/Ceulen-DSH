@@ -1,9 +1,10 @@
 import path from 'node:path'
-import type { PluginContext } from '../../core/types.js'
+import type { PluginContext, ToolDefinition } from '../../core/types.js'
 import { ceulenTool, clampText, objectSchema, registerToolSafe, cwdOf } from '../../core/tools.js'
 import { credential } from '../../core/credentials.js'
 import { findChromeBinary, capturePdf, captureScreenshot } from '../../vendor/ceulen/web/chrome.js'
-import { prepareSteps, runInteraction, type InteractStep } from '../../vendor/ceulen/web/cdp.js'
+import { PLAIN_STEP_KEYS, prepareSteps, runInteraction, type InteractStep } from '../../vendor/ceulen/web/cdp.js'
+import { registerWithVariant } from '../../core/variants.js'
 import { IDLE_MS, runInSession, type SessionResult } from './browser-sessions.js'
 import { chatgptWebChat, describeChatGptError, loadChatGptAuth } from '../../vendor/ceulen/web/chatgpt.js'
 import { chatgptChat, describeChatApiError, loadChatConfig } from '../../vendor/ceulen/web/chatapi.js'
@@ -47,6 +48,21 @@ const INTERACT_PARAMETERS = objectSchema({
   screenshot: { type: 'boolean', description: 'false: no final screenshot when every step succeeds (read-only evaluate probes). A failed step still returns one.' },
   session: { type: 'string', description: 'Keep the page alive under this name for later calls (state kept: login, clicks, scroll). Same name + same url continues on the page as it is; another url navigates it. Closes after 10 min idle.' },
   close: { type: 'boolean', description: 'With session: close that page after this call.' },
+}, ['url'], true)
+
+/** web_interact's parameters before the flash tuning, for every other route. */
+const PLAIN_INTERACT_PARAMETERS = objectSchema({
+  url: { type: 'string', description: 'http(s) or workspace file:// URL.' },
+  steps: {
+    type: 'array',
+    description: 'Ordered interaction steps, exactly one action key per step.',
+    items: { type: 'object', additionalProperties: true },
+  },
+  viewport: { type: 'object', additionalProperties: true, description: '{width,height?,device_scale_factor?}.' },
+  reducedMotion: { type: 'boolean', description: 'Force prefers-reduced-motion: reduce.' },
+  waitForSec: { type: 'number', description: 'Settle time after load, seconds.' },
+  stepTimeoutMs: { type: 'integer', description: 'Per-step budget (default 60000).' },
+  grant: { type: 'array', items: { type: 'string' }, description: 'Browser permissions to grant, e.g. clipboard-read.' },
 }, ['url'], true)
 
 /** The seven model-facing web tools; the command surface stays in index.ts. */
@@ -159,83 +175,7 @@ export function registerWebTools(ctx: PluginContext): void {
     },
   }))
 
-  registerToolSafe(ctx, ceulenTool({
-    name: 'web_interact',
-    description: [
-      'Drive a real headless Chrome page: click, hover, type, press keys, evaluate JS, wait, answer dialogs, and capture a final screenshot.',
-      'Steps use exactly one action key each: {click:"selector"}, {hover:"selector"}, {type:{selector,text}}, {press:"Enter"}, {evaluate:"js",label?}, {wait_for:number|selector}, {dialog:"accept"|"dismiss"}, {screenshot:true}. A selector is CSS or text=Label (the deepest visible element containing that text).',
-      'Without `session` one call = one browser lifecycle and nothing survives it. For several checks on one page, pass `session:"name"`: the next call with that name continues on the same page (state kept, no re-navigation for the same url); end with `close:true`.',
-      'Only reading values? Pass `screenshot:false` to skip the image, e.g. {url, session:"app", screenshot:false, steps:[{evaluate:"document.title"}]}.',
-      'Images do not pass through codemode — call this directly when you need to see the page.',
-    ].join(' '),
-    parameters: INTERACT_PARAMETERS,
-    contract: { normalize: normalizeInteractArgs },
-    outputSchema: IMAGE_RESULT_SCHEMA,
-    render: imageRender,
-    timeoutMs: 120_000,
-    concurrencySafe: false,
-    async execute(raw, exec) {
-      const args = raw as {
-        url: string
-        steps?: InteractStep[]
-        viewport?: { width: number; height?: number; device_scale_factor?: number }
-        reducedMotion?: boolean
-        waitForSec?: number
-        stepTimeoutMs?: number
-        grant?: string[]
-        screenshot?: boolean
-        session?: string
-        close?: boolean
-      }
-      const cwd = cwdOf(exec)
-      assertCaptureScope(args.url, cwd)
-      // Validated before Chrome launches, so a bad step costs no browser.
-      const { steps, splitSteps } = prepareSteps(args.steps ?? [])
-      const name = typeof args.session === 'string' ? args.session.trim() : ''
-      const common = {
-        url: args.url,
-        steps,
-        viewport: args.viewport,
-        reducedMotion: args.reducedMotion,
-        waitForSec: args.waitForSec,
-        stepTimeoutMs: args.stepTimeoutMs,
-        grant: args.grant,
-        screenshot: args.screenshot,
-        signal: exec.signal,
-      }
-      const owner = String(exec.agent?.session?.id ?? 'process')
-      const result = name === ''
-        ? await runInteraction(common)
-        : await runInSession({ ...common, splitSteps, owner, name, close: args.close === true })
-      const lines = result.outcomes.map(outcome => {
-        const value = (outcome as { value?: unknown }).value
-        const suffix = outcome.error !== undefined
-          ? `: ${outcome.error}`
-          : value === undefined ? '' : ` = ${JSON.stringify(value)}`
-        return `${outcome.ok ? 'ok  ' : 'FAIL'} ${outcome.label}${suffix}`
-      })
-      if (result.navigatedTo !== undefined) lines.push(`navigated to ${result.navigatedTo}`)
-      if (result.consoleErrors !== undefined && result.consoleErrors.length > 0) lines.push(`console errors: ${result.consoleErrors.slice(0, 5).join(' | ')}`)
-      if (result.dialogs !== undefined && result.dialogs.length > 0) lines.push(`dialogs: ${result.dialogs.join('; ')}`)
-      if (result.probe.scrollWidth !== undefined) lines.push(`page width ${result.probe.scrollWidth}px · viewport ${result.probe.innerWidth ?? '?'}px`)
-      if ('session' in result) {
-        const live = (result as SessionResult).session
-        const how = live.state === 'opened' ? 'opened' : live.state === 'navigated' ? 'reused, navigated to the new url' : 'reused, page state kept'
-        lines.push(live.closed
-          ? `session "${live.name}": ${how}; now closed (${live.closedReason})`
-          : `session "${live.name}": ${how}; stays open ${IDLE_MS / 60_000} min idle (close:true ends it)`)
-      }
-      const ignored = ignoredNote('web_interact', raw, INTERACT_PARAMETERS)
-      if (ignored !== '') lines.push(ignored)
-      const failed = result.outcomes.some(outcome => !outcome.ok)
-      const screenshot = result.screenshot === undefined
-        ? { text: args.screenshot === false ? 'No screenshot (screenshot: false).' : 'No screenshot returned.' }
-        : await saveScreenshot(ctx, result.screenshot, `interact-${new URL(args.url).hostname || 'page'}`, !failed)
-      const text = `${lines.join('\n')}\n\n${screenshot.text}`
-      if (failed) throw new Error(text)
-      return { text, ...(screenshot.image === undefined ? {} : { image: screenshot.image }) }
-    },
-  }))
+  registerWithVariant(ctx, interactTool(ctx, false), interactTool(ctx, true))
 
   registerToolSafe(ctx, ceulenTool({
     name: 'web_chat',
@@ -383,4 +323,96 @@ export function registerWebTools(ctx: PluginContext): void {
     },
   }))
 
+}
+
+/** Before the flash tuning; kept word for word for every other route. */
+const PLAIN_INTERACT_DESCRIPTION = 'Drive a real headless Chrome page: click, type, press keys, evaluate JS, wait, answer dialogs, and capture a final screenshot. One call = one browser lifecycle. Steps use exactly one action key each: {click:"selector"}, {type:{selector,text}}, {press:"Enter"}, {evaluate:"js",label?}, {wait_for:number|selector}, {dialog:"accept"|"dismiss"}, {screenshot:true}. Images do not pass through codemode — call this directly when you need to see the page.'
+
+const TUNED_INTERACT_DESCRIPTION = [
+  'Drive a real headless Chrome page: click, hover, type, press keys, evaluate JS, wait, answer dialogs, and capture a final screenshot.',
+  'Steps use exactly one action key each: {click:"selector"}, {hover:"selector"}, {type:{selector,text}}, {press:"Enter"}, {evaluate:"js",label?}, {wait_for:number|selector}, {dialog:"accept"|"dismiss"}, {screenshot:true}. A selector is CSS or text=Label (the deepest visible element containing that text).',
+  'Without `session` one call = one browser lifecycle and nothing survives it. For several checks on one page, pass `session:"name"`: the next call with that name continues on the same page (state kept, no re-navigation for the same url); end with `close:true`.',
+  'Only reading values? Pass `screenshot:false` to skip the image, e.g. {url, session:"app", screenshot:false, steps:[{evaluate:"document.title"}]}.',
+  'Images do not pass through codemode — call this directly when you need to see the page.',
+].join(' ')
+
+/**
+ * `web_interact` as every route sees it (`tuned` false: the description,
+ * schema and behaviour from before the flash tuning) or as the steered routes
+ * see it (`tuned`: named sessions, hover, `text=`, `screenshot:false`, and a
+ * pointer move before each click). See core/variants.ts.
+ */
+function interactTool(ctx: PluginContext, tuned: boolean): ToolDefinition {
+  const parameters = tuned ? INTERACT_PARAMETERS : PLAIN_INTERACT_PARAMETERS
+  return ceulenTool({
+    name: 'web_interact',
+    description: tuned ? TUNED_INTERACT_DESCRIPTION : PLAIN_INTERACT_DESCRIPTION,
+    parameters,
+    contract: { normalize: raw => normalizeInteractArgs(raw, tuned) },
+    outputSchema: IMAGE_RESULT_SCHEMA,
+    render: imageRender,
+    timeoutMs: 120_000,
+    concurrencySafe: false,
+    async execute(raw, exec) {
+      const args = raw as {
+        url: string
+        steps?: InteractStep[]
+        viewport?: { width: number; height?: number; device_scale_factor?: number }
+        reducedMotion?: boolean
+        waitForSec?: number
+        stepTimeoutMs?: number
+        grant?: string[]
+        screenshot?: boolean
+        session?: string
+        close?: boolean
+      }
+      const cwd = cwdOf(exec)
+      assertCaptureScope(args.url, cwd)
+      // Validated before Chrome launches, so a bad step costs no browser.
+      const { steps, splitSteps } = prepareSteps(args.steps ?? [], tuned ? undefined : PLAIN_STEP_KEYS)
+      const name = tuned && typeof args.session === 'string' ? args.session.trim() : ''
+      const common = {
+        url: args.url,
+        steps,
+        viewport: args.viewport,
+        reducedMotion: args.reducedMotion,
+        waitForSec: args.waitForSec,
+        stepTimeoutMs: args.stepTimeoutMs,
+        grant: args.grant,
+        ...(tuned ? { screenshot: args.screenshot, extended: true } : {}),
+        signal: exec.signal,
+      }
+      const owner = String(exec.agent?.session?.id ?? 'process')
+      const result = name === ''
+        ? await runInteraction(common)
+        : await runInSession({ ...common, splitSteps, owner, name, close: args.close === true })
+      const lines = result.outcomes.map(outcome => {
+        const value = (outcome as { value?: unknown }).value
+        const suffix = outcome.error !== undefined
+          ? `: ${outcome.error}`
+          : value === undefined ? '' : ` = ${JSON.stringify(value)}`
+        return `${outcome.ok ? 'ok  ' : 'FAIL'} ${outcome.label}${suffix}`
+      })
+      if (result.navigatedTo !== undefined) lines.push(`navigated to ${result.navigatedTo}`)
+      if (result.consoleErrors !== undefined && result.consoleErrors.length > 0) lines.push(`console errors: ${result.consoleErrors.slice(0, 5).join(' | ')}`)
+      if (result.dialogs !== undefined && result.dialogs.length > 0) lines.push(`dialogs: ${result.dialogs.join('; ')}`)
+      if (result.probe.scrollWidth !== undefined) lines.push(`page width ${result.probe.scrollWidth}px · viewport ${result.probe.innerWidth ?? '?'}px`)
+      if ('session' in result) {
+        const live = (result as SessionResult).session
+        const how = live.state === 'opened' ? 'opened' : live.state === 'navigated' ? 'reused, navigated to the new url' : 'reused, page state kept'
+        lines.push(live.closed
+          ? `session "${live.name}": ${how}; now closed (${live.closedReason})`
+          : `session "${live.name}": ${how}; stays open ${IDLE_MS / 60_000} min idle (close:true ends it)`)
+      }
+      const ignored = ignoredNote('web_interact', raw, parameters)
+      if (ignored !== '') lines.push(ignored)
+      const failed = result.outcomes.some(outcome => !outcome.ok)
+      const screenshot = result.screenshot === undefined
+        ? { text: tuned && args.screenshot === false ? 'No screenshot (screenshot: false).' : 'No screenshot returned.' }
+        : await saveScreenshot(ctx, result.screenshot, `interact-${new URL(args.url).hostname || 'page'}`, !failed)
+      const text = `${lines.join('\n')}\n\n${screenshot.text}`
+      if (failed) throw new Error(text)
+      return { text, ...(screenshot.image === undefined ? {} : { image: screenshot.image }) }
+    },
+  })
 }

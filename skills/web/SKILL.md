@@ -17,7 +17,7 @@ all tools or backends from the upstream Pi web module.
 | Discover links | `web_map` | Links from one HTML page, not a recursive site crawl |
 | Screenshot | `web_screenshot` | Local Chrome/Chromium; narrow viewports use CDP emulation |
 | PDF | `web_pdf` | Local Chrome/Chromium |
-| Click, hover, type, evaluate, verify UI | `web_interact` | Local Chrome via CDP; one browser per call, or a named `session` kept between calls |
+| Click, type, evaluate, verify UI | `web_interact` | Local Chrome via CDP; one browser lifecycle per call |
 | One-off model chat | `web_chat` | Configured ChatGPT web credential or OpenAI-compatible gateway |
 | Generate an image | `web_image` | ChatGPT web image generation on the subscription credential (no API key), Z.AI via `ZAI_API_KEY`, or any OpenAI-compatible images endpoint via `WEB_IMAGE_API_BASE_URL` |
 | Check available configuration | `web_status` | Reports native web service, providers, credentials and Chrome availability |
@@ -59,21 +59,7 @@ when available.
 - Images do not pass through `codemode` return values. Call capture tools
   directly to inspect the image; use `read_image` when a PNG path is returned.
 
-## Interact: one call, or a named session
-
-Without `session`, one call = one browser lifecycle. For several checks on the
-same page pass `session: "name"`: the next call with that name continues on the
-same page (login, clicks, scroll and SPA state kept). The same `url` (hash
-ignored) does not re-navigate; another `url` navigates that page. `close: true`
-ends it; it also closes after 10 minutes idle or when a step times out.
-`screenshot: false` skips the final image for read-only `evaluate` probes (a
-failed step still returns one). `{hover: "selector"}` moves a real mouse there,
-so `:hover` styles and `mouseenter` menus fire.
-
-```json
-{"url": "http://127.0.0.1:3000/", "session": "app", "screenshot": false, "steps": [{"hover": "#menu"}, {"evaluate": "document.querySelector('#menu .panel').offsetHeight", "label": "panel height"}]}
-```
-
+## Interact: one call = one browser lifecycle
 
 ```json
 {

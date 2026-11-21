@@ -242,10 +242,13 @@ export type InteractStep =
   | { screenshot: true };
 
 const STEP_KEYS = ["click", "hover", "type", "press", "evaluate", "wait_for", "dialog", "screenshot"];
+/** The step keys of the untuned web_interact (no hover), as before the flash tuning. */
+export const PLAIN_STEP_KEYS = STEP_KEYS.filter((key) => key !== "hover");
 
 /** Exactly one known action key per step, so bad input fails before Chrome launches.
  *  Returns the number of multi-action steps that were auto-split. */
-export function validateSteps(steps: InteractStep[]): number {
+export function validateSteps(steps: InteractStep[], stepKeys: readonly string[] = STEP_KEYS): number {
+  const STEP_KEYS = stepKeys;
   let splitSteps = 0;
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
@@ -418,10 +421,20 @@ const FIND_ELEMENT = `(s) => {
   return deepest.find((e) => norm(e.textContent) === t) || deepest[0] || null;
 }`;
 
+/**
+ * The element lookup a step's selector goes through. `extended` (the tuned
+ * web_interact) resolves `text=` too; otherwise it is plain querySelector, as
+ * before the tuning.
+ */
+function findElement(sel: string, extended: boolean): string {
+  return extended ? `(${FIND_ELEMENT})(${sel})` : `document.querySelector(${sel})`;
+}
+
 async function runStep(
   connection: CdpConnection,
   sessionId: string,
   step: InteractStep,
+  extended = false,
 ): Promise<StepOutcome> {
   const label = stepLabel(step);
   try {
@@ -432,7 +445,7 @@ async function runStep(
         await connection.send(
           "Runtime.evaluate",
           {
-            expression: `(() => { const el = (${FIND_ELEMENT})(${sel}); if (!el) return null; el.scrollIntoView({ block: "center" }); const r = el.getBoundingClientRect(); if (r.width <= 0 || r.height <= 0) return { hidden: true }; return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`,
+            expression: `(() => { const el = ${findElement(sel, extended)}; if (!el) return null; el.scrollIntoView({ block: "center" }); const r = el.getBoundingClientRect(); if (r.width <= 0 || r.height <= 0) return { hidden: true }; return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`,
             returnByValue: true,
           },
           sessionId,
@@ -445,7 +458,8 @@ async function runStep(
       if (point.hidden) throw new Error(`element not visible (zero size): ${selector}`);
       // Trusted pointer input: a real mouseMoved is what fires :hover,
       // mouseenter/mouseover and hover-revealed menus; el.dispatchEvent does not.
-      await connection.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y, button: "none", buttons: 0 }, sessionId);
+      // The tuned tool also moves before a click, as a user's pointer would.
+      if (extended || "hover" in step) await connection.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y, button: "none", buttons: 0 }, sessionId);
       if ("hover" in step) return { label, ok: true };
       // Trusted input via CDP mouse events — synthetic el.click() grants no
       // user activation (clipboard writes etc. would fail).
@@ -466,7 +480,7 @@ async function runStep(
       const probe = unwrapEvaluate(
         await connection.send(
           "Runtime.evaluate",
-          { expression: `(() => { const el = (${FIND_ELEMENT})(${sel}); if (!el) return { missing: true }; el.focus(); return { focused: document.activeElement === el }; })()`, returnByValue: true },
+          { expression: `(() => { const el = ${findElement(sel, extended)}; if (!el) return { missing: true }; el.focus(); return { focused: document.activeElement === el }; })()`, returnByValue: true },
           sessionId,
         ),
       ) as { missing?: boolean; focused?: boolean } | undefined;
@@ -502,7 +516,7 @@ async function runStep(
         const found = unwrapEvaluate(
           await connection.send(
             "Runtime.evaluate",
-            { expression: `!!(${FIND_ELEMENT})(${sel})`, returnByValue: true },
+            { expression: `!!${findElement(sel, extended)}`, returnByValue: true },
             sessionId,
           ),
         );
@@ -551,6 +565,8 @@ export interface InteractionOpts {
    * `{screenshot:true}` step always does.
    */
   screenshot?: boolean;
+  /** The tuned web_interact: `text=` selectors and a pointer move before each click. */
+  extended?: boolean;
   signal?: AbortSignal;
   wsFactory?: WsFactory;
 }
@@ -716,7 +732,7 @@ export async function navigatePage(page: PageHandle, url: string, waitForSec?: n
 }
 
 /** Steps as the tools accept them: `wait_ms` folded into `wait_for`, declined captures dropped. */
-export function prepareSteps(raw: InteractStep[] | undefined): { steps: InteractStep[]; splitSteps: number } {
+export function prepareSteps(raw: InteractStep[] | undefined, stepKeys: readonly string[] = STEP_KEYS): { steps: InteractStep[]; splitSteps: number } {
   // Tool-schema shape is flattened (one optional action field per step object)
   // because Z.ai's anthropic-compatible endpoint rejects anyOf nested inside
   // anyOf with 400/1210 — map the split wait_ms field back onto wait_for.
@@ -727,13 +743,13 @@ export function prepareSteps(raw: InteractStep[] | undefined): { steps: Interact
         : s,
     )
     .filter((s) => (s as { screenshot?: unknown }).screenshot !== false); // {screenshot:false} = declined capture
-  return { steps, splitSteps: validateSteps(steps) };
+  return { steps, splitSteps: validateSteps(steps, stepKeys) };
 }
 
 /** Run validated steps on an open page, then the overflow probe and the final capture. */
 export async function runOnPage(
   page: PageHandle,
-  opts: { steps: InteractStep[]; splitSteps?: number; grant?: string[]; stepTimeoutMs?: number; screenshot?: boolean; signal?: AbortSignal },
+  opts: { steps: InteractStep[]; splitSteps?: number; grant?: string[]; stepTimeoutMs?: number; screenshot?: boolean; extended?: boolean; signal?: AbortSignal },
 ): Promise<InteractionResult> {
   const { connection, sessionId } = page;
   const send = (method: string, params?: Record<string, unknown>) => connection.send(method, params, sessionId);
@@ -755,7 +771,7 @@ export async function runOnPage(
       outcome = { label: stepLabel(step), ok: true };
     } else {
       const label = stepLabel(step);
-      outcome = await raceBounded(runStep(connection, sessionId, step), stepTimeoutMs, stepTimeoutError(stepTimeoutMs))
+      outcome = await raceBounded(runStep(connection, sessionId, step, opts.extended === true), stepTimeoutMs, stepTimeoutError(stepTimeoutMs))
         .catch((err: Error) => ({ label, ok: false as const, error: err.message }));
       // The arm covers exactly the step that follows it — an unconsumed
       // accept must not silently approve an unrelated dialog steps later.
@@ -830,7 +846,7 @@ export async function runInteraction(opts: InteractionOpts): Promise<Interaction
     // An abort that landed while Chrome was starting fired before the listener existed.
     opts.signal?.throwIfAborted();
     await navigatePage(page, opts.url, opts.waitForSec);
-    return await runOnPage(page, { steps, splitSteps, grant: opts.grant, stepTimeoutMs: opts.stepTimeoutMs, screenshot: opts.screenshot, signal: opts.signal });
+    return await runOnPage(page, { steps, splitSteps, grant: opts.grant, stepTimeoutMs: opts.stepTimeoutMs, screenshot: opts.screenshot, extended: opts.extended, signal: opts.signal });
   } finally {
     opts.signal?.removeEventListener("abort", onAbort);
     page.cleanup();

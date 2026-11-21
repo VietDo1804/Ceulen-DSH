@@ -19,6 +19,7 @@ import type { AgentLike, PluginContext, ToolRunContext } from '../../core/types.
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { ceulenTool, coldToolEntries, errorMessage, nativeToolEntries, objectSchema, sessionSandboxPolicy, text } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
+import { addRouteVariant } from '../../core/variants.js'
 import { randomUUID } from 'node:crypto'
 import { commitState, exitBindings, forgetState, stateBindings } from './bindings.js'
 import { createChainState, hintText, noteToolCall, type ChainState } from './chain-hint.js'
@@ -35,12 +36,32 @@ import type {
 export const name = 'ceulen-codemode'
 export const inject = ['tools']
 
-const DESCRIPTION = [
+/** As tuned for the steered routes (core/variants.ts): cold tools and the MCP result shape named. */
+const TUNED_DESCRIPTION = [
   "Run one JavaScript program that calls this session's tools.",
   '',
   '`code` is the body of an async function: top-level `await` and `return` work. `tools.<name>(args)` calls any tool the session can call, cold ones held behind `ceulen_tools` included (search there for their arguments), and resolves to its structured value (see the shapes below); arguments follow that tool\'s declared schema (DSH\'s `bash` also requires `description`). Tool names are exact; use `tools[\'name\']` when the name is not a JavaScript identifier. A failed, blocked or denied call rejects with the tool\'s error text — use `Promise.allSettled()` to keep the calls that succeed, and when a call fails on its arguments retry the fallback shape inside `try { … } catch { … }` so the wrong variant costs no extra model round trip.',
   '',
   'Result shapes: `bash` → `{ exitCode, stdout: { text, truncated }, stderr: { text, truncated } }`, so the output is `r.stdout.text`, never `r.stdout`; a non-zero exit does not reject, check `exitCode`. `read` → `{ path, lines: [{ number, text }], totalLines }`. `web_search({ queries: [\'…\'] })` (an array, not `query`) → `{ content?, sources: [{ url, title?, snippet?, publishedAt?, summary? }], truncated }`; `content` is the provider\'s answer text when it gives one, and there is no `answer` field. An MCP tool (`mcp__<server>__<tool>`) → `{ content: [{ type: \'text\', text }], structuredContent? }` with no top-level data fields: use `structuredContent` when present, else `JSON.parse(r.content[0].text)` when that text is JSON.',
+  '',
+  'Images do not pass through this return value: a capture tool (`web_screenshot`, `web_interact`, `ux_audit`, `read_image`) called inside the program returns no image to you. Call those tools directly when you need to see the result.',
+  '',
+  '`await state.store({ key, value })` / `await state.load({ key })` keep small JSON values across codemode calls in this live session, lost on restart, so put anything you must keep in a file (≤256k chars per value, ≤1M total); both are async, and writes persist only when the script succeeds. The first line may be `// @options: {"timeout_ms": 60000, "max_output_chars": 4000}` (deadline up to 600s; default 120s).',
+  '',
+  '`await codemode.exit(null)` ends the script successfully from a nested helper (store writes made before it still commit); always `await` it so it unwinds at the call site. A failed script\'s error is trimmed to the message plus its own `<anonymous>:line:column` frame; Node/PTC stack internals are dropped.',
+  '',
+  '`console.log(...)` lines come back in a `<console_output>` block after the script output. Only the `return` value and console lines reach the model, so run independent calls in parallel and distill the return: pick fields and slice long strings (~1KB per key) instead of returning or `JSON.stringify`-ing whole results. A return plus console block past ~6k characters is middle-truncated and the full text spills to a file path named in the result. Calls already made are not undone when a script fails; calls still running when the script ends are cancelled. A script cannot start another codemode or run_code program.',
+  '',
+  'Prefer a direct tool call for one operation; use codemode for fan-out, filtering, or a deterministic loop over tool results.',
+].join('\n')
+
+/** Every other route: the text from before the flash tuning. */
+const DESCRIPTION = [
+  "Run one JavaScript program that calls this session's tools.",
+  '',
+  '`code` is the body of an async function: top-level `await` and `return` work. `tools.<name>(args)` calls any tool the session can call and resolves to its structured value (see the shapes below); arguments follow that tool\'s declared schema (DSH\'s `bash` also requires `description`). Tool names are exact; use `tools[\'name\']` when the name is not a JavaScript identifier. A failed, blocked or denied call rejects with the tool\'s error text — use `Promise.allSettled()` to keep the calls that succeed, and when a call fails on its arguments retry the fallback shape inside `try { … } catch { … }` so the wrong variant costs no extra model round trip.',
+  '',
+  'Result shapes: `bash` → `{ exitCode, stdout: { text, truncated }, stderr: { text, truncated } }`, so the output is `r.stdout.text`, never `r.stdout`; a non-zero exit does not reject, check `exitCode`. `read` → `{ path, lines: [{ number, text }], totalLines }`. `web_search({ queries: [\'…\'] })` (an array, not `query`) → `{ content?, sources: [{ url, title?, snippet?, publishedAt?, summary? }], truncated }`; `content` is the provider\'s answer text when it gives one, and there is no `answer` field.',
   '',
   'Images do not pass through this return value: a capture tool (`web_screenshot`, `web_interact`, `ux_audit`, `read_image`) called inside the program returns no image to you. Call those tools directly when you need to see the result.',
   '',
@@ -87,10 +108,10 @@ function serviceOf<T>(ctx: PluginContext, name: string): T | undefined {
   }
 }
 
-function codemodeTool(ctx: PluginContext) {
+function codemodeTool(ctx: PluginContext, tuned = false) {
   return ceulenTool({
     name: 'codemode',
-    description: DESCRIPTION,
+    description: tuned ? TUNED_DESCRIPTION : DESCRIPTION,
     parameters: objectSchema({
       code: { type: 'string', description: 'The JavaScript program: the body of an async function.' },
     }, ['code']),
@@ -236,7 +257,9 @@ export function apply(ctx: PluginContext): void {
   // Register immediately; `ctx.ptcRuntime` is resolved per call. A load-time
   // lookup races the ptc-runtime row (the headless boot saw it unset here even
   // though the row was composed), and the execute-time error is just as clear.
-  ctx.effect(() => ctx.tools.register(codemodeTool(ctx)), 'ceulen codemode tool')
+  const plain = codemodeTool(ctx)
+  ctx.effect(() => ctx.tools.register(plain), 'ceulen codemode tool')
+  addRouteVariant(plain, codemodeTool(ctx, true))
 
   // Experimental: nudge the model when consecutive steps each make one
   // read-only call. One ChainState per live top-level session.

@@ -75,7 +75,7 @@ const isTextOrNumber = (value: unknown): boolean => isText(value) || (typeof val
  * step this cannot read is returned unchanged; the driver's own error then
  * lists the valid keys.
  */
-export function normalizeStep(step: unknown): unknown {
+export function normalizeStep(step: unknown, tuned = true): unknown {
   if (!isRecord(step)) return step
   const { label, ...rest } = step
   const labelled = (out: Args): Args => (label === undefined ? out : { ...out, label })
@@ -89,6 +89,8 @@ export function normalizeStep(step: unknown): unknown {
   const named = typeof rest.action === 'string' ? rest.action : typeof rest.type === 'string' ? rest.type : undefined
   if (named === undefined || keys.some(key => key !== 'type' && STEP_KEYS.includes(key))) return step
   const verb = VERBS[named.trim().toLowerCase()]
+  // The untuned tool has no hover step.
+  if (!tuned && verb === 'hover') return step
   if (verb === 'screenshot') return labelled({ screenshot: true })
   if (verb === 'click' || verb === 'hover') {
     const selector = pick(rest, ['selector', 'target', 'element'], isText)
@@ -129,8 +131,12 @@ function viewportFromTop(args: Args): void {
   args.viewport = viewport
 }
 
-/** `web_interact` arguments with the aliases mapped onto the declared names. */
-export function normalizeInteractArgs(raw: Args): Args {
+/**
+ * `web_interact` arguments with the aliases mapped onto the declared names.
+ * `tuned` (the flash variant) also maps the screenshot/session spellings and
+ * hover verbs; the untuned tool keeps the mapping it had before.
+ */
+export function normalizeInteractArgs(raw: Args, tuned = true): Args {
   const args: Args = { ...raw }
   rename(args, 'actions', 'steps', value => (Array.isArray(value) ? value : undefined))
   rename(args, 'reduced_motion', 'reducedMotion')
@@ -140,10 +146,12 @@ export function normalizeInteractArgs(raw: Args): Args {
   // The final screenshot is taken by default; asking for it is not an error.
   // `screenshot: false` (or "none") declines it for a read-only probe.
   if (args.screenshot === true) delete args.screenshot
-  else if (args.screenshot === 'none' || args.screenshot === 'false') args.screenshot = false
-  rename(args, 'session_id', 'session')
-  rename(args, 'sessionId', 'session')
-  if (Array.isArray(args.steps)) args.steps = args.steps.map(normalizeStep)
+  else if (tuned && (args.screenshot === 'none' || args.screenshot === 'false')) args.screenshot = false
+  if (tuned) {
+    rename(args, 'session_id', 'session')
+    rename(args, 'sessionId', 'session')
+  }
+  if (Array.isArray(args.steps)) args.steps = args.steps.map(step => normalizeStep(step, tuned))
   return args
 }
 

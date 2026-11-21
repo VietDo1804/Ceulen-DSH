@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { lookupReplacements, redirectText } from './bash-search.js'
 import { captureRedirectText, chromeScreenshotCalls } from './bash-capture.js'
 import { PLAYBOOK } from './playbook.js'
+import { installRouteVariants } from '../../core/variants.js'
 
 export const name = 'ceulen-steering'
 
@@ -67,6 +68,8 @@ export function shelveLateNote(agent: AgentLike, message: UserMessageLike, summa
 export function apply(ctx: PluginContext): void {
   const settings = loadSettingsSync()
   if (!isModuleEnabled('steering', settings)) return
+  // Tuned tool definitions and steering.cold for the steered routes only.
+  installRouteVariants(ctx)
 
   registerPromptSection(ctx, {
     name: 'ceulen:steering',

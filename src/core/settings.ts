@@ -118,6 +118,8 @@ export interface CeulenSettings {
     models: string[]
     /** `redirect` denies bash calls that only grep/cat/sed -n/find files and names the dedicated call; `off` lets them run. */
     bashLookups: 'redirect' | 'off'
+    /** Tool names held out of the prompt (behind `ceulen_tools`) for these routes only; `tools.cold` applies to every route. */
+    cold: string[]
   }
   subagent: {
     /** Function alias (`fast`, `coder`, `smart`) -> ordered `provider/model[:effort]` chain. */
@@ -227,7 +229,7 @@ export function defaultSettings(): CeulenSettings {
     gh: { enabled: true },
     codemode: { enabled: true, chainHintAfter: 2 },
     rtk: { enabled: true },
-    steering: { models: ['deepseek-v4.1-flash', 'deepseek-flash'], bashLookups: 'redirect' },
+    steering: { models: ['deepseek-v4.1-flash', 'deepseek-flash'], bashLookups: 'redirect', cold: [] },
     // ponytail: `*` = inherit the parent route, so a fresh install assumes no provider.
     subagent: { roles: { fast: ['*'], coder: ['*'], smart: ['*'] }, models: {}, thinking: {}, presets: {}, nudge: { models: ['deepseek-v4.1-flash', 'deepseek-flash'], discoveryAfter: 10, reviewAfterFiles: 3, reconMinContext: 60_000 } },
     // Both phases inherit the client's model until a route is configured.
@@ -436,6 +438,7 @@ export function normalizeSettings(raw: unknown, env = true): CeulenSettings {
     steering: {
       models: Array.isArray(steering.models) ? strArray(steering.models) : base.steering.models,
       bashLookups: steering.bashLookups === 'off' ? 'off' : 'redirect',
+      cold: Array.isArray(steering.cold) ? strArray(steering.cold) : base.steering.cold,
     },
     subagent: {
       roles: { ...base.subagent.roles, ...chainRecord(subagent.roles) },

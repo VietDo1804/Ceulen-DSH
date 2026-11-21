@@ -17,7 +17,7 @@ Capture tools (real parameter names — the examples below are checked by
 `test/ux-skill-contract.test.ts`):
 
 - `web_screenshot url=… width=… height=… fullPage=… reducedMotion=… waitForSec=…`
-- `web_interact url=… steps=[…] viewport={width,height,device_scale_factor} reducedMotion=… waitForSec=… stepTimeoutMs=… grant=[…] screenshot=… session=… close=…`
+- `web_interact url=… steps=[…] viewport={width,height,device_scale_factor} reducedMotion=… waitForSec=… stepTimeoutMs=… grant=[…]`
 - `ux_audit url=… viewports=[…]` — six tiers plus the phone + desktop screenshots.
 
 To review the motion itself, call `ux_audit` with `url` and `motion: true`: it
@@ -63,10 +63,7 @@ directly (or through `ceulen_tools`) when you need to SEE the result.
 A screenshot proves the page LOOKS right; only interaction proves it WORKS.
 After visual inspection, verify behaviour with `web_interact` — one call = one
 browser lifecycle: open `url`, run `steps` in order, get per-step results, a
-final inline PNG, and a scrollWidth probe. For a multi-call check pass
-`session="name"` so the page and its state survive between calls (same url =
-no re-navigation; `close=true` ends it), and `screenshot=false` on calls that
-only read values.
+final inline PNG, and a scrollWidth probe.
 
 ```text
 web_interact url="http://localhost:5173" viewport={width:390,height:844} reducedMotion=true grant=["clipboard-read","clipboard-write"] steps=[
@@ -83,7 +80,7 @@ web_interact url="http://localhost:5173" viewport={width:390,height:844} reduced
 - Steps stop at the first failure with the reason — a broken selector surfaces loudly instead of no-op'ing later steps.
 - **Authenticated dev routes need the token set BEFORE navigating**: the call opens `url` then runs steps, so a deep link into a login-protected route fetches before your token exists and bounces to the login page. Hop through the origin: `{evaluate:"localStorage.setItem('token','…')"}`, `{wait_for: 400}`, `{evaluate:"location.replace('/app?id=1')"}`, `{wait_for: 6000}`. The tool warns that a navigating step means later steps run against the NEW document — order the token step first, never after the navigation.
 - **Read the app's own error/status element** (`{evaluate:"(document.getElementById('error')||{}).textContent"}`) before concluding the app is broken: a blank canvas can be an app-side failure notice that only the DOM text names.
-- **One action key per step**: a step object takes exactly ONE of click/hover/type/press/evaluate/wait_for/dialog/screenshot (plus optional `label`). `wait_for` accepts a selector string OR a millisecond number, and `wait_ms` is the flat alias for `wait_for: <number>` — but it IS an action key, so it cannot ride along with another one (`{screenshot:true, wait_ms:1500}` is rejected — make them two steps). `{screenshot:false}` is the lone exception: a declined capture, filtered out before validation.
+- **One action key per step**: a step object takes exactly ONE of click/type/press/evaluate/wait_for/dialog/screenshot (plus optional `label`). `wait_for` accepts a selector string OR a millisecond number, and `wait_ms` is the flat alias for `wait_for: <number>` — but it IS an action key, so it cannot ride along with another one (`{screenshot:true, wait_ms:1500}` is rejected — make them two steps). `{screenshot:false}` is the lone exception: a declined capture, filtered out before validation.
 - **Slow steps — the budget is a top-level param, not a step key**: pass `stepTimeoutMs` on the `web_interact` CALL (default 60s); it bounds each step and fails loudly with the reason instead of hanging.
 - Clipboard readback on insecure origins: there is no clipboard API to read back with; `execCommand` returning true under a trusted click is the strongest available signal.
 

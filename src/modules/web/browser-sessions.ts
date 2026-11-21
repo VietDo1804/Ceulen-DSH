@@ -148,6 +148,8 @@ export async function runInSession(call: SessionCall): Promise<SessionResult> {
         grant: call.grant,
         stepTimeoutMs: call.stepTimeoutMs,
         screenshot: call.screenshot,
+        // Sessions exist only on the tuned web_interact.
+        extended: true,
         signal: call.signal,
       })
       if (result.outcomes.some(outcome => !outcome.ok && /timed out after/.test(outcome.error ?? ''))) {
