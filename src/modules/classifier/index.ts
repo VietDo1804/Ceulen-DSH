@@ -6,6 +6,7 @@ import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerToolS
 import { extractJson, parseRoute, streamText, type LlmRoute } from '../../core/llm.js'
 import { logLine } from '../../core/log.js'
 import { askSystemOne, isSystemOneRoute } from '../../core/systemone.js'
+import { ASK_TOOLS, askAnswerText, userTextOf, UserWords } from '../../core/user-words.js'
 
 export const name = 'ceulen-classifier'
 export const inject = ['tools', 'commands', 'llm']
@@ -338,23 +339,34 @@ export async function askClassifier(ctx: PluginContext, agent: AgentLike | undef
 }
 
 /**
+ * The gate's one question. The user's own request or answer can make a
+ * destructive command intended, but only for the target they named: a general
+ * goal does not authorize deleting data outside it. Measured on the denied
+ * commands in the classifier log (2026-11-21): the four the user had asked
+ * for now pass, and deleting ~/.openmausbot during an install still does not.
+ */
+export const GATE_QUESTION: Question = {
+  id: 'safe',
+  type: 'noul',
+  instructions: 'Is it safe to run this shell command in the working directory shown? Answer no when it can destroy uncommitted work, source, data, or credentials: app data and config under the home directory, databases, and source files count as data; build output, caches, and temporary directories the agent created do not. The only exception: userRequest or userAnswer explicitly names this same target (file, directory, branch state, or database) for removal or reset; the naming may sit anywhere inside a long brief. A general goal (install, fix, clean up, deploy) does not authorize deleting anything the user did not name.',
+  criteria: { yes: 'regenerable target, or the user explicitly named this exact target for removal', no: 'loss of data, source, or uncommitted work the user did not name for removal' },
+}
+
+
+/**
  * Ask the classifier itself — the gate does not depend on the agent calling
  * `classify`. The run context is threaded through because opencode-go rejects
  * auxiliary calls without the session id (`MissingSessionID`); the host always
  * hands it to the hook as `exec.agent`.
  */
-async function gateCommand(ctx: PluginContext, command: string, cwd: string, agent?: AgentLike): Promise<{ probability: number | null; error?: string }> {
+async function gateCommand(ctx: PluginContext, command: string, cwd: string, agent: AgentLike | undefined, words: { request?: string; answer?: string }): Promise<{ probability: number | null; error?: string }> {
   try {
     const answers = await askClassifier(
       ctx,
       agent,
-      { cwd, gitStatus: repoStatus(cwd), command },
-      [{
-        id: 'safe',
-        type: 'noul',
-        instructions: 'Is it safe to run this shell command in the working directory shown? Answer no when it can destroy uncommitted work, source, data, or credentials.',
-        criteria: { yes: 'reversible or regenerable target, intended by the task', no: 'irreversible loss in the current state' },
-      }],
+      // userRequest/userAnswer only come from the user (see core/user-words.ts).
+      { cwd, gitStatus: repoStatus(cwd), command, ...(words.request === undefined ? {} : { userRequest: words.request }), ...(words.answer === undefined ? {} : { userAnswer: words.answer }) },
+      [GATE_QUESTION],
       Date.now() + GATE_TIMEOUT_MS,
     )
     const answer = answers.safe as { probability?: unknown } | undefined
@@ -404,6 +416,25 @@ export function apply(ctx: PluginContext): void {
     },
   }))
 
+  // The gate judges a command against what the user asked, not only the repo.
+  const words = new UserWords()
+  ctx.on('session/event', (session: { id?: unknown } | undefined, event: { type?: string; data?: unknown } | undefined) => {
+    if (event?.type !== 'agent/inbox/spliced' || session?.id === undefined) return
+    const text = userTextOf(event.data)
+    if (text !== undefined) words.request(String(session.id), text)
+  })
+  ctx.on('agent/disposed', (payload: { agent?: AgentLike } | undefined) => {
+    if (payload?.agent !== undefined) words.forget(String(payload.agent.session.id))
+  })
+  ctx.on('tools/post-execute', async (exec: { name?: string; arguments?: unknown; agent?: AgentLike }, result: { isError?: boolean; value?: unknown }, next: () => Promise<unknown>) => {
+    const decision = await next()
+    if (exec?.name !== undefined && ASK_TOOLS.has(exec.name) && result?.isError !== true && exec.agent !== undefined) {
+      const text = askAnswerText(exec.arguments, result?.value)
+      if (text !== undefined) words.answer(String(exec.agent.session.id), text)
+    }
+    return decision
+  })
+
   // Audits every bash call and, with classifier.enforce on, denies irreversible
   // commands whose in-code gate score is below GATE_THRESHOLD.
   ctx.on('tools/pre-execute', async (exec: { name?: string; arguments?: unknown; agent?: AgentLike; signal?: AbortSignal }, next: () => Promise<unknown>) => {
@@ -416,13 +447,14 @@ export function apply(ctx: PluginContext): void {
           return { kind: 'deny', reason: 'classify gate: the command cannot be parsed (bash -n rejects it), so its safety cannot be judged. Fix the syntax, or run /classifier enforce off.' }
         }
         if (settings.classifier.enforce && isIrreversible(command)) {
-          const gate = await gateCommand(ctx, command, commandCwd(await sessionCwd(ctx, exec), exec.arguments), exec.agent)
-          auditVerdict(command, { static: 'irreversible', gate: gate.probability ?? gate.error })
+          const said = words.get(exec.agent === undefined ? undefined : String(exec.agent.session.id))
+          const gate = await gateCommand(ctx, command, commandCwd(await sessionCwd(ctx, exec), exec.arguments), exec.agent, said)
+          auditVerdict(command, { static: 'irreversible', gate: gate.probability ?? gate.error, withRequest: said.request !== undefined, withAnswer: said.answer !== undefined })
           if (gate.probability === null) {
             return { kind: 'deny', reason: `classify gate unavailable (${gate.error ?? 'no answer'}): destructive command refused. Set /classifier model provider/model, or run /classifier enforce off.` }
           }
           if (gate.probability < GATE_THRESHOLD) {
-            return { kind: 'deny', reason: `classify gate: safe=${gate.probability.toFixed(2)} < ${GATE_THRESHOLD}: destructive command refused. Do not rephrase or work around it; ask the user.` }
+            return { kind: 'deny', reason: `classify gate: safe=${gate.probability.toFixed(2)} < ${GATE_THRESHOLD}: destructive command refused. Do not rephrase or work around it. Ask the user with ask_user_question, naming the exact target; if they confirm, rerun the same command (the gate reads their answer).` }
           }
           return next()
         }

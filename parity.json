@@ -49,7 +49,7 @@
       "status": "partial",
       "dsh": "classify tool with typed questions; bash audit log",
       "phase": 3,
-      "notes": "Jev models (typesafe/jev-*, not jev-router) answer on OpenRouter's System One endpoint with OPENROUTER_API_KEY, for decisions only (gate, /ux auto, classify; the bash audit skips them); other routes are chat models whose JSON is validated. No upstream model registry or router discovery.",
+      "notes": "Jev models (typesafe/jev-*, not jev-router) answer on OpenRouter's System One endpoint with OPENROUTER_API_KEY, for decisions only (gate, /ux auto, classify; the bash audit skips them); the gate reads the user's latest request and ask answers; other routes are chat models whose JSON is validated. No upstream model registry or router discovery.",
       "rowId": "ceulen-classifier"
     },
     {

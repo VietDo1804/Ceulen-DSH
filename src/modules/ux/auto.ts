@@ -23,6 +23,8 @@ import { errorMessage } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import { askClassifier, type Question } from '../classifier/index.js'
 
+export { userTextOf } from '../../core/user-words.js'
+
 export const AUTO_LEVELS = ['off', 'keep', 'lite', 'strict'] as const
 export type AutoLevel = (typeof AUTO_LEVELS)[number]
 
@@ -84,19 +86,6 @@ export function repoHasUiFiles(cwd: string): boolean {
   const value = walk(cwd, 0)
   uiCache.set(cwd, { at: Date.now(), value })
   return value
-}
-
-/** Text of real user messages in an inbox splice; nudges, relays and notices carry another source kind. */
-export function userTextOf(data: unknown): string | undefined {
-  const splice = data as { target?: string; inserted?: Array<{ role?: string; source?: { kind?: string }; content?: Array<{ type?: string; text?: string }> }> } | undefined
-  if (splice?.target !== 'next-turn' || !Array.isArray(splice.inserted)) return undefined
-  // The last text block is the request: a subagent brief opens with its role preamble.
-  let text = ''
-  for (const message of splice.inserted) {
-    if (message.role !== 'user' || message.source?.kind !== 'user') continue
-    for (const block of message.content ?? []) if (block.type === 'text' && typeof block.text === 'string' && block.text.trim().length > 0) text = block.text.trim()
-  }
-  return text.length === 0 ? undefined : text
 }
 
 /** Turn a classifier answer into a level, falling back to the previous one. */
