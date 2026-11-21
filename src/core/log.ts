@@ -18,6 +18,7 @@ const SECRET_ENV_NAMES = [
   'GITHUB_TOKEN',
   'GH_TOKEN',
   'DEEPSEEK_API_KEY',
+  'OPENROUTER_API_KEY',
 ] as const
 
 const TOKEN_PATTERNS: readonly RegExp[] = [

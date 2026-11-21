@@ -5,6 +5,7 @@ import { isModuleEnabled, loadSettingsSync, updateSettings } from '../../core/se
 import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerToolSafe, errorMessage } from '../../core/tools.js'
 import { extractJson, parseRoute, streamText, type LlmRoute } from '../../core/llm.js'
 import { logLine } from '../../core/log.js'
+import { askSystemOne, isSystemOneRoute } from '../../core/systemone.js'
 
 export const name = 'ceulen-classifier'
 export const inject = ['tools', 'commands', 'llm']
@@ -289,7 +290,7 @@ async function withModelSlot<T>(task: () => Promise<T>): Promise<T> {
   }
 }
 
-async function askClassifier(ctx: PluginContext, agent: AgentLike | undefined, state: unknown, questions: Question[], deadline: number): Promise<Record<string, unknown>> {
+export async function askClassifier(ctx: PluginContext, agent: AgentLike | undefined, state: unknown, questions: Question[], deadline: number): Promise<Record<string, unknown>> {
   const routes = routesFor(agent)
   if (routes.length === 0) throw new Error('no classifier route: set classifier.provider/model or use an agent with a configured route')
   const prompt = [
@@ -308,9 +309,20 @@ async function askClassifier(ctx: PluginContext, agent: AgentLike | undefined, s
     const timer = setTimeout(() => controller.abort(), remaining)
     timer.unref?.()
     try {
-      const answers = normalizeAnswers(extractJson(await streamText(ctx, route, SYSTEM, prompt, controller.signal, 900)), questions)
+      let answers: Record<string, unknown>
+      let via = 'llm'
+      let cost: number | undefined
+      if (isSystemOneRoute(route)) {
+        // Jev answers typed questions natively; no system prompt, no JSON scraping.
+        const result = await askSystemOne(route, state, questions, controller.signal)
+        answers = normalizeAnswers(result.answers, questions)
+        via = 'systemone'
+        cost = result.cost
+      } else {
+        answers = normalizeAnswers(extractJson(await streamText(ctx, route, SYSTEM, prompt, controller.signal, 900)), questions)
+      }
       // The resolved route, not call success, is what a smoke test can assert on.
-      logLine('classifier', JSON.stringify({ at: new Date().toISOString(), command: 'classify:resolved', model: `${route.provider}/${route.model}`, via: 'llm' }))
+      logLine('classifier', JSON.stringify({ at: new Date().toISOString(), command: 'classify:resolved', model: `${route.provider}/${route.model}`, via, ...(cost === undefined ? {} : { cost }) }))
       return answers
     } catch (error) {
       lastError = error
@@ -350,6 +362,19 @@ async function gateCommand(ctx: PluginContext, command: string, cwd: string, age
   } catch (error) {
     return { probability: null, error: errorMessage(error) }
   }
+}
+
+/** The chat audit's `{reversible, serves_task}` judgments, asked as typed questions. */
+const AUDIT_QUESTIONS: Question[] = [
+  { id: 'reversible', type: 'noul', instructions: 'Is this shell command reversible, or does it only touch regenerable files? Be strict about destructive or credential-touching commands.' },
+  { id: 'serves_task', type: 'noul', instructions: 'Does this shell command look like ordinary development work (build, test, inspect, edit project files)?' },
+]
+
+function auditFromAnswers(answers: Record<string, unknown>): Record<string, unknown> {
+  const p = (id: string): number | undefined => (answers[id] as { probability?: number } | undefined)?.probability
+  const reversible = p('reversible')
+  const serves = p('serves_task')
+  return { reversible: reversible === undefined ? null : reversible >= GATE_THRESHOLD, serves_task: serves === undefined ? null : serves >= GATE_THRESHOLD, p_reversible: reversible, p_serves_task: serves }
 }
 
 function auditVerdict(command: string, verdict: unknown): void {
@@ -420,7 +445,12 @@ export function apply(ctx: PluginContext): void {
           auditVerdict(command, { static: 'risky', model: 'skipped' })
         } else {
           const route = routesFor(exec.agent)[0]
-          if (route !== undefined) {
+          if (route !== undefined && isSystemOneRoute(route)) {
+            // Detached like the chat audit below; same three judgments as typed questions.
+            void askClassifier(ctx, exec.agent, { command: clampText(command, 2_000) }, AUDIT_QUESTIONS, Date.now() + 10_000)
+              .then(answers => auditVerdict(command, { static: 'ok', model: auditFromAnswers(answers) }))
+              .catch((error: unknown) => auditVerdict(command, { static: 'ok', model: `unavailable: ${errorMessage(error)}` }))
+          } else if (route !== undefined) {
             const controller = new AbortController()
             // Detached audit: it never delays the turn, so give a reasoning
             // model room to answer (3 s aborted every opencode-go call).

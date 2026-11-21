@@ -4,7 +4,8 @@ import { settingsPath } from './paths.js'
 
 export const PONYTAIL_LEVELS = ['off', 'lite', 'full', 'ultra'] as const
 export type PonytailLevel = (typeof PONYTAIL_LEVELS)[number]
-export const UX_MODES = ['off', 'lite', 'strict'] as const
+/** `auto` picks off/keep/lite/strict per user request through the classifier route. */
+export const UX_MODES = ['off', 'lite', 'strict', 'auto'] as const
 export type UxMode = (typeof UX_MODES)[number]
 /** Behaviour-scoped rule guards: off, audit (log), or enforce (deny). */
 export const RULE_GUARD_MODES = ['off', 'audit', 'enforce'] as const

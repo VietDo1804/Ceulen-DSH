@@ -1,18 +1,20 @@
 import { readFile, stat } from 'node:fs/promises'
 import { dirname, join, resolve as resolvePath } from 'node:path'
-import type { PluginContext, ToolContent, ToolRunContext } from '../../core/types.js'
+import type { AgentLike, PluginContext, ToolContent, ToolRunContext } from '../../core/types.js'
 import { readText } from '../../core/fsx.js'
 import { isModuleEnabled, loadSettingsSync, updateSettings, type UxMode } from '../../core/settings.js'
 import { ceulenTool, clampText, objectSchema, registerCommandSafe, registerPromptSection, registerToolSafe, cwdOf } from '../../core/tools.js'
+import { logLine } from '../../core/log.js'
 import { audit, extractTokens, type AuditPair, type AuditResult } from '../../vendor/ceulen/ux/audit.js'
 import { saveScreenshot } from '../web/capture.js'
 import { contrastFixLine, nearestToken } from './fix.js'
 import { formatRuntimeReport, runRuntimeAudit, type RuntimeAudit } from './review.js'
+import { AutoLevels, KEEP_TEXT, UX_LEVEL_CONTEXT, userTextOf, type AutoLevel } from './auto.js'
 
 export const name = 'ceulen-ux'
 export const inject = ['tools', 'commands', 'systemPrompt']
 
-const MODES = new Set(['off', 'lite', 'strict'])
+const MODES = new Set(['off', 'lite', 'strict', 'auto'])
 
 // ponytail: same cap as upstream — a model-supplied path can point at a
 // bundle far larger than one context window wants.
@@ -215,7 +217,7 @@ async function designDriftLine(css: string, stylesheet: string | undefined, cwd:
 // reported gap was 32/56 UI sessions auditing but only 8/56 loading ux-design,
 // so the prompt names the skill and gives the order. Growth is capped in
 // test/ux.test.ts (the old strict text was 783 chars).
-const INSTRUCTIONS: Record<Exclude<UxMode, 'off'>, string> = {
+const INSTRUCTIONS: Record<'lite' | 'strict', string> = {
   lite: `UX MODE ACTIVE — level: lite. Use design tokens, not raw values. Load the \`ux-design\` skill for new or user-facing UI and state one direction line before markup. Give the page rich motion by copying the ux-design motion kit (kit/motion.js and kit/motion.css, attributes in references/motion.md): a load moment, items that arrive as they scroll in, soft state changes, and UI that reacts to the pointer. Implement the full interaction state set (hover, focus-visible, active, disabled, loading, empty, error). Use semantic HTML and accessible names. Run ux_audit on the stylesheet and on the rendered page; look at the screenshots it returns, because a PASS does not end the visual review. No decorative gradients, glassmorphism, giant hero type, or emoji-as-icon unless the existing design uses them.`,
   strict: `UX MODE ACTIVE — level: strict. Tokens only: every color, radius, spacing, shadow, and font size comes from an existing token; no raw hex outside the token file.
 Method, in order:
@@ -236,8 +238,12 @@ export function apply(ctx: PluginContext): void {
   registerPromptSection(ctx, {
     name: 'ceulen:ux',
     order: 130,
-    text: () => (mode === 'off' ? '' : INSTRUCTIONS[mode]),
+    // Auto mode keeps the system prompt fixed and sends its level as runtime context.
+    text: () => (mode === 'off' || mode === 'auto' ? '' : INSTRUCTIONS[mode]),
   })
+
+  const levels = new AutoLevels(ctx, autoText, () => mode === 'auto')
+  installAutoLevels(ctx, levels)
 
   registerToolSafe(ctx, ceulenTool({
     name: 'ux_audit',
@@ -335,19 +341,93 @@ export function apply(ctx: PluginContext): void {
 
   registerCommandSafe(ctx, {
     name: 'ux',
-    description: 'Anti-slop UI discipline: off, lite, or strict',
-    input: { hint: '[off|lite|strict|status]' },
-    async handler({ rawInput }) {
+    description: 'Anti-slop UI discipline: off, lite, strict, or auto (per request)',
+    input: { hint: '[off|lite|strict|auto|status]' },
+    async handler({ rawInput, agent }) {
       const value = rawInput.trim().toLowerCase()
       if (value === '' || value === 'status') {
-        return { kind: 'success', text: `UX mode: ${mode}` }
+        if (mode !== 'auto') return { kind: 'success', text: `UX mode: ${mode}` }
+        const decision = agent === undefined ? undefined : levels.decision(String(agent.session.id))
+        const detail = decision === undefined
+          ? 'no request classified yet in this session'
+          : `${decision.level}${decision.confidence === null ? '' : ` (${decision.confidence.toFixed(2)})`}${decision.via === 'classifier' ? '' : `, ${decision.via}`}`
+        return { kind: 'success', text: `UX mode: auto → ${detail}` }
       }
-      if (!MODES.has(value)) return { kind: 'error', text: 'usage: /ux off|lite|strict' }
+      if (!MODES.has(value)) return { kind: 'error', text: 'usage: /ux off|lite|strict|auto' }
       mode = value as UxMode
       await updateSettings(settings => {
         settings.ux.mode = mode
       })
-      return { kind: 'success', text: `UX mode: ${mode}. The prompt guidance applies from the next request.` }
+      return { kind: 'success', text: mode === 'auto'
+        ? 'UX mode: auto. Each request is classified as off, keep, lite, or strict from your next message.'
+        : `UX mode: ${mode}. The prompt guidance applies from the next request.` }
     },
+  })
+}
+
+/** Guidance per auto level; `lite` and `strict` reuse the fixed-mode text. */
+function autoText(level: AutoLevel): string {
+  if (level === 'off') return ''
+  if (level === 'keep') return KEEP_TEXT
+  return INSTRUCTIONS[level]
+}
+
+interface AssembleContext {
+  agent?: AgentLike
+  scope?: AgentLike
+}
+
+interface Assembly {
+  contexts: Array<{ name: string; text: string; interpolate?: boolean }>
+}
+
+/** The session directory the working-directory service committed, else the recorded one. */
+function agentCwd(ctx: PluginContext, agent: AgentLike | undefined): string {
+  if (agent === undefined) return process.cwd()
+  try {
+    const service = ctx.get('workingDirectory', false) as { get?(session: unknown): unknown } | undefined
+    const dir = service?.get?.(agent.session)
+    if (typeof dir === 'string' && dir.length > 0) return dir
+  } catch {
+    // Not mounted: fall through.
+  }
+  const recorded = agent.session.header?.cwd
+  return typeof recorded === 'string' && recorded.length > 0 ? recorded : process.cwd()
+}
+
+function installAutoLevels(ctx: PluginContext, levels: AutoLevels): void {
+  const prompt = ctx.systemPrompt as typeof ctx.systemPrompt & {
+    context?(entry: { name: string; order: number; interpolate?: boolean; text: (context?: AssembleContext) => string }): () => void
+  }
+  if (typeof prompt.context !== 'function') return
+  try {
+    prompt.context({ name: UX_LEVEL_CONTEXT, order: 900, interpolate: false, text: context => levels.textFor(context?.agent ?? context?.scope) })
+  } catch (error) {
+    logLine('ux', `auto level context not registered: ${error instanceof Error ? error.message : String(error)}`)
+    return
+  }
+  ctx.on('agent/created', (payload: { agent?: AgentLike } | undefined) => {
+    if (payload?.agent !== undefined) levels.track(payload.agent)
+  })
+  ctx.on('agent/disposed', (payload: { agent?: AgentLike } | undefined) => {
+    if (payload?.agent !== undefined) levels.forget(String(payload.agent.session.id))
+  })
+  // The inbox splice lands when the message is sent, before its turn starts.
+  ctx.on('session/event', (session: { id?: unknown } | undefined, event: { type?: string; data?: unknown } | undefined) => {
+    if (event?.type !== 'agent/inbox/spliced' || session?.id === undefined) return
+    const text = userTextOf(event.data)
+    if (text !== undefined) levels.classify(String(session.id), text, agent => agentCwd(ctx, agent))
+  })
+  // Contexts resolve before this waterfall runs, so the level is patched in after `next()`.
+  ctx.on('system-prompt/assemble', async (_assembly: Assembly, context: AssembleContext | undefined, next: () => Promise<Assembly>) => {
+    const agent = context?.agent ?? context?.scope
+    if (agent === undefined) return next()
+    await levels.settle(String(agent.session.id))
+    const assembly = await next()
+    const text = levels.textFor(agent)
+    const entry = assembly.contexts.find(item => item.name === UX_LEVEL_CONTEXT)
+    if (entry !== undefined) entry.text = text
+    else if (text.length > 0) assembly.contexts.push({ name: UX_LEVEL_CONTEXT, text, interpolate: false })
+    return assembly
   })
 }
