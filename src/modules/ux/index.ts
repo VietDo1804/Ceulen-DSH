@@ -9,7 +9,7 @@ import { audit, extractTokens, type AuditPair, type AuditResult } from '../../ve
 import { saveScreenshot } from '../web/capture.js'
 import { contrastFixLine, nearestToken } from './fix.js'
 import { formatRuntimeReport, runRuntimeAudit, type RuntimeAudit } from './review.js'
-import { AutoLevels, KEEP_TEXT, UX_LEVEL_CONTEXT, userTextOf, type AutoLevel } from './auto.js'
+import { AutoLevels, KEEP_TEXT, OFF_TEXT, UX_LEVEL_CONTEXT, userTextOf, type AutoLevel } from './auto.js'
 
 export const name = 'ceulen-ux'
 export const inject = ['tools', 'commands', 'systemPrompt']
@@ -367,7 +367,7 @@ export function apply(ctx: PluginContext): void {
 
 /** Guidance per auto level; `lite` and `strict` reuse the fixed-mode text. */
 function autoText(level: AutoLevel): string {
-  if (level === 'off') return ''
+  if (level === 'off') return OFF_TEXT
   if (level === 'keep') return KEEP_TEXT
   return INSTRUCTIONS[level]
 }

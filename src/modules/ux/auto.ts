@@ -19,7 +19,7 @@
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { AgentLike, PluginContext } from '../../core/types.js'
-import { clampText, errorMessage } from '../../core/tools.js'
+import { errorMessage } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import { askClassifier, type Question } from '../classifier/index.js'
 
@@ -29,7 +29,10 @@ export type AutoLevel = (typeof AUTO_LEVELS)[number]
 export const UX_LEVEL_CONTEXT = 'ceulen:ux-level'
 const CLASSIFY_TIMEOUT_MS = 8_000
 /** Below this the previous level stands (or `keep` on a first message). */
-export const MIN_CONFIDENCE = 0.5
+export const MIN_CONFIDENCE = 0.6
+
+/** Explicit, so it retracts a keep/lite/strict line an earlier turn left in history. */
+export const OFF_TEXT = 'UX level: off — this request has no UI work. Skip DESIGN.md, the motion kit, and ux_audit unless the task asks for them.'
 
 export const KEEP_TEXT = `UX MODE ACTIVE — level: keep. This task changes UI inside an existing design. Match what is there: reuse its classes, tokens, and components; add no new colours, fonts, theme files, or layout system. Every control you touch gets its hover, focus-visible, disabled, loading, empty, and error states. Do not write DESIGN.md, copy the motion kit, or restyle pages the task did not name. Check the changed flow once in the browser; run ux_audit only when you added or restyled CSS.`
 
@@ -87,12 +90,12 @@ export function repoHasUiFiles(cwd: string): boolean {
 export function userTextOf(data: unknown): string | undefined {
   const splice = data as { target?: string; inserted?: Array<{ role?: string; source?: { kind?: string }; content?: Array<{ type?: string; text?: string }> }> } | undefined
   if (splice?.target !== 'next-turn' || !Array.isArray(splice.inserted)) return undefined
-  const texts: string[] = []
+  // The last text block is the request: a subagent brief opens with its role preamble.
+  let text = ''
   for (const message of splice.inserted) {
     if (message.role !== 'user' || message.source?.kind !== 'user') continue
-    for (const block of message.content ?? []) if (block.type === 'text' && typeof block.text === 'string') texts.push(block.text)
+    for (const block of message.content ?? []) if (block.type === 'text' && typeof block.text === 'string' && block.text.trim().length > 0) text = block.text.trim()
   }
-  const text = texts.join('\n').trim()
   return text.length === 0 ? undefined : text
 }
 
@@ -166,7 +169,7 @@ export class AutoLevels {
         const answers = await askClassifier(
           this.ctx,
           state.agent,
-          { request: clampText(request, 3_000), repoHasUiFiles: repoHasUiFiles(cwd(state.agent)), previousLevel: previous ?? null },
+          { request: request.length > 3_000 ? `…${request.slice(-3_000)}` : request, repoHasUiFiles: repoHasUiFiles(cwd(state.agent)), previousLevel: previous ?? null },
           [LEVEL_QUESTION],
           Date.now() + CLASSIFY_TIMEOUT_MS,
         )
