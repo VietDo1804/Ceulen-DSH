@@ -44,11 +44,13 @@ function parseViewport(value: unknown): Args | undefined {
   return { width: Number(size[1]), ...(size[2] === undefined ? {} : { height: Number(size[2]) }) }
 }
 
-const STEP_KEYS = ['click', 'type', 'press', 'evaluate', 'wait_for', 'dialog', 'screenshot']
+const STEP_KEYS = ['click', 'hover', 'type', 'press', 'evaluate', 'wait_for', 'dialog', 'screenshot']
 const WAIT_KEYS = ['wait', 'wait_ms', 'waitMs', 'sleep', 'delay']
 /** The action a step names in `action` (or in a string `type`) -> the step key that does it. */
 const VERBS: Record<string, string> = {
   click: 'click',
+  hover: 'hover',
+  mouseover: 'hover',
   type: 'type',
   fill: 'type',
   press: 'press',
@@ -88,9 +90,9 @@ export function normalizeStep(step: unknown): unknown {
   if (named === undefined || keys.some(key => key !== 'type' && STEP_KEYS.includes(key))) return step
   const verb = VERBS[named.trim().toLowerCase()]
   if (verb === 'screenshot') return labelled({ screenshot: true })
-  if (verb === 'click') {
+  if (verb === 'click' || verb === 'hover') {
     const selector = pick(rest, ['selector', 'target', 'element'], isText)
-    return selector === undefined ? step : labelled({ click: selector })
+    return selector === undefined ? step : labelled({ [verb]: selector })
   }
   if (verb === 'type') {
     const selector = pick(rest, ['selector', 'target', 'element'], isText)
@@ -135,8 +137,12 @@ export function normalizeInteractArgs(raw: Args): Args {
   for (const alias of ['timeout_ms', 'timeoutMs', 'step_timeout_ms']) rename(args, alias, 'stepTimeoutMs', numeric)
   for (const alias of ['wait_ms', 'waitMs']) rename(args, alias, 'waitForSec', seconds)
   viewportFromTop(args)
-  // The final screenshot is always taken; asking for it is not an error.
+  // The final screenshot is taken by default; asking for it is not an error.
+  // `screenshot: false` (or "none") declines it for a read-only probe.
   if (args.screenshot === true) delete args.screenshot
+  else if (args.screenshot === 'none' || args.screenshot === 'false') args.screenshot = false
+  rename(args, 'session_id', 'session')
+  rename(args, 'sessionId', 'session')
   if (Array.isArray(args.steps)) args.steps = args.steps.map(normalizeStep)
   return args
 }

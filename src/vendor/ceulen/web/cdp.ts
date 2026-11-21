@@ -233,6 +233,7 @@ export async function launchCdp(opts: { wsFactory?: WsFactory; devtoolsWaitMs?: 
 
 export type InteractStep =
   | { click: string }
+  | { hover: string }
   | { type: { selector: string; text: string } }
   | { press: string }
   | { evaluate: string; label?: string }
@@ -240,7 +241,7 @@ export type InteractStep =
   | { dialog: "accept" | "dismiss" }
   | { screenshot: true };
 
-const STEP_KEYS = ["click", "type", "press", "evaluate", "wait_for", "dialog", "screenshot"];
+const STEP_KEYS = ["click", "hover", "type", "press", "evaluate", "wait_for", "dialog", "screenshot"];
 
 /** Exactly one known action key per step, so bad input fails before Chrome launches.
  *  Returns the number of multi-action steps that were auto-split. */
@@ -268,8 +269,8 @@ export function validateSteps(steps: InteractStep[]): number {
     if (key === "type" && (typeof (step as any).type !== "object" || !(step as any).type?.selector)) {
       throw new Error(`type step needs { type: { selector, text } }; got: ${JSON.stringify(step)}`);
     }
-    if (key === "click" && typeof (step as any).click !== "string") {
-      throw new Error(`click step needs a selector string; got: ${JSON.stringify(step)}`);
+    if ((key === "click" || key === "hover") && typeof (step as any)[key] !== "string") {
+      throw new Error(`${key} step needs a selector string; got: ${JSON.stringify(step)}`);
     }
     if (key === "evaluate" && typeof (step as any).evaluate !== "string") {
       throw new Error(`evaluate step needs an expression string; got: ${JSON.stringify(step)}`);
@@ -346,6 +347,7 @@ export interface StepOutcome {
 
 function stepLabel(step: InteractStep): string {
   if ("click" in step) return `click ${step.click}`;
+  if ("hover" in step) return `hover ${step.hover}`;
   if ("type" in step) return `type "${step.type.text.slice(0, 40)}" into ${step.type.selector}`;
   if ("press" in step) return `press ${step.press}`;
   if ("dialog" in step) return `dialog ${step.dialog}`;
@@ -406,8 +408,9 @@ async function runStep(
 ): Promise<StepOutcome> {
   const label = stepLabel(step);
   try {
-    if ("click" in step) {
-      const sel = JSON.stringify(step.click);
+    if ("click" in step || "hover" in step) {
+      const selector = "click" in step ? step.click : step.hover;
+      const sel = JSON.stringify(selector);
       const point = unwrapEvaluate(
         await connection.send(
           "Runtime.evaluate",
@@ -418,11 +421,15 @@ async function runStep(
           sessionId,
         ),
       ) as { x: number; y: number; hidden?: boolean } | null;
-      if (!point) throw new Error(`no element matches ${step.click}`);
+      if (!point) throw new Error(`no element matches ${selector}`);
       // A zero-size rect (display:none etc.) would put the trusted click at
       // the viewport origin — hitting whatever interactive element lives
       // there WITH user activation while reporting ok. Fail loudly instead.
-      if (point.hidden) throw new Error(`element not visible (zero size): ${step.click}`);
+      if (point.hidden) throw new Error(`element not visible (zero size): ${selector}`);
+      // Trusted pointer input: a real mouseMoved is what fires :hover,
+      // mouseenter/mouseover and hover-revealed menus; el.dispatchEvent does not.
+      await connection.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: point.x, y: point.y, button: "none", buttons: 0 }, sessionId);
+      if ("hover" in step) return { label, ok: true };
       // Trusted input via CDP mouse events — synthetic el.click() grants no
       // user activation (clipboard writes etc. would fail).
       await connection.send(
@@ -521,6 +528,12 @@ export interface InteractionOpts {
   waitForSec?: number;
   /** Per-step budget in ms (default 60s) — a step exceeding it fails with the reason. */
   stepTimeoutMs?: number;
+  /**
+   * false skips the automatic final screenshot when every step succeeded (a
+   * read-only probe). A failed run still captures one; an explicit
+   * `{screenshot:true}` step always does.
+   */
+  screenshot?: boolean;
   signal?: AbortSignal;
   wsFactory?: WsFactory;
 }
@@ -541,61 +554,75 @@ export interface InteractionResult {
 }
 
 /**
- * One call = one browser lifecycle: launch, emulate, navigate, run steps,
- * screenshot + overflow probe, teardown. No session state survives the call.
+ * One attached page in one launched Chrome: the listeners that collect
+ * console errors, dialogs and in-step navigations stay registered for the
+ * page's life, and the per-call fields are reset by {@link resetCallState}.
+ * `runInteraction` opens one per call; a persistent browser session keeps
+ * one across calls.
  */
-export async function runInteraction(opts: InteractionOpts): Promise<InteractionResult> {
-  assertCaptureUrl(opts.url);
-  // Tool-schema shape is flattened (one optional action field per step object)
-  // because Z.ai's anthropic-compatible endpoint rejects anyOf nested inside
-  // anyOf with 400/1210 — map the split wait_ms field back onto wait_for.
-  const steps: InteractStep[] = (opts.steps ?? [])
-    .map((s) =>
-      (s as { wait_ms?: number }).wait_ms !== undefined
-        ? { wait_for: (s as unknown as { wait_ms: number }).wait_ms }
-        : s,
-    )
-    .filter((s) => (s as { screenshot?: unknown }).screenshot !== false); // {screenshot:false} = declined capture
-  const splitSteps = validateSteps(steps);
-  if (opts.signal?.aborted) throw new Error("Aborted before launch");
+export interface PageHandle {
+  connection: CdpConnection;
+  sessionId: string;
+  consoleErrors: string[];
+  dialogs: string[];
+  navigatedTo?: string;
+  /** Kill Chrome and remove the profile. Safe to call more than once. */
+  cleanup: () => void;
+  /** @internal one-shot answer for the next native dialog */
+  armedDialog?: "accept" | "dismiss";
+  /** @internal in-step navigation tracking is off while navigatePage runs */
+  tracking: boolean;
+}
 
+/** Clear what one call reports, before that call navigates or runs steps. */
+export function resetCallState(page: PageHandle): void {
+  page.consoleErrors.length = 0;
+  page.dialogs.length = 0;
+  page.navigatedTo = undefined;
+  page.armedDialog = undefined;
+}
+
+/** Viewport and reduced-motion emulation; applied before a navigation so load-time styling sees it. */
+export async function applyEmulation(page: PageHandle, opts: { viewport?: ViewportOpts; reducedMotion?: boolean }): Promise<void> {
+  const send = (method: string, params?: Record<string, unknown>) => page.connection.send(method, params, page.sessionId);
+  if (opts.viewport) {
+    await send("Emulation.setDeviceMetricsOverride", {
+      width: opts.viewport.width,
+      height: opts.viewport.height ?? 800,
+      deviceScaleFactor: opts.viewport.device_scale_factor ?? 1,
+      mobile: false,
+    });
+  }
+  if (opts.reducedMotion !== undefined) {
+    await send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-reduced-motion", value: opts.reducedMotion ? "reduce" : "" }],
+    });
+  }
+}
+
+/** Launch Chrome, attach one blank page, apply emulation and arm the collectors. */
+export async function openPage(opts: { viewport?: ViewportOpts; reducedMotion?: boolean; wsFactory?: WsFactory } = {}): Promise<PageHandle> {
   const browser = await launchCdp({ wsFactory: opts.wsFactory });
-  const onAbort = () => browser.cleanup();
-  opts.signal?.addEventListener("abort", onAbort, { once: true });
-  let sessionId: string | undefined;
   try {
     const connection = browser.connection;
-    const stepTimeoutMs = opts.stepTimeoutMs ?? DEFAULT_STEP_TIMEOUT_MS;
     const target = await connection.send("Target.createTarget", { url: "about:blank" });
     const targetId = target.targetId as string;
-    sessionId = ((await connection.send("Target.attachToTarget", { targetId, flatten: true })) as { sessionId: string })
+    const sessionId = ((await connection.send("Target.attachToTarget", { targetId, flatten: true })) as { sessionId: string })
       .sessionId;
+    const page: PageHandle = { connection, sessionId, consoleErrors: [], dialogs: [], cleanup: browser.cleanup, tracking: false };
     const send = (method: string, params?: Record<string, unknown>) => connection.send(method, params, sessionId);
 
     // Emulation BEFORE navigation so load-time animations/styling see the
     // emulated environment (honest 390px render, no entrance-animation blanks).
-    if (opts.viewport) {
-      await send("Emulation.setDeviceMetricsOverride", {
-        width: opts.viewport.width,
-        height: opts.viewport.height ?? 800,
-        deviceScaleFactor: opts.viewport.device_scale_factor ?? 1,
-        mobile: false,
-      });
-    }
-    if (opts.reducedMotion) {
-      await send("Emulation.setEmulatedMedia", {
-        features: [{ name: "prefers-reduced-motion", value: "reduce" }],
-      });
-    }
+    await applyEmulation(page, { viewport: opts.viewport, reducedMotion: opts.reducedMotion ? true : undefined });
 
     await send("Page.enable");
     // Console collection: a page that logs errors while rendering is broken in
     // a way no screenshot shows. Enabled before navigation; every message is
     // advisory data for the caller (ux_audit reports it, nothing blocks on it).
-    const consoleErrors: string[] = [];
     const recordError = (text: string) => {
       const line = text.replace(/\s+/g, " ").trim().slice(0, 200);
-      if (line !== "" && !consoleErrors.includes(line) && consoleErrors.length < 10) consoleErrors.push(line);
+      if (line !== "" && !page.consoleErrors.includes(line) && page.consoleErrors.length < 10) page.consoleErrors.push(line);
     };
     const describeArg = (arg: unknown): string => {
       const value = (arg as { value?: unknown; description?: string } | undefined)?.value ?? (arg as { description?: string } | undefined)?.description;
@@ -629,109 +656,166 @@ export async function runInteraction(opts: InteractionOpts): Promise<Interaction
     // Native JS dialogs block the renderer forever unless answered — answer
     // every one (default dismiss; a {dialog} step arms the answer once) and
     // record it so the model sees what happened (issue 2026-09-18).
-    const dialogs: string[] = [];
-    let armedDialogAction: "accept" | "dismiss" | undefined;
     connection.on("Page.javascriptDialogOpening", (params, sid) => {
       if (sid !== sessionId) return;
-      const accept = armedDialogAction === "accept";
-      armedDialogAction = undefined;
+      const accept = page.armedDialog === "accept";
+      page.armedDialog = undefined;
       const type = String(params.type ?? "dialog");
       const message = String(params.message ?? "").slice(0, 80);
-      dialogs.push(`${type}("${message}") → ${accept ? "accepted" : "dismissed"}`);
+      page.dialogs.push(`${type}("${message}") → ${accept ? "accepted" : "dismissed"}`);
       // ponytail: best-effort answer — a dialog already gone must not fail the run
       connection.send("Page.handleJavaScriptDialog", { accept }, sessionId).catch(() => {});
     });
-    const loaded = waitForLoad(connection, sessionId);
-    await send("Page.navigate", { url: opts.url });
-    await loaded;
-    // Track IN-STEP navigations only — registered after the initial load
-    // because real Chrome fires frameNavigated for the initial main-frame
-    // navigation too, which would false-positive on every run.
-    let navigatedTo: string | undefined;
+    // Track IN-STEP navigations only. Real Chrome fires frameNavigated for a
+    // requested navigation too, so tracking is off while navigatePage runs.
     connection.on("Page.frameNavigated", (params, sid) => {
-      if (sid !== sessionId) return;
+      if (sid !== sessionId || !page.tracking) return;
       const frame = params.frame as { url?: string; parentId?: string } | undefined;
       // Only the MAIN frame (subframes carry a parentId) — an iframe refreshing
       // mid-step is not a page navigation.
       if (!frame || frame.parentId) return;
       const url = frame.url;
-      if (url && !url.startsWith("about:")) navigatedTo = url;
+      if (url && !url.startsWith("about:")) page.navigatedTo = url;
     });
-    if (opts.waitForSec) await new Promise((r) => setTimeout(r, Math.round(opts.waitForSec! * 1000)));
-    if (opts.grant?.length) {
-      await connection.send("Browser.grantPermissions", {
-        permissions: opts.grant.map((p) => PERMISSION_ALIASES[p] ?? p),
-      });
-    }
+    return page;
+  } catch (err) {
+    browser.cleanup();
+    throw err;
+  }
+}
 
-    const outcomes: StepOutcome[] = [];
-    let screenshot: string | undefined;
-    for (const step of steps) {
-      opts.signal?.throwIfAborted();
-      const seenDialogs = dialogs.length;
-      let outcome: StepOutcome;
-      if ("dialog" in step) {
-        armedDialogAction = step.dialog;
-        outcome = { label: stepLabel(step), ok: true };
-      } else {
-        const label = stepLabel(step);
-        outcome = await raceBounded(runStep(connection, sessionId!, step), stepTimeoutMs, stepTimeoutError(stepTimeoutMs))
-          .catch((err: Error) => ({ label, ok: false as const, error: err.message }));
-        // The arm covers exactly the step that follows it — an unconsumed
-        // accept must not silently approve an unrelated dialog steps later.
-        armedDialogAction = undefined;
-      }
-      if (dialogs.length > seenDialogs) outcome.dialogs = dialogs.slice(seenDialogs);
-      outcomes.push(outcome);
-      if (outcome.image) screenshot = outcome.image;
-      if (!outcome.ok) break; // fail fast — later steps depend on earlier ones
-    }
+/** Navigate the page and wait for its load event, then the optional settle time. */
+export async function navigatePage(page: PageHandle, url: string, waitForSec?: number): Promise<void> {
+  assertCaptureUrl(url);
+  page.tracking = false;
+  try {
+    const loaded = waitForLoad(page.connection, page.sessionId);
+    await page.connection.send("Page.navigate", { url }, page.sessionId);
+    await loaded;
+  } finally {
+    page.tracking = true;
+  }
+  if (waitForSec) await new Promise((r) => setTimeout(r, Math.round(waitForSec * 1000)));
+}
 
-    // Probe is advisory: a failed readout (ws closed after abort, target
-    // crash mid-steps) must never discard collected outcomes or screenshots.
-    let probe: { scrollWidth?: number; innerWidth?: number } = {};
+/** Steps as the tools accept them: `wait_ms` folded into `wait_for`, declined captures dropped. */
+export function prepareSteps(raw: InteractStep[] | undefined): { steps: InteractStep[]; splitSteps: number } {
+  // Tool-schema shape is flattened (one optional action field per step object)
+  // because Z.ai's anthropic-compatible endpoint rejects anyOf nested inside
+  // anyOf with 400/1210 — map the split wait_ms field back onto wait_for.
+  const steps: InteractStep[] = (raw ?? [])
+    .map((s) =>
+      (s as { wait_ms?: number }).wait_ms !== undefined
+        ? { wait_for: (s as unknown as { wait_ms: number }).wait_ms }
+        : s,
+    )
+    .filter((s) => (s as { screenshot?: unknown }).screenshot !== false); // {screenshot:false} = declined capture
+  return { steps, splitSteps: validateSteps(steps) };
+}
+
+/** Run validated steps on an open page, then the overflow probe and the final capture. */
+export async function runOnPage(
+  page: PageHandle,
+  opts: { steps: InteractStep[]; splitSteps?: number; grant?: string[]; stepTimeoutMs?: number; screenshot?: boolean; signal?: AbortSignal },
+): Promise<InteractionResult> {
+  const { connection, sessionId } = page;
+  const send = (method: string, params?: Record<string, unknown>) => connection.send(method, params, sessionId);
+  const stepTimeoutMs = opts.stepTimeoutMs ?? DEFAULT_STEP_TIMEOUT_MS;
+  if (opts.grant?.length) {
+    await connection.send("Browser.grantPermissions", {
+      permissions: opts.grant.map((p) => PERMISSION_ALIASES[p] ?? p),
+    });
+  }
+
+  const outcomes: StepOutcome[] = [];
+  let screenshot: string | undefined;
+  for (const step of opts.steps) {
+    opts.signal?.throwIfAborted();
+    const seenDialogs = page.dialogs.length;
+    let outcome: StepOutcome;
+    if ("dialog" in step) {
+      page.armedDialog = step.dialog;
+      outcome = { label: stepLabel(step), ok: true };
+    } else {
+      const label = stepLabel(step);
+      outcome = await raceBounded(runStep(connection, sessionId, step), stepTimeoutMs, stepTimeoutError(stepTimeoutMs))
+        .catch((err: Error) => ({ label, ok: false as const, error: err.message }));
+      // The arm covers exactly the step that follows it — an unconsumed
+      // accept must not silently approve an unrelated dialog steps later.
+      page.armedDialog = undefined;
+    }
+    if (page.dialogs.length > seenDialogs) outcome.dialogs = page.dialogs.slice(seenDialogs);
+    outcomes.push(outcome);
+    if (outcome.image) screenshot = outcome.image;
+    if (!outcome.ok) break; // fail fast — later steps depend on earlier ones
+  }
+  const failed = outcomes.some((outcome) => !outcome.ok);
+
+  // Probe is advisory: a failed readout (ws closed after abort, target
+  // crash mid-steps) must never discard collected outcomes or screenshots.
+  let probe: { scrollWidth?: number; innerWidth?: number } = {};
+  try {
+    const probeRaw = unwrapEvaluate(
+      await raceBounded(
+        send("Runtime.evaluate", {
+          expression: "JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth })",
+          returnByValue: true,
+        }),
+        stepTimeoutMs,
+        "overflow probe timed out (renderer wedged?)",
+      ),
+    );
+    probe = JSON.parse(String(probeRaw));
+  } catch {
+    // ponytail: advisory — leave probe empty
+  }
+
+  // Auto-final whenever no image was captured yet — including when a
+  // requested screenshot step failed or was skipped by fail-fast — unless the
+  // caller declined it for a run that went through.
+  if (!screenshot && (opts.screenshot !== false || failed)) {
     try {
-      const probeRaw = unwrapEvaluate(
-        await raceBounded(
-          send("Runtime.evaluate", {
-            expression: "JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth })",
-            returnByValue: true,
-          }),
-          stepTimeoutMs,
-          "overflow probe timed out (renderer wedged?)",
-        ),
+      const shot = await raceBounded(
+        send("Page.captureScreenshot", { format: "png" }),
+        stepTimeoutMs,
+        "final screenshot timed out (renderer wedged?)",
       );
-      probe = JSON.parse(String(probeRaw));
+      screenshot = shot.data as string;
     } catch {
-      // ponytail: advisory — leave probe empty
+      // ponytail: advisory — collected outcomes matter more than the PNG
     }
+  }
 
-    // Auto-final whenever no image was captured yet — including when a
-    // requested screenshot step failed or was skipped by fail-fast.
-    if (!screenshot) {
-      try {
-        const shot = await raceBounded(
-          send("Page.captureScreenshot", { format: "png" }),
-          stepTimeoutMs,
-          "final screenshot timed out (renderer wedged?)",
-        );
-        screenshot = shot.data as string;
-      } catch {
-        // ponytail: advisory — collected outcomes matter more than the PNG
-      }
-    }
+  return {
+    outcomes,
+    screenshot,
+    probe,
+    ...(page.consoleErrors.length ? { consoleErrors: [...page.consoleErrors] } : {}),
+    ...(page.dialogs.length ? { dialogs: [...page.dialogs] } : {}),
+    ...(page.navigatedTo ? { navigatedTo: page.navigatedTo } : {}),
+    ...(opts.splitSteps ? { splitSteps: opts.splitSteps } : {}),
+  };
+}
 
-    return {
-      outcomes,
-      screenshot,
-      probe,
-      ...(consoleErrors.length ? { consoleErrors } : {}),
-      ...(dialogs.length ? { dialogs } : {}),
-      ...(navigatedTo ? { navigatedTo } : {}),
-      ...(splitSteps > 0 ? { splitSteps } : {}),
-    };
+/**
+ * One call = one browser lifecycle: launch, emulate, navigate, run steps,
+ * screenshot + overflow probe, teardown. No session state survives the call.
+ */
+export async function runInteraction(opts: InteractionOpts): Promise<InteractionResult> {
+  assertCaptureUrl(opts.url);
+  const { steps, splitSteps } = prepareSteps(opts.steps);
+  if (opts.signal?.aborted) throw new Error("Aborted before launch");
+
+  const page = await openPage({ viewport: opts.viewport, reducedMotion: opts.reducedMotion, wsFactory: opts.wsFactory });
+  const onAbort = () => page.cleanup();
+  opts.signal?.addEventListener("abort", onAbort, { once: true });
+  try {
+    // An abort that landed while Chrome was starting fired before the listener existed.
+    opts.signal?.throwIfAborted();
+    await navigatePage(page, opts.url, opts.waitForSec);
+    return await runOnPage(page, { steps, splitSteps, grant: opts.grant, stepTimeoutMs: opts.stepTimeoutMs, screenshot: opts.screenshot, signal: opts.signal });
   } finally {
     opts.signal?.removeEventListener("abort", onAbort);
-    browser.cleanup();
+    page.cleanup();
   }
 }

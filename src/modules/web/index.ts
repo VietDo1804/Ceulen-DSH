@@ -17,6 +17,7 @@ import { registerCommandSafe } from '../../core/tools.js'
 import { loadChatGptAuth } from '../../vendor/ceulen/web/chatgpt.js'
 import { registerBrave, registerFetchFallback, webProviders } from './providers.js'
 import { registerWebTools } from './tools.js'
+import { closeOwnerSessions } from './browser-sessions.js'
 
 export const name = 'ceulen-web'
 export const inject = ['tools', 'commands']
@@ -34,6 +35,11 @@ export function apply(ctx: PluginContext): void {
   registerBrave(ctx)
   registerFetchFallback(ctx)
   registerWebTools(ctx)
+  // A named web_interact page belongs to the agent that opened it.
+  ctx.on('agent/disposed', (payload: { agent?: { session?: { id?: unknown } } } | undefined) => {
+    const id = payload?.agent?.session?.id
+    if (id !== undefined) closeOwnerSessions(String(id))
+  })
 
   registerCommandSafe(ctx, {
     name: 'web-status',

@@ -3,7 +3,8 @@ import type { PluginContext } from '../../core/types.js'
 import { ceulenTool, clampText, objectSchema, registerToolSafe, cwdOf } from '../../core/tools.js'
 import { credential } from '../../core/credentials.js'
 import { findChromeBinary, capturePdf, captureScreenshot } from '../../vendor/ceulen/web/chrome.js'
-import { runInteraction, validateSteps, type InteractStep } from '../../vendor/ceulen/web/cdp.js'
+import { prepareSteps, runInteraction, type InteractStep } from '../../vendor/ceulen/web/cdp.js'
+import { IDLE_MS, runInSession, type SessionResult } from './browser-sessions.js'
 import { chatgptWebChat, describeChatGptError, loadChatGptAuth } from '../../vendor/ceulen/web/chatgpt.js'
 import { chatgptChat, describeChatApiError, loadChatConfig } from '../../vendor/ceulen/web/chatapi.js'
 import { loadGeminiWebConfig } from '../../vendor/ceulen/web/gemini.js'
@@ -43,6 +44,9 @@ const INTERACT_PARAMETERS = objectSchema({
   waitForSec: { type: 'number', description: 'Settle time after load, seconds.' },
   stepTimeoutMs: { type: 'integer', description: 'Per-step budget (default 60000).' },
   grant: { type: 'array', items: { type: 'string' }, description: 'Browser permissions to grant, e.g. clipboard-read.' },
+  screenshot: { type: 'boolean', description: 'false: no final screenshot when every step succeeds (read-only evaluate probes). A failed step still returns one.' },
+  session: { type: 'string', description: 'Keep the page alive under this name for later calls (state kept: login, clicks, scroll). Same name + same url continues on the page as it is; another url navigates it. Closes after 10 min idle.' },
+  close: { type: 'boolean', description: 'With session: close that page after this call.' },
 }, ['url'], true)
 
 /** The seven model-facing web tools; the command surface stays in index.ts. */
@@ -157,7 +161,13 @@ export function registerWebTools(ctx: PluginContext): void {
 
   registerToolSafe(ctx, ceulenTool({
     name: 'web_interact',
-    description: 'Drive a real headless Chrome page: click, type, press keys, evaluate JS, wait, answer dialogs, and capture a final screenshot. One call = one browser lifecycle. Steps use exactly one action key each: {click:"selector"}, {type:{selector,text}}, {press:"Enter"}, {evaluate:"js",label?}, {wait_for:number|selector}, {dialog:"accept"|"dismiss"}, {screenshot:true}. Images do not pass through codemode — call this directly when you need to see the page.',
+    description: [
+      'Drive a real headless Chrome page: click, hover, type, press keys, evaluate JS, wait, answer dialogs, and capture a final screenshot.',
+      'Steps use exactly one action key each: {click:"selector"}, {hover:"selector"}, {type:{selector,text}}, {press:"Enter"}, {evaluate:"js",label?}, {wait_for:number|selector}, {dialog:"accept"|"dismiss"}, {screenshot:true}.',
+      'Without `session` one call = one browser lifecycle and nothing survives it. For several checks on one page, pass `session:"name"`: the next call with that name continues on the same page (state kept, no re-navigation for the same url); end with `close:true`.',
+      'Only reading values? Pass `screenshot:false` to skip the image, e.g. {url, session:"app", screenshot:false, steps:[{evaluate:"document.title"}]}.',
+      'Images do not pass through codemode — call this directly when you need to see the page.',
+    ].join(' '),
     parameters: INTERACT_PARAMETERS,
     contract: { normalize: normalizeInteractArgs },
     outputSchema: IMAGE_RESULT_SCHEMA,
@@ -173,12 +183,16 @@ export function registerWebTools(ctx: PluginContext): void {
         waitForSec?: number
         stepTimeoutMs?: number
         grant?: string[]
+        screenshot?: boolean
+        session?: string
+        close?: boolean
       }
       const cwd = cwdOf(exec)
       assertCaptureScope(args.url, cwd)
-      const steps = args.steps ?? []
-      validateSteps(steps)
-      const result = await runInteraction({
+      // Validated before Chrome launches, so a bad step costs no browser.
+      const { steps, splitSteps } = prepareSteps(args.steps ?? [])
+      const name = typeof args.session === 'string' ? args.session.trim() : ''
+      const common = {
         url: args.url,
         steps,
         viewport: args.viewport,
@@ -186,8 +200,13 @@ export function registerWebTools(ctx: PluginContext): void {
         waitForSec: args.waitForSec,
         stepTimeoutMs: args.stepTimeoutMs,
         grant: args.grant,
+        screenshot: args.screenshot,
         signal: exec.signal,
-      })
+      }
+      const owner = String(exec.agent?.session?.id ?? 'process')
+      const result = name === ''
+        ? await runInteraction(common)
+        : await runInSession({ ...common, splitSteps, owner, name, close: args.close === true })
       const lines = result.outcomes.map(outcome => {
         const value = (outcome as { value?: unknown }).value
         const suffix = outcome.error !== undefined
@@ -199,11 +218,18 @@ export function registerWebTools(ctx: PluginContext): void {
       if (result.consoleErrors !== undefined && result.consoleErrors.length > 0) lines.push(`console errors: ${result.consoleErrors.slice(0, 5).join(' | ')}`)
       if (result.dialogs !== undefined && result.dialogs.length > 0) lines.push(`dialogs: ${result.dialogs.join('; ')}`)
       if (result.probe.scrollWidth !== undefined) lines.push(`page width ${result.probe.scrollWidth}px · viewport ${result.probe.innerWidth ?? '?'}px`)
+      if ('session' in result) {
+        const live = (result as SessionResult).session
+        const how = live.state === 'opened' ? 'opened' : live.state === 'navigated' ? 'reused, navigated to the new url' : 'reused, page state kept'
+        lines.push(live.closed
+          ? `session "${live.name}": ${how}; now closed (${live.closedReason})`
+          : `session "${live.name}": ${how}; stays open ${IDLE_MS / 60_000} min idle (close:true ends it)`)
+      }
       const ignored = ignoredNote('web_interact', raw, INTERACT_PARAMETERS)
       if (ignored !== '') lines.push(ignored)
       const failed = result.outcomes.some(outcome => !outcome.ok)
       const screenshot = result.screenshot === undefined
-        ? { text: 'No screenshot returned.' }
+        ? { text: args.screenshot === false ? 'No screenshot (screenshot: false).' : 'No screenshot returned.' }
         : await saveScreenshot(ctx, result.screenshot, `interact-${new URL(args.url).hostname || 'page'}`, !failed)
       const text = `${lines.join('\n')}\n\n${screenshot.text}`
       if (failed) throw new Error(text)
