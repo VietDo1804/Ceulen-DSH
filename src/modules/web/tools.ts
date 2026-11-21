@@ -163,7 +163,7 @@ export function registerWebTools(ctx: PluginContext): void {
     name: 'web_interact',
     description: [
       'Drive a real headless Chrome page: click, hover, type, press keys, evaluate JS, wait, answer dialogs, and capture a final screenshot.',
-      'Steps use exactly one action key each: {click:"selector"}, {hover:"selector"}, {type:{selector,text}}, {press:"Enter"}, {evaluate:"js",label?}, {wait_for:number|selector}, {dialog:"accept"|"dismiss"}, {screenshot:true}.',
+      'Steps use exactly one action key each: {click:"selector"}, {hover:"selector"}, {type:{selector,text}}, {press:"Enter"}, {evaluate:"js",label?}, {wait_for:number|selector}, {dialog:"accept"|"dismiss"}, {screenshot:true}. A selector is CSS or text=Label (the deepest visible element containing that text).',
       'Without `session` one call = one browser lifecycle and nothing survives it. For several checks on one page, pass `session:"name"`: the next call with that name continues on the same page (state kept, no re-navigation for the same url); end with `close:true`.',
       'Only reading values? Pass `screenshot:false` to skip the image, e.g. {url, session:"app", screenshot:false, steps:[{evaluate:"document.title"}]}.',
       'Images do not pass through codemode — call this directly when you need to see the page.',

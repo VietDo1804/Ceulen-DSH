@@ -401,6 +401,23 @@ export function waitForLoad(
   return promise;
 }
 
+/**
+ * Page-side element lookup for click/hover/type/wait_for: a CSS selector, or
+ * Playwright's `text=Label` form, which models write from habit (a 2026-11-21
+ * flash smoke sent `{click:"text=Account"}`). `text=` picks the deepest
+ * visible element whose text contains the label, preferring an exact match.
+ */
+const FIND_ELEMENT = `(s) => {
+  if (!s.startsWith("text=")) return document.querySelector(s);
+  let t = s.slice(5).trim();
+  if (/^(["']).*\\1$/.test(t)) t = t.slice(1, -1);
+  const norm = (v) => (v || "").replace(/\\s+/g, " ").trim();
+  const shown = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const hits = [...document.querySelectorAll("body *")].filter((e) => norm(e.textContent).includes(t) && shown(e));
+  const deepest = hits.filter((e) => ![...e.children].some((c) => norm(c.textContent).includes(t)));
+  return deepest.find((e) => norm(e.textContent) === t) || deepest[0] || null;
+}`;
+
 async function runStep(
   connection: CdpConnection,
   sessionId: string,
@@ -415,7 +432,7 @@ async function runStep(
         await connection.send(
           "Runtime.evaluate",
           {
-            expression: `(() => { const el = document.querySelector(${sel}); if (!el) return null; el.scrollIntoView({ block: "center" }); const r = el.getBoundingClientRect(); if (r.width <= 0 || r.height <= 0) return { hidden: true }; return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`,
+            expression: `(() => { const el = (${FIND_ELEMENT})(${sel}); if (!el) return null; el.scrollIntoView({ block: "center" }); const r = el.getBoundingClientRect(); if (r.width <= 0 || r.height <= 0) return { hidden: true }; return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`,
             returnByValue: true,
           },
           sessionId,
@@ -449,7 +466,7 @@ async function runStep(
       const probe = unwrapEvaluate(
         await connection.send(
           "Runtime.evaluate",
-          { expression: `(() => { const el = document.querySelector(${sel}); if (!el) return { missing: true }; el.focus(); return { focused: document.activeElement === el }; })()`, returnByValue: true },
+          { expression: `(() => { const el = (${FIND_ELEMENT})(${sel}); if (!el) return { missing: true }; el.focus(); return { focused: document.activeElement === el }; })()`, returnByValue: true },
           sessionId,
         ),
       ) as { missing?: boolean; focused?: boolean } | undefined;
@@ -485,7 +502,7 @@ async function runStep(
         const found = unwrapEvaluate(
           await connection.send(
             "Runtime.evaluate",
-            { expression: `!!document.querySelector(${sel})`, returnByValue: true },
+            { expression: `!!(${FIND_ELEMENT})(${sel})`, returnByValue: true },
             sessionId,
           ),
         );
