@@ -149,9 +149,13 @@ export function trimScriptError(message: string): string {
  * after its work already ran. Sanitizing the completion instead is a JSON
  * round-trip: undefined object fields are dropped, undefined array elements
  * become null, Dates their ISO string, NaN null and bigints strings.
+ * An Error keeps its name and message: its own fields are not enumerable, so
+ * the round-trip alone turned the reason of a refused call in a
+ * `Promise.allSettled` result into `{}` and the script never saw why. Errors
+ * are told by shape, since one thrown by a tool binding comes from another realm.
  */
 // ponytail: catch returns the raw value, so a circular completion (or Map/Set) still hits the old invalid-output error; upgrade to a drop-cycle walk if that shape shows up in the evo report.
-const SANITIZE_PRELUDE = 'const __ceulenCs=v=>{if(v===void 0)return v;try{return JSON.parse(JSON.stringify(v,(k,x)=>typeof x==="bigint"?String(x):x))}catch{return v}};return await (async()=>{const __ceulenV=await (async()=>{'
+const SANITIZE_PRELUDE = 'const __ceulenCs=v=>{if(v===void 0)return v;try{return JSON.parse(JSON.stringify(v,(k,x)=>typeof x==="bigint"?String(x):x&&typeof x==="object"&&typeof x.message==="string"&&typeof x.stack==="string"?{...x,name:x.name,message:x.message}:x))}catch{return v}};return await (async()=>{const __ceulenV=await (async()=>{'
 const SANITIZE_TAIL = '\n})();return __ceulenCs(__ceulenV)})()'
 
 /**
