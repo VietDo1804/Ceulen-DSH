@@ -3,7 +3,9 @@ import { isModuleEnabled, loadSettingsSync, updateSettings } from '../../core/se
 import { errorMessage, registerCommandSafe } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import { AgentStore, LINGER_MS, rosterText, summarize, type SessionEvent, type SessionInfo } from './model.js'
-import { createPanel } from './panel.js'
+import { createPanel, createRowPanel } from './panel.js'
+import { teamAutopilot } from './team.js'
+import { team } from '../subagent/team.js'
 import { createBand } from './view.js'
 
 export const name = 'ceulen-agentbar'
@@ -73,8 +75,12 @@ export function panelAutopilot(store: AgentStore, service: PanelService, id: str
  *   moving "Working…", its todo list, context window and cache hit. It opens
  *   beside the chat when a batch starts and closes LINGER_MS after it ends,
  *   but only with scripts/tui-panel-patch.mjs applied (open without focus);
+ * - the Team side panel, only while a lead is in `/orchestrator` mode: the
+ *   lead's loop, the contract, each wave with its briefs, and the lead's
+ *   decision at every checkpoint (./team.ts). It opens when the mode is turned
+ *   on and replaces the Subagents auto-open for that session;
  * - a band of up to 3 rows above the prompt (`tuiStatus`), for inline mode,
- *   narrow terminals or a closed panel. It hides while the panel shows.
+ *   narrow terminals or a closed panel. It hides while a panel shows.
  * `/agentbar` prints the whole roster. Headless/ACP/web have neither seam,
  * so only the command is live there.
  */
@@ -132,7 +138,10 @@ export function apply(ctx: PluginContext): void {
       const canReveal = id !== undefined && typeof service.reveal === 'function'
       revealable = canReveal
       // The setting is read per batch, so `/agentbar auto off` applies without a restart.
-      if (canReveal) child.effect(() => panelAutopilot(store, service, id, Date.now, () => loadSettingsSync().agentbar.autoOpen), 'ceulen agentbar panel autopilot')
+      // A session in orchestrator mode has the Team panel instead.
+      if (canReveal) child.effect(() => panelAutopilot(store, service, id, Date.now, () => loadSettingsSync().agentbar.autoOpen && team.get(store.focusId) === undefined), 'ceulen agentbar panel autopilot')
+      // The Team panel is registered only while a lead is in orchestrator mode.
+      child.effect(() => teamAutopilot(team, store, service, createRowPanel, () => loadSettingsSync().agentbar.autoOpen), 'ceulen agentbar team panel')
       logLine('agentbar', `panel registered as ${id ?? '(unknown id)'}; auto-open ${canReveal ? 'available' : 'off (run scripts/tui-panel-patch.mjs apply)'}`)
     })
   } catch {

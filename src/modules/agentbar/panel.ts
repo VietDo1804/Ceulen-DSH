@@ -83,7 +83,7 @@ export function todoWindow(todos: readonly TodoItem[]): { items: readonly TodoIt
   return { items, hidden: todos.length - items.length }
 }
 
-function bar(done: number, total: number, cells: number): Run[] {
+export function bar(done: number, total: number, cells: number): Run[] {
   const filled = total === 0 ? 0 : Math.round((done / total) * cells)
   return [['━'.repeat(filled), 'accent'], ['─'.repeat(cells - filled), 'subtle']]
 }
@@ -184,26 +184,36 @@ export const bodyRows = (height: number): number => Math.max(1, height - 3)
 /** Clamp a scroll offset so the last page stays full. */
 export const clampScroll = (offset: number, total: number, visible: number): number => Math.max(0, Math.min(offset, total - visible))
 
-/** The registered panel component: reads the store, animates only while a child runs. */
-export function createPanel(store: AgentStore): (props: PanelProps) => unknown {
-  return function CeulenSubagentPanel({ React: R, ui, host, width, height, focused, visible }: PanelProps): unknown {
+/** What a row panel draws from: a store to follow and the rows for one moment. */
+export interface RowSource {
+  subscribe(listener: () => void): () => void
+  getVersion(): number
+  rows(now: number, width: number, frame: number, room: number): { header: PanelRow; body: PanelRow[] }
+  /** Something moves: the panel's clock runs only then, and only while visible. */
+  animating(): boolean
+  setVisible(visible: boolean): void
+  /** The user focused the panel. */
+  touch(): void
+}
+
+/** A side panel of rows: header, scrolling body, one hint line. */
+export function createRowPanel(source: RowSource): (props: PanelProps) => unknown {
+  return function CeulenRowPanel({ React: R, ui, host, width, height, focused, visible }: PanelProps): unknown {
     const h = R.createElement
-    R.useSyncExternalStore(store.subscribe, store.getVersion)
+    R.useSyncExternalStore(source.subscribe, source.getVersion)
     const [scroll, setScroll] = R.useState(0)
-    const rows = store.batch()
-    const spinning = rows.some(row => row.state === 'running')
-    ui.useAnimationTime(visible && spinning ? FRAME_MS : null)
+    ui.useAnimationTime(visible && source.animating() ? FRAME_MS : null)
     R.useEffect(() => {
-      store.setPanelVisible(visible)
-      return () => store.setPanelVisible(false)
+      source.setVisible(visible)
+      return () => source.setVisible(false)
     }, [visible])
     R.useEffect(() => {
-      if (focused) store.touchPanel()
+      if (focused) source.touch()
     }, [focused])
     const now = Date.now()
     const room = bodyRows(height)
     // Content width: the panel minus its paddingX.
-    const { header, body } = panelRows(rows, now, width - 2, Math.floor(now / FRAME_MS), room)
+    const { header, body } = source.rows(now, width - 2, Math.floor(now / FRAME_MS), room)
     const offset = clampScroll(scroll, body.length, room)
     // ↑/↓ and PgUp/PgDn scroll while the panel has focus; Esc returns to the chat (host).
     R.useEffect(() => host?.onKey?.(event => {
@@ -248,4 +258,16 @@ export function createPanel(store: AgentStore): (props: PanelProps) => unknown {
       }, ...body.slice(offset, offset + room).map((row, index) => line(row, offset + index))),
       h(ui.Box, { key: 'footer', flexShrink: 0, height: 1, overflow: 'hidden' }, text(hint, 'subtle')))
   }
+}
+
+/** The Subagents panel: reads the store, animates only while a child runs. */
+export function createPanel(store: AgentStore): (props: PanelProps) => unknown {
+  return createRowPanel({
+    subscribe: store.subscribe,
+    getVersion: store.getVersion,
+    rows: (now, width, frame, room) => panelRows(store.batch(), now, width, frame, room),
+    animating: () => store.batch().some(row => row.state === 'running'),
+    setVisible: visible => store.setPanelVisible(visible),
+    touch: () => store.touchPanel(),
+  })
 }

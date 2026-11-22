@@ -94,7 +94,8 @@ export function createBand(store: AgentStore): (props: BandProps) => unknown {
     const { columns } = ui.useTerminalSize()
     const now = Date.now()
     const summary = summarize(store.batch())
-    const spinning = summary.running.length > 0 && !store.panelVisible
+    const covered = store.panelVisible || store.teamVisible
+    const spinning = summary.running.length > 0 && !covered
     // Lingering summary: one wake-up to hide it, no frames.
     const hideAt = spinning || summary.lastEnd === undefined ? undefined : summary.lastEnd + LINGER_MS
     R.useEffect(() => {
@@ -106,8 +107,8 @@ export function createBand(store: AgentStore): (props: BandProps) => unknown {
       const timer = setTimeout(() => setTick(tick => tick + 1), hideAt - Date.now() + 50)
       return () => clearTimeout(timer)
     }, [spinning, hideAt])
-    // The Subagents side panel shows the same rows in full; never both.
-    if (store.panelVisible) return null
+    // A side panel (Subagents, or Team in orchestrator mode) shows the same children in full; never both.
+    if (covered) return null
     const lines = bandLines(summary, now, columns, Math.floor(now / TICK_MS))
     if (lines.length === 0) return null
     const text = (value: string, tone: Tone, bold = false, key?: number): unknown =>

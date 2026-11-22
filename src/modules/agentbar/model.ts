@@ -175,6 +175,25 @@ export class AgentStore {
   /** The user focused the panel since it was revealed: never auto-close it. */
   panelTouched = false
 
+  /** The Team side panel (orchestrator mode) is on screen: the band steps aside for it too. */
+  teamVisible = false
+
+  setTeamVisible(visible: boolean): void {
+    if (this.teamVisible === visible) return
+    this.teamVisible = visible
+    this.emit()
+  }
+
+  /** The root session the user is on. */
+  get focusId(): string | undefined {
+    return this.focus
+  }
+
+  /** A child's row by session id, whatever its batch. */
+  row(id: string): AgentRow | undefined {
+    return this.rows.get(id)
+  }
+
   setPanelVisible(visible: boolean): void {
     if (this.panelVisible === visible) return
     this.panelVisible = visible
@@ -191,6 +210,7 @@ export class AgentStore {
     this.batchStart.clear()
     this.focus = undefined
     this.panelVisible = false
+    this.teamVisible = false
     this.panelTouched = false
     this.emit()
   }
