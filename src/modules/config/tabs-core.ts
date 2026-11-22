@@ -108,6 +108,7 @@ export function buildCoreTabs(settings: CeulenSettings, context: ConfigContext, 
             }, { placeholder: 'none', description: 'Skip automatic and on-demand advisor for these comma-separated main model ids or provider/model routes. Default: gpt-6-astra. Empty or "-" allows all models.' }),
             toggle('advisor.showStatus', 'Status line', settings.advisor.showStatus, value => { settings.advisor.showStatus = value }, { description: 'Show advisor working/done in the status bar.' }),
             number('advisor.minToolCalls', 'Min tool calls', settings.advisor.minToolCalls, value => { settings.advisor.minToolCalls = value }, 0, 100),
+            toggle('advisor.planReview', 'Review plans', settings.advisor.planReview, value => { settings.advisor.planReview = value }, { description: 'In /orchestrator mode, the advisor reads the lead\'s plan before you are asked to approve it; its points go back to the lead once, and what stays open shows on the approval card. Works with Watch turns off.' }),
           ],
         },
         {

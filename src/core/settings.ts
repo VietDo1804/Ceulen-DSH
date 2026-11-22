@@ -29,6 +29,8 @@ export interface CeulenSettings {
     watch: boolean
     showStatus: boolean
     minToolCalls: number
+    /** In orchestrator mode, review the lead's plan before the user is asked to approve it. */
+    planReview: boolean
   }
   classifier: {
     provider: string | null
@@ -172,7 +174,7 @@ export function defaultSettings(): CeulenSettings {
     upstream: { enabled: true, intervalHours: 24 },
     // ponytail: one shipped default (Z.AI GLM-5.3 at max thinking); clear the
     // panel's route row to fall back to the parent agent's route.
-    advisor: { provider: 'zai', model: 'glm-5.3', reasoningEffort: 'max', fallbacks: [], skipModels: ['gpt-6-astra'], watch: false, showStatus: true, minToolCalls: 1 },
+    advisor: { provider: 'zai', model: 'glm-5.3', reasoningEffort: 'max', fallbacks: [], skipModels: ['gpt-6-astra'], watch: false, showStatus: true, minToolCalls: 1, planReview: true },
     classifier: { provider: null, model: null, audit: true, enforce: false, fallbacks: [] },
     munin: { project: '', baseUrl: '', allowProjectConfig: false, fallback: { baseUrl: '' }, brief: { enabled: false, maxChars: 600, recencyDays: 30 } },
     agentmem: { project: '', baseUrl: '', brief: { enabled: false, maxChars: 600, recencyDays: 30 } },
@@ -381,6 +383,7 @@ export function normalizeSettings(raw: unknown, env = true): CeulenSettings {
       watch: bool(advisor.watch, base.advisor.watch),
       showStatus: bool((advisor as Record<string, unknown>).showStatus, base.advisor.showStatus),
       minToolCalls: num(advisor.minToolCalls, base.advisor.minToolCalls, 0, 100),
+      planReview: bool((advisor as Record<string, unknown>).planReview, base.advisor.planReview),
     },
     classifier: {
       provider: nullableStr(classifier.provider),

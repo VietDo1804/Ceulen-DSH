@@ -15,6 +15,9 @@
  *   once; re-issuing the same call declares a takeover of those files. The
  *   reasons are a blocked child, work still wrong after one correction, or a
  *   direct order from the user (astra otherwise refused even that).
+ * The plan is read twice before anything is built: by the advisor, whose
+ * points go back to the lead once, and then by the user on the review card,
+ * with whatever the advisor still holds open.
  * The contract a lead writes is its own: a child's edit inside that contract
  * directory is refused. Everything the mode learns goes into the team ledger
  * (./team.ts), which the Team side panel draws.
@@ -31,6 +34,7 @@ import { agentRoute } from '../../core/route.js'
 import { EDITING, editedPaths } from './nudge.js'
 import { briefTasks, childState, runningEntries, team } from './team.js'
 import { PLAN_FILE, PLAN_SHAPE, readPlan, type LeadPlan } from './leadplan.js'
+import { planAdviser } from '../advisor/plan-review.js'
 
 /** The lead models this mode targets; a lead on any other route is told so when it turns the mode on. */
 const TUNED_LEADS = ['gpt-6.2-astra', 'gpt-6.2-sol']
@@ -43,7 +47,7 @@ Team: \`delegate\` roles on their configured routes: scout (recon), planner (des
 
 Loop
 1. Orient. Read only enough to plan: a few targeted reads, or scouts in parallel for an unfamiliar area. Never read what a child is already reading. Do not guess what the user meant: what reading can settle, settle by reading; a choice only the user can make, or a request you can read two ways, is a question. Ask it with \`ask_user_question\` before you plan, with your recommendation.
-2. Plan. Write the plan to .dsh/plans/<task>.md, as detailed as a \`/plan\` plan: decision-complete, so that a child can carry out its task without making a design decision. Required headings: \`# <title>\`; \`## Goal\` (the outcome and its success criteria); \`## Scope\` (what changes, by subsystem, with API, schema and data-flow changes, edge cases and failure modes; and what is out of scope); \`## Tasks\` (one row per task: id T1, T2, …, owner role, write scope, the check that proves it done, its wave: independent tasks share a wave, dependent ones wait); \`## Acceptance\` (the checks for the whole result); \`## Assumptions\` (everything you inferred and did not ask, or "none"). The harness shows the plan to the user for approval the first time you write a contract or dispatch a worker or tester, so do not ask "shall I proceed" yourself. Feedback comes back as the tool's error: revise the file and do the step again. Then mirror the tasks on the board with \`todo_write\`, one row per task starting with its id (a row has only content and status).
+2. Plan. Write the plan to .dsh/plans/<task>.md, as detailed as a \`/plan\` plan: decision-complete, so that a child can carry out its task without making a design decision. Required headings: \`# <title>\`; \`## Goal\` (the outcome and its success criteria); \`## Scope\` (what changes, by subsystem, with API, schema and data-flow changes, edge cases and failure modes; and what is out of scope); \`## Tasks\` (one row per task: id T1, T2, …, owner role, write scope, the check that proves it done, its wave: independent tasks share a wave, dependent ones wait); \`## Acceptance\` (the checks for the whole result); \`## Assumptions\` (everything you inferred and did not ask, or "none"). The harness shows the plan to the user for approval the first time you write a contract or dispatch a worker or tester, so do not ask "shall I proceed" yourself. Feedback comes back as the tool's error: revise the file and do the step again. When an advisor is configured it reads the plan before the user does, and its points come back the same way, once: fix the plan for each point, or answer a point that does not apply in one line under a \`## Advisor review\` heading in the plan. Then mirror the tasks on the board with \`todo_write\`, one row per task starting with its id (a row has only content and status).
 3. Contract. When two or more tasks must fit together (shared types, API shapes, file formats, naming, units), pin that interface before dispatch: load the \`contract-first\` skill and write contracts/<task>/contract.md. You own that file; children read it.
 4. Brief and dispatch. Send every task of a wave in ONE step as parallel \`delegate\` calls with disjoint write scopes. Each \`task\` is a brief with these labelled lines; the tool rejects a brief without Goal, Scope and Acceptance, and a worker or tester brief without Plan:
    Plan: the id of the plan task this child carries out, e.g. T2.
@@ -102,6 +106,54 @@ const APPROVE = 'Approve'
 const KEEP_PLANNING = 'Keep planning'
 const REVIEW_ID = 'plan-review'
 
+/**
+ * Advisor passes before a plan reaches the user: the first may send the lead
+ * back to revise, the second only reports. More rounds would be two models
+ * arguing while the user waits; what they cannot settle is the user's call.
+ */
+const MAX_ADVISOR_ROUNDS = 2
+
+/** The advisor's reading of the lead's plan. */
+interface Advice {
+  /** Advisor passes used since the user last answered a review card. */
+  readonly rounds: number
+  /** The plan text the advisor last read. */
+  readonly hash?: string
+  /** What it still has to say about that text. */
+  readonly notes: readonly string[]
+  /** Points of the version before, which this version was checked against. */
+  readonly raised?: number
+  readonly reviewer?: string
+  /** Why the advisor could not read the plan. */
+  readonly failed?: string
+}
+
+const points = (count: number): string => `${count} ${count === 1 ? 'point' : 'points'}`
+
+/**
+ * One line for the card's question. A plan longer than the screen scrolls the
+ * top of the card away, and the question is the part that always shows.
+ */
+export function adviceSummary(advice: Advice): string {
+  if (advice.failed !== undefined) return 'Advisor review: not available.'
+  const who = advice.reviewer === undefined ? 'Advisor' : `Advisor (${advice.reviewer})`
+  return advice.notes.length === 0 ? `${who}: no open points.` : `${who}: ${points(advice.notes.length)} still open, listed at the top of the plan.`
+}
+
+/** What the review card says about the advisor, above the plan. */
+export function adviceBlock(advice: Advice): string {
+  if (advice.failed !== undefined) return `> **Advisor review:** not available (${advice.failed.replace(/\s+/g, ' ').slice(0, 160)}). Only the lead has read this plan.`
+  const who = advice.reviewer === undefined ? '' : ` (${advice.reviewer})`
+  if (advice.notes.length === 0) {
+    const before = advice.raised === undefined || advice.raised === 0 ? '' : ` (${points(advice.raised)} on the version before, settled in this one)`
+    return `> **Advisor review**${who}: no open points${before}.`
+  }
+  return [
+    `> **Advisor review**${who}: ${points(advice.notes.length)} still open. Choose "${KEEP_PLANNING}" to have the lead deal with ${advice.notes.length === 1 ? 'it' : 'them'}; add a note to say what matters to you.`,
+    ...advice.notes.map(note => `> - ${note}`),
+  ].join('\n')
+}
+
 /** A lead's contract file: contracts/<task>/contract.md. */
 const CONTRACT_FILE = /(?:^|\/)contracts\/[^/]+\/contract\.md$/
 
@@ -119,8 +171,12 @@ interface Lead {
   approved?: string
   /** Task ids of that approved plan, to tell the user what a change adds or drops. */
   approvedTasks?: readonly string[]
-  /** A plan review card on screen; parallel dispatches wait on the same one. */
-  review?: { readonly hash: string; readonly done: Promise<void> }
+  /** The text of that approved plan: the advisor reviews a later change against it. */
+  approvedText?: string
+  /** A plan under review, by the advisor and then on the user's card; parallel dispatches wait on the same one. */
+  review?: { readonly hash: string; done: Promise<void>; withUser: boolean }
+  /** Where the advisor stands on the plan. */
+  advice: Advice
 }
 
 /** The part of a tool execution the plan review needs. */
@@ -248,7 +304,7 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
       path: relative(cwd, lead.planPath) || lead.planPath,
       title: plan.title,
       tasks: plan.tasks,
-      state: lead.approved === plan.hash ? 'approved' : lead.review?.hash === plan.hash ? 'review' : 'draft',
+      state: lead.approved === plan.hash ? 'approved' : lead.review?.hash !== plan.hash ? 'draft' : lead.review.withUser ? 'review' : 'advisor',
     })
   }
   /** The lead's plan, complete enough to show the user. Throws with what to write. */
@@ -266,7 +322,46 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
     if (plan.missing.length > 0) throw new Error(`The plan at ${shown} is not ready to show the user: it lacks ${plan.missing.join(', ')}.\n${PLAN_SHAPE}`)
     return { plan, text, shown }
   }
-  /** Ask the user to approve this exact plan text, once, on the native plan review card. */
+  /**
+   * The advisor reads the plan before the user does. Its points on the first
+   * pass go back to the lead as the refusal; after that they ride on the card.
+   * No advisor, or one that does not review this lead: undefined.
+   */
+  const advise = async (lead: Lead, loaded: LoadedPlan, exec: ExecLike): Promise<Advice | undefined> => {
+    const adviser = planAdviser()
+    if (adviser === undefined) return undefined
+    const { plan, text, shown } = loaded
+    const last = lead.advice
+    // The same text again: the lead chose not to revise, so the user decides.
+    if (last.hash === plan.hash) return last
+    const round = last.rounds + 1
+    let result: Awaited<ReturnType<typeof adviser>>
+    try {
+      result = await adviser({
+        agent: lead.agent,
+        plan: text,
+        ...(lead.approvedText === undefined ? {} : { approved: lead.approvedText }),
+        ...(last.notes.length === 0 ? {} : { earlier: last.notes }),
+        ...(exec.signal === undefined ? {} : { signal: exec.signal }),
+      })
+    } catch (error) {
+      if (exec.signal?.aborted === true) throw error
+      // A reviewer that is down must not keep the plan from the user.
+      lead.advice = { rounds: round, hash: plan.hash, notes: [], failed: errorMessage(error) }
+      logLine('subagent', `orchestrator plan advisor round ${round}: unavailable (${errorMessage(error)})`)
+      return lead.advice
+    }
+    if (result === undefined) return undefined
+    lead.advice = { rounds: round, hash: plan.hash, notes: result.notes, raised: last.notes.length, reviewer: result.reviewer }
+    logLine('subagent', `orchestrator plan advisor round ${round}: ${result.notes.length === 0 ? 'no open points' : points(result.notes.length)} (${shown})`)
+    if (result.notes.length === 0 || round >= MAX_ADVISOR_ROUNDS) return lead.advice
+    throw new Error([
+      `The advisor read the plan at ${shown} before the user sees it and has ${points(result.notes.length)}:`,
+      ...result.notes.map(note => `- ${note}`),
+      'Nothing was dispatched, and the user has not been asked yet. Take each point: revise the plan file, or, where a point does not apply, say why in one line under a `## Advisor review` heading in the plan. Then do this step again: the advisor reads the plan once more, and it goes to the user with whatever is still open.',
+    ].join('\n'))
+  }
+  /** Have this exact plan text approved, once: read by the advisor, then by the user on the native plan review card. */
   const approve = (lead: Lead, id: string, loaded: LoadedPlan, exec: ExecLike, cwd: string): Promise<void> => {
     const { plan, text, shown } = loaded
     if (lead.approved === plan.hash) return Promise.resolve()
@@ -283,18 +378,22 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
     const dropped = (before ?? []).filter(name => !plan.tasks.includes(name))
     const delta = [added.length > 0 ? `adds ${added.join(', ')}` : '', dropped.length > 0 ? `drops ${dropped.join(', ')}` : ''].filter(part => part !== '').join('; ')
     const ask = questions.ask.bind(questions)
-    const done = (async (): Promise<void> => {
+    const review: NonNullable<Lead['review']> = { hash: plan.hash, done: Promise.resolve(), withUser: false }
+    review.done = (async (): Promise<void> => {
+      const advice = await advise(lead, loaded, exec)
+      review.withUser = true
+      syncPlan(lead, id, cwd)
       let answer: { answers?: { id?: string; selected?: string[]; custom?: string }[] }
       try {
         answer = await ask({
           questions: [{
             id: REVIEW_ID,
             header: changed ? 'Plan change' : 'Plan review',
-            question: changed ? `The lead changed the plan you approved (${delta === '' ? 'same tasks, edited text' : delta}). Approve the new plan?` : 'Approve this plan and let the lead start the team?',
-            detail: text,
+            question: `${changed ? `The lead changed the plan you approved (${delta === '' ? 'same tasks, edited text' : delta}). Approve the new plan?` : 'Approve this plan and let the lead start the team?'}${advice === undefined ? '' : ` ${adviceSummary(advice)}`}`,
+            detail: advice === undefined ? text : `${adviceBlock(advice)}\n\n${text}`,
             options: [
               { label: APPROVE, description: 'The lead dispatches the team on this plan.' },
-              { label: KEEP_PLANNING, description: 'Nothing is dispatched; your feedback goes back to the lead.' },
+              { label: KEEP_PLANNING, description: (advice?.notes.length ?? 0) > 0 ? 'Nothing is dispatched; the advisor\'s open points and your feedback go back to the lead.' : 'Nothing is dispatched; your feedback goes back to the lead.' },
             ],
             // The intent every DSH client draws as its plan review card.
             intent: { kind: 'plan-review', approve: APPROVE, ...(exec.callId === undefined ? {} : { callId: exec.callId }) },
@@ -313,21 +412,29 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
       if (item?.selected?.length === 1 && item.selected[0] === APPROVE && item.custom === undefined) {
         lead.approved = plan.hash
         lead.approvedTasks = plan.tasks
+        lead.approvedText = text
+        lead.advice = { rounds: MAX_ADVISOR_ROUNDS - 1, notes: [] }
         logLine('subagent', `orchestrator plan approved: ${shown} (${plan.tasks.join(' ')})`)
         return
       }
       const feedback = item?.custom?.trim() ?? ''
+      const open = advice?.notes ?? []
       logLine('subagent', `orchestrator plan not approved: ${shown}${feedback === '' ? '' : ' (with feedback)'}`)
+      if (feedback === '' && open.length > 0) {
+        throw new Error(`The user sent the plan at ${shown} back with the advisor's open ${open.length === 1 ? 'point' : 'points'} and no note of their own. Nothing was dispatched.\n${open.map(note => `- ${note}`).join('\n')}\nRevise the plan file for each, then do this step again.`)
+      }
       throw new Error(feedback === ''
         ? `The user did not approve the plan at ${shown} and left no feedback. Nothing was dispatched. Ask them what to change with \`ask_user_question\`; do not guess.`
         : `The user did not approve the plan at ${shown}. Nothing was dispatched. Their feedback: ${feedback}\nRevise the plan file, then do this step again.`)
     })().finally(() => {
-      if (lead.review?.done === done) delete lead.review
+      // Once the user has answered a card, the advisor reads each later version once and only reports.
+      if (review.withUser && lead.approved !== plan.hash) lead.advice = { ...lead.advice, rounds: MAX_ADVISOR_ROUNDS - 1 }
+      if (lead.review === review) delete lead.review
       syncPlan(lead, id, cwd)
     })
-    lead.review = { hash: plan.hash, done }
+    lead.review = review
     syncPlan(lead, id, cwd)
-    return done
+    return review.done
   }
   const prompt = (): string => {
     let routes = ''
@@ -483,7 +590,7 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
           const running = new Set(runningEntries(state).map(entry => entry.childId))
           lines.push(`Team: ${children.length} dispatched · ${running.size} running · ${children.length - running.size} settled · ${state.checkpoints} checkpoints · ${state.corrections} corrections · ${state.takeovers} lead takeovers`)
           if (state.plan === undefined) lines.push('Plan: none yet (the lead writes it under .dsh/plans/; you approve it before anything is built)')
-          else lines.push(`Plan: ${state.plan.path} · ${state.plan.state === 'approved' ? 'approved by you' : state.plan.state === 'review' ? 'waiting for your approval' : 'draft, not approved'} · ${state.plan.tasks.join(' ') || 'no tasks'}`)
+          else lines.push(`Plan: ${state.plan.path} · ${state.plan.state === 'approved' ? 'approved by you' : state.plan.state === 'review' ? 'waiting for your approval' : state.plan.state === 'advisor' ? 'with the advisor, then you' : 'draft, not approved'} · ${state.plan.tasks.join(' ') || 'no tasks'}`)
           if (state.contract !== undefined) lines.push(`Contract: ${state.contract}`)
           for (const child of children) lines.push(`  ${child.role} · ${child.label} · ${childState(state, child.id)}${child.status === undefined || child.status === 'done' ? '' : ` · reported ${child.status}`}`)
         }
@@ -495,9 +602,11 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
         const id = String(agent.session.id)
         const cwd = agent.session.header?.cwd ?? process.cwd()
         try {
-          const { plan, shown } = loadPlan(current, cwd, 'approval')
+          const { plan, shown, text } = loadPlan(current, cwd, 'approval')
           current.approved = plan.hash
           current.approvedTasks = plan.tasks
+          current.approvedText = text
+          current.advice = { rounds: MAX_ADVISOR_ROUNDS - 1, notes: [] }
           syncPlan(current, id, cwd)
           logLine('subagent', `orchestrator plan approved by command: ${shown}`)
           return { kind: 'success', text: `Plan approved: ${plan.title} (${shown}; ${plan.tasks.join(' ')}). Tell the lead to go on.` }
@@ -518,7 +627,7 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
       if (current === undefined) {
         // A ledger left by an earlier activation of this module is not this lead's.
         team.close(id)
-        leads.set(id, { agent, refused: new Set(), takenOver: new Set(), contractDirs: new Set() })
+        leads.set(id, { agent, refused: new Set(), takenOver: new Set(), contractDirs: new Set(), advice: { rounds: 0, notes: [] } })
       }
       team.open(id, route, Date.now())
       shown = id

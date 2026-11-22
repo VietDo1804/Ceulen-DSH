@@ -150,7 +150,7 @@ function foldedWave(wave: TeamWave): PanelRow {
 function layout(state: TeamState, agent: (id: string) => AgentRow | undefined, now: number, width: number, frame: number, density: Density): PanelRow[] {
   const body: PanelRow[] = [rail(state, width)]
   if (state.plan !== undefined) {
-    const stage: Run = state.plan.state === 'approved' ? ['approved', 'success'] : state.plan.state === 'review' ? ['needs you', 'warning'] : ['draft', 'subtle']
+    const stage: Run = state.plan.state === 'approved' ? ['approved', 'success'] : state.plan.state === 'review' ? ['needs you', 'warning'] : state.plan.state === 'advisor' ? ['advisor review', 'accent'] : ['draft', 'subtle']
     body.push({ left: [['  plan     ', 'subtle'], [state.plan.title, undefined]], right: stage })
   }
   if (state.contract !== undefined) body.push({ left: [['  contract ', 'subtle'], [state.contract.replace(/\/contract\.md$/, ''), undefined]] })
@@ -163,6 +163,7 @@ function layout(state: TeamState, agent: (id: string) => AgentRow | undefined, n
   if (state.waves.length === 0) {
     body.push({ left: [] })
     if (state.plan?.state === 'review') body.push({ left: [['  ▸ ', 'warning'], ['The plan is waiting for your approval.', 'warning']] })
+    else if (state.plan?.state === 'advisor') body.push({ left: [['  ', undefined]], shimmer: { text: 'The advisor is reading the plan; you are next.', phase: frame } })
     else if (state.busy) body.push({ left: [['  ', undefined]], shimmer: { text: phase === 'plan' ? 'Planning…' : 'Preparing the first wave…', phase: frame } })
     else body.push({ left: [[phase === 'plan' ? '  Waiting for a task.' : '  Waiting for the lead.', 'subtle']] })
     body.push({ left: [['  The plan, each brief and each review show here.', 'subtle']] })
@@ -212,7 +213,7 @@ export function teamRows(state: TeamState | undefined, agent: (id: string) => Ag
   const trouble = state.waves.some(wave => wave.entries.some(entry => entry.decision === undefined && entry.state !== 'running'
     && (entry.state !== 'completed' || state.children.get(entry.childId)?.status === 'blocked')))
   const openWaves = state.waves.filter(wave => wave.settledAt === undefined)
-  const where = state.plan?.state === 'review' ? 'your approval' : phase === 'done' ? 'done' : phase === 'review' ? 'reviewing' : openWaves.length > 0 ? `wave ${openWaves[0]!.index}` : phase === 'plan' ? 'planning' : 'briefing'
+  const where = state.plan?.state === 'review' ? 'your approval' : state.plan?.state === 'advisor' ? 'advisor review' : phase === 'done' ? 'done' : phase === 'review' ? 'reviewing' : openWaves.length > 0 ? `wave ${openWaves[0]!.index}` : phase === 'plan' ? 'planning' : 'briefing'
   const model = width >= 34 ? shortRoute(state.route) : undefined
   const header: PanelRow = {
     left: [

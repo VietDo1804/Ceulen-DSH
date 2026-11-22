@@ -37,8 +37,8 @@ export interface TeamPlan {
   readonly title: string
   /** Task ids the plan lists (T1, T2, …). */
   readonly tasks: readonly string[]
-  /** `draft` until the user approves it; `review` while the approval card is open. */
-  readonly state: 'draft' | 'review' | 'approved'
+  /** `draft` until the user approves it; `advisor` while the advisor reads it; `review` while the approval card is open. */
+  readonly state: 'draft' | 'advisor' | 'review' | 'approved'
 }
 
 export interface TeamBrief {

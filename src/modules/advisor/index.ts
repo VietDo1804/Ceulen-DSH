@@ -9,6 +9,8 @@ import { SYSTEM } from '../../vendor/ceulen/advisor/system-prompt.js'
 import { logLine } from '../../core/log.js'
 import { gitEvidence, touchedPaths } from './evidence.js'
 import { CONSULT_BUDGET, renderTurn, toolCallsInTurn, WATCH_BUDGET } from './transcript.js'
+import { parsePlanNotes, PLAN_SYSTEM, planReviewPrompt, setPlanAdviser, userRequests, type PlanAdviser } from './plan-review.js'
+import { runningEntries, team } from '../subagent/team.js'
 
 export const name = 'ceulen-advisor'
 export const inject = ['tools', 'commands', 'llm']
@@ -24,6 +26,16 @@ interface DeliveredNote {
 
 /** How many turns a delivered note may be re-delivered in (vendored guard). */
 const REDELIVERY_WINDOW = 2
+
+/** The lead's own steps shown to the plan reviewer, and how long it may take: the user waits behind it. */
+const PLAN_CONTEXT_BUDGET = 12_000
+const PLAN_REVIEW_TIMEOUT_MS = 180_000
+
+/** An orchestrator lead whose children are still running: its turn is a coordination step, not finished work. */
+function leadsRunningTeam(sessionId: string): boolean {
+  const state = team.get(sessionId)
+  return state !== undefined && runningEntries(state).length > 0
+}
 
 function skipsMainModel(agent: AgentLike, settings: ReturnType<typeof loadSettingsSync>): boolean {
   const main = agent.model?.current?.() ?? agent.options
@@ -189,6 +201,9 @@ export function apply(ctx: PluginContext): void {
     const key = String(session.id)
     if (reviewing.has(key)) return
     if (session.header?.parentSession !== undefined) return
+    // The checkpoint and the team's reviewer cover a wave in flight; the
+    // watcher comes back for the turn that reports with nothing running.
+    if (leadsRunningTeam(key)) return
     const messages = session.deriveMessages?.() ?? []
     if (messages.length === 0) return
     const toolCalls = toolCallsInTurn(messages)
@@ -261,6 +276,39 @@ export function apply(ctx: PluginContext): void {
       reviewing.delete(key)
     }
   }
+
+  // The orchestrator's plan gate asks for this before it shows a plan to the user.
+  const advisePlan: PlanAdviser = async ({ agent, plan, approved, earlier, signal }) => {
+    const current = loadSettingsSync()
+    if (!current.advisor.planReview || skipsMainModel(agent, current)) return undefined
+    const routes = routeListFor(agent, current)
+    if (routes.length === 0) return undefined
+    const messages = agent.session.deriveMessages?.() ?? []
+    const prompt = planReviewPrompt({
+      requests: userRequests(messages),
+      transcript: renderTurn(messages, PLAN_CONTEXT_BUDGET).text,
+      plan,
+      ...(approved === undefined ? {} : { approved }),
+      ...(earlier === undefined ? {} : { earlier }),
+    })
+    publishStatus('advisor · reviewing the plan…')
+    const startedAt = Date.now()
+    try {
+      logLine('advisor', `plan review start chars=${prompt.length}`)
+      const { text, route } = await streamChain(ctx, routes, PLAN_SYSTEM, prompt, signal, false, PLAN_REVIEW_TIMEOUT_MS)
+      const notes = parsePlanNotes(text)
+      const reviewer = `${route.provider}/${route.model}`
+      logLine('advisor', `plan review done ${Math.round((Date.now() - startedAt) / 1000)}s route=${reviewer} points=${notes.length}`)
+      publishStatus(notes.length === 0 ? 'advisor · plan — no points' : `advisor · plan — ${notes.length} ${notes.length === 1 ? 'point' : 'points'}`)
+      scheduleClear(8_000)
+      return { notes, reviewer }
+    } catch (error) {
+      publishStatus(undefined)
+      throw error
+    }
+  }
+  setPlanAdviser(advisePlan)
+  ctx.effect(() => () => setPlanAdviser(undefined))
 
   ctx.on('agent/status', (payload: { agent?: AgentLike; status?: string }) => {
     if (payload?.agent === undefined) return
@@ -339,6 +387,7 @@ export function apply(ctx: PluginContext): void {
           `fallbacks: ${current.advisor.fallbacks.join(', ') || '(none)'}`,
           `skip main models: ${current.advisor.skipModels.join(', ') || '(none)'}`,
           `min tool calls: ${current.advisor.minToolCalls}`,
+          `plan review (orchestrator mode): ${current.advisor.planReview ? 'on' : 'off'}`,
           `last note: ${last}`,
           `guard: delivered ${guard.counts.delivered}, suppressed ${guard.counts.suppressed}`,
         ].join('\n'),

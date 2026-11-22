@@ -159,22 +159,36 @@ How a run goes:
 2. **Plan.** It writes `.dsh/plans/<task>.md` with `Goal`, `Scope` (and what is
    out of scope), `Tasks` (`T1`, `T2`, … with owner, write scope, check and
    wave), `Acceptance` and `Assumptions`.
-3. **You approve.** The whole plan appears on the plan review card. Choose
-   **Approve**, or **Keep planning** with feedback that goes back to the lead.
-4. **Contract.** When tasks must fit together, the lead pins the interfaces in
+3. **The advisor reads it.** When an advisor route is set, a second model
+   checks the plan against what you asked. Its points go back to the lead
+   once; the lead fixes the plan or answers them.
+4. **You approve.** The whole plan appears on the plan review card, with what
+   the advisor still holds open at the top. Choose **Approve**, or **Keep
+   planning** with feedback that goes back to the lead.
+5. **Contract.** When tasks must fit together, the lead pins the interfaces in
    `contracts/<task>/contract.md` (the `contract-first` skill).
-5. **Dispatch.** It briefs the children and sends each wave in parallel.
-6. **Checkpoint.** When a wave settles, it reads every report, then accepts,
+6. **Dispatch.** It briefs the children and sends each wave in parallel.
+7. **Checkpoint.** When a wave settles, it reads every report, then accepts,
    corrects or takes over.
-7. **Report.** It tells you what was built and how it was checked.
+8. **Report.** It tells you what was built and how it was checked.
 
-Five of these steps are enforced by the harness, not left to the prompt:
+Six parts of this are enforced by the harness, not left to the prompt:
 
 - **Plan.** Nothing is built before you approve. A `worker` or `tester` brief
   must name its plan task (`Plan: T2`); a task the plan does not list is
   refused. An edited plan comes back to you as a **Plan change** before the
   next dispatch, so work outside the approved scope cannot start without you.
   Scouts, planners and reviewers only read and may run earlier.
+- **Plan review by the advisor.** Before your card opens, the advisor reads the
+  plan with your own messages and the lead's steps beside it. Points from the
+  first reading are returned to the lead, and nothing is shown to you yet. The
+  second reading only reports: the card's question line says what the advisor
+  found, open points are listed above the plan, and **Keep planning** with no
+  note sends them back to the lead. A later change to
+  the plan is read once, against the plan you approved. If the advisor cannot
+  answer, the card says so and you still get the plan. Turn it off with
+  `advisor.planReview` (Config panel → Advisor → Review plans); it works with
+  the turn watcher off and follows `advisor.skipModels`.
 - **Brief.** `delegate` refuses a task without `Goal:`, `Scope:` and
   `Acceptance:` lines. It appends the handoff rules and the report every child
   ends with (`STATUS`, `CHANGED`, `CHECKS`, `DEVIATIONS`, `BLOCKERS`).
@@ -370,7 +384,7 @@ and their defaults:
   "schemaVersion": 1,
   "disabled": [],
   "upstream": { "enabled": true, "intervalHours": 24 },
-  "advisor": { "provider": "zai", "model": "glm-5.3", "reasoningEffort": "max", "fallbacks": [], "skipModels": ["gpt-6-astra"], "watch": false, "minToolCalls": 1 },
+  "advisor": { "provider": "zai", "model": "glm-5.3", "reasoningEffort": "max", "fallbacks": [], "skipModels": ["gpt-6-astra"], "watch": false, "minToolCalls": 1, "planReview": true },
   "classifier": { "provider": null, "model": null, "audit": true, "enforce": false, "fallbacks": [] },
   "tools": { "cold": ["a2a_call", "a2a_list", "a2a_peers", "a2a_status", "jfind", "munin_delete", "munin_share", "web_interact", "web_map", "web_pdf", "web_screenshot"] },
   "munin": { "project": "", "baseUrl": "", "allowProjectConfig": false, "brief": { "enabled": false, "maxChars": 600, "recencyDays": 30 } },
@@ -489,6 +503,10 @@ wait. It is off by default, so no model is called until you turn it on:
   touched, so it judges the actual request and the actual edit.
 - `advisor.skipModels` lists main models that should not be reviewed
   (`gpt-6-astra` by default).
+- In [orchestrator mode](#orchestrator-mode) the advisor reads the lead's plan
+  before you approve it (`advisor.planReview`, on by default), and the turn
+  watcher waits while the lead's children are running: it reviews the turn
+  that reports.
 - `Esc` cancels a running review.
 
 ### Classifier and the destructive-command gate
