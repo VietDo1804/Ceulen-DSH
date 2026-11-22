@@ -30,13 +30,13 @@
     "src/vendor/ceulen/munin/sdk.ts": {
       "source": "extensions/modules/munin/lib/sdk.ts",
       "upstreamSha256": "ae115d50182ab243f07f148c48a1b23ad4b35738bf5a2feab89f1755b4ac029d",
-      "localSha256": "08f23c5bc1d05f34e86e3dff68cdbb16bce047e5e58e528d9722cb22506336ee",
+      "localSha256": "be495009f00f53099679528635c9d85e039337293196f282f4debcf0f246b7e5",
       "mode": "patched"
     },
     "src/vendor/ceulen/munin/helpers.ts": {
       "source": "extensions/modules/munin/lib/helpers.ts",
       "upstreamSha256": "250a7e4c6fab6567e4fcbe839381eedfc74dadc2f68eb92f571f57462b60e3e8",
-      "localSha256": "82de9d5ed6d59974d702a23f05eaa04db14ffbb87b75de787b2dabe66b9998a8",
+      "localSha256": "9010ea0c20429c59e7d7f8ca39c31674ddb4ff65110736aad76a05bf04593bf0",
       "mode": "patched"
     },
     "src/vendor/ceulen/munin/retry.ts": {

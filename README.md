@@ -661,6 +661,11 @@ export MUNIN_BASE_URL=https://munin.kalera.ai   # optional
 - **Failover.** Set `munin.fallback.baseUrl` and `MUNIN_FALLBACK_API_KEY` to a
   second server that speaks the same protocol. It answers when the primary is
   unreachable. An authentication error still surfaces as an error.
+- **Maintenance.** While the server is in a write freeze (`503
+  MAINTENANCE_READ_ONLY`), a write waits and retries twice, then fails with a
+  message that it was not saved. It is not sent to the failover server, and
+  nothing is queued on disk. Reads keep working. The bundled client speaks
+  Munin SDK 1.6.0.
 - **Brief.** `munin.brief` adds a short summary of recent memories to the
   prompt. It is off by default and usually arrives from the second turn.
 - A project-level `.dsh/ceulen.json` is read only when

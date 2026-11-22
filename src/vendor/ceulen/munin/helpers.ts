@@ -420,6 +420,9 @@ export function classifyError(error: unknown): { type: string; message: string; 
     RATE_LIMITED: "rate_limit",
     ERR_STALE_PROTOCOL: "stale_protocol",
     NOT_FOUND: "not_found",
+    // Named so the retry wrapper never repeats them and a caller can tell them apart.
+    MAINTENANCE_READ_ONLY: "maintenance",
+    ERR_CLIENT_OUTDATED: "client_outdated",
   };
   if (structuredTypes[code]) return { type: structuredTypes[code], message: err.message, remediation };
 
