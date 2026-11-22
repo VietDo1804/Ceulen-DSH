@@ -37,7 +37,7 @@ import { logLine } from '../../core/log.js'
 import { agentRoute } from '../../core/route.js'
 import { EDITING, editedPaths } from './nudge.js'
 import { briefTasks, childState, runningEntries, team } from './team.js'
-import { PLAN_FILE, PLAN_SHAPE, readPlan, type LeadPlan } from './leadplan.js'
+import { PLAN_FILE, PLAN_SHAPE, readPlan, type LeadPlan, type PlanTask } from './leadplan.js'
 import { planAdviser } from '../advisor/plan-review.js'
 
 /** The lead models this mode targets; a lead on any other route is told so when it turns the mode on. */
@@ -51,7 +51,7 @@ Team: \`delegate\` roles on their configured routes: scout (recon), planner (des
 
 Loop
 1. Orient. Read only enough to plan: a few targeted reads, or scouts in parallel for an unfamiliar area. Never read what a child is already reading. Do not guess what the user meant: what reading can settle, settle by reading; a choice only the user can make, or a request you can read two ways, is a question. Ask it with \`ask_user_question\` before you plan, with your recommendation.
-2. Plan. Write the plan to .dsh/plans/<task>.md, as detailed as a \`/plan\` plan: decision-complete, so that a child can carry out its task without making a design decision. Required headings: \`# <title>\`; \`## Goal\` (the outcome and its success criteria); \`## Scope\` (what changes, by subsystem, with API, schema and data-flow changes, edge cases and failure modes; and what is out of scope); \`## Tasks\` (one row per task: id T1, T2, …, owner role, write scope, the check that proves it done, its wave: independent tasks share a wave, dependent ones wait); \`## Acceptance\` (the checks for the whole result); \`## Assumptions\` (everything you inferred and did not ask, or "none"). Then submit it: mirror the tasks on the board with \`todo_write\`, one row per task starting with its id (a row has only content and status). That call puts the plan in front of the user on the review card, so do not ask "shall I proceed" yourself, and write no brief and no contract before it has gone through. When an advisor is configured it reads the plan before the user does. Feedback from either comes back as the tool's error: for the advisor's points, fix the plan or answer a point that does not apply in one line under a \`## Advisor review\` heading in the plan; for the user's, revise the plan. Then call \`todo_write\` again. A contract write, a worker or tester dispatch, or a message to a child on a plan the user has not approved runs the same review. Progress belongs on the board, not in the plan file: every edit of an approved plan is a change the user is asked to approve.
+2. Plan. Write the plan to .dsh/plans/<task>.md, as detailed as a \`/plan\` plan: decision-complete, so that a child can carry out its task without making a design decision. Required headings: \`# <title>\`; \`## Goal\` (the outcome and its success criteria); \`## Scope\` (what changes, by subsystem, with API, schema and data-flow changes, edge cases and failure modes; and what is out of scope); \`## Tasks\` (one row per task: id T1, T2, …, owner role, write scope, the check that proves it done, its wave: independent tasks share a wave, dependent ones wait); \`## Acceptance\` (the checks for the whole result); \`## Assumptions\` (everything you inferred and did not ask, or "none"). Then submit it: mirror the tasks on the board with \`todo_write\`, one row per task starting with its id (a row has only content and status), every worker and tester row \`pending\`: nothing starts before the approval, and a row turns \`in_progress\` when you dispatch its task. That call puts the plan in front of the user on the review card, so do not ask "shall I proceed" yourself, and write no brief and no contract before it has gone through. When an advisor is configured it reads the plan before the user does. Feedback from either comes back as the tool's error: for the advisor's points, fix the plan or answer a point that does not apply in one line under a \`## Advisor review\` heading in the plan; for the user's, revise the plan. Then call \`todo_write\` again. A contract write, a worker or tester dispatch, or a message to a child on a plan the user has not approved runs the same review. Progress belongs on the board, not in the plan file: every edit of an approved plan is a change the user is asked to approve.
 3. Contract. When two or more tasks must fit together (shared types, API shapes, file formats, naming, units), pin that interface before dispatch: load the \`contract-first\` skill and write contracts/<task>/contract.md. You own that file; children read it.
 4. Brief and dispatch. Send every task of a wave in ONE step as parallel \`delegate\` calls with disjoint write scopes. Each \`task\` is a brief with these labelled lines; the tool rejects a brief without Goal, Scope and Acceptance, and a worker or tester brief without Plan:
    Plan: the id of the plan task this child carries out, e.g. T2.
@@ -234,6 +234,27 @@ export function checkpointText(children: readonly { role: string; label: string;
 function sessionId(agent: unknown): string | undefined {
   const id = (agent as Partial<AgentLike> | undefined)?.session?.id
   return id === undefined ? undefined : String(id)
+}
+
+/** Roles that only read: they may run before the user has approved the plan. */
+const EARLY_ROLES = new Set(['scout', 'planner', 'reviewer'])
+
+/**
+ * Plan tasks a board marks as started or done, among those that wait for the
+ * user's approval (every owner but the read-only roles). Rows that name no
+ * plan task are the lead's own notes.
+ */
+export function startedEarly(todos: unknown, rows: readonly PlanTask[]): string[] {
+  if (!Array.isArray(todos)) return []
+  const started = new Set<string>()
+  for (const todo of todos as { content?: unknown; status?: unknown }[]) {
+    if (typeof todo?.content !== 'string' || todo.status === undefined || todo.status === 'pending') continue
+    const id = /\bT\d+\b/.exec(todo.content)?.[0]
+    const task = id === undefined ? undefined : rows.find(row => row.id === id)
+    // The owner cell is a role, often with its route after it.
+    if (task !== undefined && !EARLY_ROLES.has(/[a-z]+/.exec((task.owner ?? '').toLowerCase())?.[0] ?? '')) started.add(task.id)
+  }
+  return [...started]
 }
 
 function toolInput(raw: unknown): Record<string, unknown> | undefined {
@@ -582,6 +603,12 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
       // one that keeps the task list: a lead widened a task's write scope that
       // way and took the board call for the approval.
       if (lead.approved === loaded.plan.hash) return next()
+      // A first plan: the board that submits it cannot show work under way.
+      const early = lead.approved === undefined ? startedEarly(toolInput(exec.arguments)?.todos, loaded.plan.rows) : []
+      if (early.length > 0) {
+        logLine('subagent', `orchestrator board refused: ${early.join(' ')} marked started before approval`)
+        return { kind: 'deny', reason: `Orchestrator mode: the user has not approved this plan, so none of its tasks has started, but the board marks ${early.join(', ')} as started. Call \`todo_write\` again with ${early.length === 1 ? 'that row' : 'those rows'} \`pending\`; mark a row \`in_progress\` when you dispatch its task.` }
+      }
       try {
         await approve(lead, id, loaded, exec, cwd)
       } catch (error) {

@@ -183,7 +183,9 @@ Six parts of this are enforced by the harness, not left to the prompt:
   not list is refused. An edited plan comes back to you as a **Plan change**
   before the next board update, dispatch or message to a child, so work
   outside the approved scope cannot start without you. Scouts, planners and
-  reviewers only read and may run earlier.
+  reviewers only read and may run earlier. The board that submits a first
+  plan must show its worker and tester tasks as pending: one that marks them
+  started is refused before you are asked.
 - **Plan review by the advisor.** Before your card opens, the advisor reads the
   plan with your own messages and the lead's steps beside it. Points from the
   first reading are returned to the lead, and nothing is shown to you yet. The
