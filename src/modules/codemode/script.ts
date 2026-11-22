@@ -142,3 +142,24 @@ export function trimScriptError(message: string): string {
   const line = Math.max(1, Number(frame[1]) - 3)
   return [...header, `    at <anonymous>:${line}:${frame[2]}`].join('\n')
 }
+
+/**
+ * The PTC runtime rejects a completion that is not lossless JSON (an
+ * `undefined` field off a tool result, a Date, NaN) and fails the whole script
+ * after its work already ran. Sanitizing the completion instead is a JSON
+ * round-trip: undefined object fields are dropped, undefined array elements
+ * become null, Dates their ISO string, NaN null and bigints strings.
+ */
+// ponytail: catch returns the raw value, so a circular completion (or Map/Set) still hits the old invalid-output error; upgrade to a drop-cycle walk if that shape shows up in the evo report.
+const SANITIZE_PRELUDE = 'const __ceulenCs=v=>{if(v===void 0)return v;try{return JSON.parse(JSON.stringify(v,(k,x)=>typeof x==="bigint"?String(x):x))}catch{return v}};return await (async()=>{const __ceulenV=await (async()=>{'
+const SANITIZE_TAIL = '\n})();return __ceulenCs(__ceulenV)})()'
+
+/**
+ * Wrap a program so its completion is JSON-safe. The prelude rides on line 1
+ * and the tail adds one line below the program, so the model's own line
+ * numbers still hold. A throw (including the exit sentinel) passes straight
+ * through, and a bare `return` still completes as undefined.
+ */
+export function wrapCompletion(program: string): string {
+  return SANITIZE_PRELUDE + program + SANITIZE_TAIL
+}
