@@ -16,6 +16,8 @@ interface Hunk {
   after: string[]
   added: number
   removed: number
+  /** Context lines alone: changes nothing, says where the next hunk goes. */
+  locator?: boolean
 }
 
 interface FileOp {
@@ -23,6 +25,7 @@ interface FileOp {
   path: string
   content?: string
   hunks?: Hunk[]
+  skipped?: number
 }
 
 function parsePatch(patch: string): FileOp[] {
@@ -36,7 +39,11 @@ function parsePatch(patch: string): FileOp[] {
   const invalid = (message: string): never => { throw new Error(`invalid patch at line ${index + 1}: ${message}`) }
   const flushHunk = () => {
     if (hunk !== undefined && current !== undefined) {
-      if (hunk.added + hunk.removed === 0) invalid(`hunk in ${current.path} has no changes`)
+      // A hunk of context lines alone changes nothing, and used to fail the
+      // whole patch. In the session logs 13 of 18 such patches used it to say
+      // where the next hunk goes (a line of the enclosing block, then the
+      // change), so it is kept as a locator for that hunk.
+      if (hunk.added + hunk.removed === 0) hunk.locator = true
       current.hunks = current.hunks ?? []
       current.hunks.push(hunk)
       hunk = undefined
@@ -107,7 +114,17 @@ function parsePatch(patch: string): FileOp[] {
   }
   flushHunk()
   for (const op of ops) {
-    if (op.kind === 'update' && op.hunks?.length === 0) invalid(`update in ${op.path} has no hunks`)
+    if (op.kind !== 'update' || op.hunks === undefined) continue
+    // A locator with no hunk after it, or with nothing to seek, locates
+    // nothing: drop it and count it for the receipt.
+    const kept: Hunk[] = []
+    for (const [position, item] of op.hunks.entries()) {
+      const leads = op.hunks.slice(position + 1).some(later => later.locator !== true)
+      if (item.locator === true && (!leads || (item.before.length === 0 && item.anchors.length === 0))) op.skipped = (op.skipped ?? 0) + 1
+      else kept.push(item)
+    }
+    op.hunks = kept
+    if (op.hunks.length === 0 && op.skipped === undefined) invalid(`update in ${op.path} has no hunks`)
   }
   return ops
 }
@@ -163,27 +180,45 @@ function applyHunks(text: string, hunks: Hunk[], path: string): { text: string; 
   let added = 0
   let removed = 0
   let cursor = 0
+  // Where a context-only hunk was found: the hunk after it starts its search there.
+  let located: { at: number; end: number } | undefined
   for (const [index, hunk] of hunks.entries()) {
     const tag = hunks.length > 1 ? ` (hunk ${index + 1} of ${hunks.length})` : ''
-    if (hunk.before.length === 0 && hunk.anchors.length === 0 && lines.length > 0) throw new Error(`hunk in ${path} has no context or removed lines${tag}`)
+    if (hunk.before.length === 0 && hunk.anchors.length === 0 && located === undefined && lines.length > 0) throw new Error(`hunk in ${path} has no context or removed lines${tag}`)
     // `@@ <text>` moves the search start to that line, so a block that repeats
     // further up the file no longer competes.
-    let from = cursor
+    let from = located?.at ?? cursor
     for (const anchor of hunk.anchors) {
       const found = seekAnchor(lines, anchor, from)
       if (found < 0) throw new Error(`hunk does not match ${path}: the @@ line ${JSON.stringify(anchor)} was not found${cursor > 0 ? ` after line ${cursor}` : ''}${tag}`)
       from = found
     }
     const all = countMatches(lines, hunk.before)
-    if (all.length === 0) throw new Error(`hunk does not match ${path}${tag}: ${JSON.stringify(hunk.before.slice(0, 3))}`)
     // V4D hunks in one file op are ordered top-to-bottom: when the context
     // repeats, a match at/after the previous hunk disambiguates the patch.
     const forward = all.filter(hit => hit >= from)
+    if (hunk.locator === true) {
+      // Like the @@ line, the first place it is found from here on counts.
+      if (hunk.before.length > 0 && forward.length === 0) {
+        throw new Error([
+          `hunk does not match ${path}${tag}: its context lines were not found${from > 0 ? ` after line ${from}` : ''}: ${JSON.stringify(hunk.before.slice(0, 3))}`,
+          'A hunk with no - or + lines changes nothing and only says where the next hunk goes: correct its lines, or leave it out.',
+        ].join('\n'))
+      }
+      const at = hunk.before.length === 0 ? from : forward[0]!
+      located = { at, end: hunk.before.length === 0 ? Math.min(at + 1, lines.length) : at + hunk.before.length }
+      continue
+    }
+    if (all.length === 0) throw new Error(`hunk does not match ${path}${tag}: ${JSON.stringify(hunk.before.slice(0, 3))}`)
     let at: number
     if (hunk.anchors.length > 0) {
       if (forward.length === 0) throw new Error(`hunk does not match ${path}${tag}: nothing matches after the @@ line ${JSON.stringify(hunk.anchors.at(-1))}: ${JSON.stringify(hunk.before.slice(0, 3))}`)
       // Added lines with no context go directly under the @@ line.
       at = hunk.before.length === 0 ? Math.min(from + 1, lines.length) : forward[0]!
+    } else if (located !== undefined) {
+      if (forward.length === 0) throw new Error(`hunk does not match ${path}${tag}: nothing matches after the context-only hunk before it (found at line ${located.at + 1}): ${JSON.stringify(hunk.before.slice(0, 3))}`)
+      // Added lines with no context go directly under the located lines.
+      at = hunk.before.length === 0 ? located.end : forward[0]!
     } else if (all.length > 1 && forward.length !== 1) {
       const where = all.map(hit => hit + 1).slice(0, 8).join(', ')
       throw new Error([
@@ -199,6 +234,7 @@ function applyHunks(text: string, hunks: Hunk[], path: string): { text: string; 
     added += hunk.added
     removed += hunk.removed
     cursor = at + hunk.after.length
+    located = undefined
   }
   return { text: `${lines.join(eol)}${trailing ? eol : ''}`, added, removed }
 }
@@ -475,8 +511,13 @@ export function apply(ctx: PluginContext): void {
           }
           const original = staged.get(key)?.text ?? await fs.readText(target, exec.signal)
           const applied = applyHunks(original, op.hunks ?? [], op.path)
+          if (op.skipped !== undefined && applied.text === original) {
+            results.push(`Unchanged ${op.path} (skipped ${op.skipped} hunk(s) with no changes)`)
+            continue
+          }
           staged.set(key, { target, path: op.path, text: applied.text })
-          results.push(`Updated ${op.path} (+${applied.added} -${applied.removed})`)
+          const skipped = op.skipped === undefined ? '' : `; skipped ${op.skipped} hunk(s) with no changes`
+          results.push(`Updated ${op.path} (+${applied.added} -${applied.removed}${skipped})`)
         }
       } catch (error) {
         // Everything above is preflight. Say so: with several files in one
@@ -499,9 +540,17 @@ export function apply(ctx: PluginContext): void {
           completed += 1
         }
       } catch (error) {
+        const message = errorMessage(error)
         const written = writes.slice(0, completed).map(entry => entry.path).join(', ') || '(none)'
         const pending = writes.slice(completed).map(entry => entry.path).join(', ')
-        throw new Error(`${errorMessage(error)}\nWritten: ${written}\nNot confirmed written: ${pending}`, { cause: error })
+        // A read-only session is locked on purpose: escalating is not the fix.
+        let recovery = ''
+        if (/read-only mode/.test(message)) {
+          recovery = '\nRecovery: this session is in read-only mode; writes are deliberately disabled — do not re-attempt or request wider access; finish without writing, or ask the user whether read-only mode should be lifted.'
+        } else if (/file access denied|sandbox denied/.test(message)) {
+          recovery = `\nRecovery: the target is outside the session workspace (${cwd}); write inside it, or split that file out of the patch and use write or edit with sandbox_permissions + justification (one-shot approval), or ask the user to widen the session policy.`
+        }
+        throw new Error(`${message}\nWritten: ${written}\nNot confirmed written: ${pending}${recovery}`, { cause: error })
       }
       return results.join('\n')
     },

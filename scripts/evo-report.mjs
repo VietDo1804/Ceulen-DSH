@@ -224,7 +224,7 @@ export function fixOutcomes(entries, fixes, now = new Date()) {
  */
 export const FIX_GROUPS = [
   { id: 'edit-freshness', title: 'Edits refused: file not read, or changed since the read', vi: 'Sửa file khi chưa đọc hoặc file đã đổi', where: 'src/modules/repair', test: /file has not been read|file changed since it was read/ },
-  { id: 'edit-match', title: 'Edits that do not match the file', vi: 'Đoạn sửa không khớp nội dung file', where: 'src/modules/repair', test: /hunk is ambiguous|hunk does not match|old_string was not found/ },
+  { id: 'edit-match', title: 'Edits that do not match the file', vi: 'Đoạn sửa không khớp nội dung file', where: 'src/modules/repair', test: /hunk is ambiguous|hunk does not match|old_string was not found|has no changes/ },
   { id: 'web', title: 'Web tools: step shape, capture scope, crashes', vi: 'Tool web: dạng step, phạm vi chụp, crash', where: 'src/modules/web', test: /\bweb_\w+|capture must stay inside/ },
   { id: 'classify', title: 'Classify gate refusals', vi: 'Classify gate từ chối lệnh', where: 'src/modules/classifier', note: 'A refusal of a destructive command is the gate working; only "gate unavailable" is a defect.', noteVi: 'Từ chối một lệnh phá huỷ là cổng an toàn chạy đúng; chỉ trường hợp gate không gọi được model mới là lỗi cần sửa.', test: /classify gate/ },
   { id: 'codemode', title: 'codemode scripts: result shape and return value', vi: 'Script codemode: dạng kết quả và giá trị trả về', where: 'src/modules/codemode/script.ts', test: /is not a function|lossless json|script error|cannot read properties of/ },

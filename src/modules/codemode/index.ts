@@ -24,7 +24,7 @@ import { randomUUID } from 'node:crypto'
 import { commitState, exitBindings, forgetState, stateBindings } from './bindings.js'
 import { createChainState, hintText, noteToolCall, type ChainState } from './chain-hint.js'
 import { clipOneLine, formatCalls, renderResult, scriptTail, STATUS_LINE, stripModelNotes, toolBindings } from './render.js'
-import { DEFAULT_OUTPUT_BUDGET, EXIT_SENTINEL, parseOptionsLine, scriptErrorHint, suggestBinding, trimScriptError } from './script.js'
+import { DEFAULT_OUTPUT_BUDGET, EXIT_SENTINEL, parseOptionsLine, scriptErrorHint, suggestBinding, trimScriptError, wrapCompletion } from './script.js'
 import type {
   CodemodeCall,
   CodemodeValue,
@@ -190,7 +190,7 @@ function codemodeTool(ctx: PluginContext, tuned = false) {
       let spec: unknown
       try {
         spec = runtime.resolve({
-          program: code,
+          program: wrapCompletion(code),
           bindings: [
             { global: 'tools', functions },
             stateBindings(session, { pending }),
