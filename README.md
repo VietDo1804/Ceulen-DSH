@@ -16,14 +16,108 @@ Disable with `/plugin disable ceulen-dashboard` if needed. Herdr is optional.
 
 ## Orchestrator mode
 
-`/orchestrator <task>` enables coordination for the current live lead session
-and submits the task. The lead delegates execution through existing Ceulen
-role/model routes, receives native child feedback, verifies it, and summarizes
-the result. `/orchestrator` or `/orchestrator on` enables the mode for subsequent
-chat messages; `/orchestrator status` checks it; `/orchestrator off` exits without
-cancelling existing children. Restarting the session resets the mode. While the
-mode is active, the native TUI footer shows `Orchestrator`; `off`, plugin reload
-or session disposal clears it.
+`/orchestrator <task>` turns the current live lead session into a team lead and
+submits the task. The lead asks you what it cannot settle by reading, writes a
+detailed plan that you approve, tracks it on a task board, pins a contract when
+tasks must fit together, briefs children on the existing Ceulen role/model
+routes and dispatches each wave in parallel, reviews their reports at a
+checkpoint, and advises or corrects them. It does not do the execution itself.
+`/orchestrator` or `/orchestrator on` enables the mode for subsequent chat
+messages; `/orchestrator status` shows the team (dispatched, running, settled,
+checkpoints, corrections, lead takeovers, the plan and whether you approved it,
+the contract); `/orchestrator approve` approves the current plan without the
+card; `/orchestrator off` exits without cancelling
+existing children. Restarting the session resets the mode. While the mode is
+active, the native TUI footer shows `Orchestrator`; `off`, plugin reload or
+session disposal clears it.
+
+Five parts of the mode are enforced by the harness, not left to the prompt:
+
+- **Plan.** Nothing is built before you approve a plan. The lead writes
+  `.dsh/plans/<task>.md`, as detailed as a `/plan` plan, with `Goal`, `Scope`
+  (and what is out of scope), `Tasks` (ids `T1`, `T2`, … with owner, write
+  scope, check and wave), `Acceptance` and `Assumptions` (what it inferred and
+  did not ask). The first contract write, or the first `worker` or `tester`
+  dispatch, puts the whole plan on the native plan review card: **Approve**, or
+  **Keep planning** with your feedback, which goes back to the lead. Scouts,
+  planners and reviewers may run before that. A worker or tester brief must
+  name its task with a `Plan:` line, and a task the plan does not list is
+  refused. An edited plan is a new plan: it comes back to you as a **Plan
+  change** before the next dispatch, so work outside the approved scope cannot
+  start without you. Where there is no review card (headless), approve with
+  `/orchestrator approve`.
+
+- **Brief.** `delegate` refuses a task without labelled `Goal:`, `Scope:` and
+  `Acceptance:` lines, and appends the handoff rules plus the report every
+  child ends with (`STATUS`, `CHANGED`, `CHECKS`, `DEVIATIONS`, `BLOCKERS`). A
+  child with a typed reply (`schema`, or the reviewer default) keeps its JSON
+  contract and gets the rules only.
+- **Checkpoint.** When every child dispatched since the last checkpoint has
+  settled, the lead receives one notice with the roster and the review steps.
+  A child resumed with `send_message` reopens the wave.
+- **Takeover.** The lead's own `edit`, `write` or `apply_patch` is refused
+  once outside `contracts/`, `.dsh/plans/` and `.scratch/`. Re-issuing the
+  refused call declares a takeover of those files:
+  for a child that is blocked, work still wrong after one correction, or a
+  piece you told the lead to do itself. Takeovers are counted in `status`.
+  Bash is not gated.
+- **Contract.** Once the lead has written `contracts/<task>/contract.md`, a
+  child's `edit`, `write` or `apply_patch` inside that directory is refused:
+  a child that disagrees with the contract reports it under `BLOCKERS`. The
+  `contract-first` skill no longer commits the contract to protect it.
+
+The mode prompt lists the route each role resolves to right now, so the lead
+names the models of a wave without reading the settings file.
+
+While the mode is on, a **Team** side panel opens beside the chat (the
+`agentbar` module; fullscreen, 93 columns or more). The Subagents panel shows
+who is running; this one shows how the lead runs the team:
+
+```
+ chat …                              │ ◆ Team · glm-5.3 lead                   wave 2
+                                     │
+                                     │   Plan ✓  Contract ✓  ▸ Dispatch  Review  Report
+                                     │   contract contracts/tax-loyalty-receipt
+                                     │   board    ━━━━━━━───────────── 2/6
+                                     │
+                                     │ WAVE 1 · reviewed                        1m30s
+                                     │ ✓ worker · Tax module                 accepted
+                                     │ ↻ worker · Loyalty module            corrected
+                                     │
+                                     │ WAVE 2 · running                           30s
+                                     │ ⠸ worker · Loyalty module                  30s
+                                     │     Fix     Guard inherited keys with Object.hasOwn
+                                     │ ⠧ worker · Receipt options                 29s
+                                     │     Goal    Integrate tax + loyalty into the receipt
+                                     │     Scope   src/receipt.js, test/receipt.test.js
+                                     │     Accept  npm test green; pinned 6-line example
+                                     │     todo ━━━━━━━───────────── 1/3
+                                     │
+                                     │ NEXT
+                                     │ ○ [reviewer] independent review
+                                     │
+                                     │ 1 checkpoint · 1 correction · 0 takeovers
+```
+
+The rail is the lead's loop; a step it went past without doing (no approved
+plan, no contract) shows `–`. A `plan` row above the contract names the plan and
+says `draft`, `needs you` while the review card is open, or `approved`; a child's
+title carries its plan task (`worker · T2 · Receipt options`). A wave is everyone dispatched or resumed between two
+checkpoints. A running child shows its brief (or the correction it is fixing),
+its todo, model and context. After the checkpoint each child shows the lead's
+decision: `accepted` (the lead moved on without correcting it), `corrected`
+(a `send_message` to settled work), `lead took over`, or what stands in the
+way: `blocked` with the child's `BLOCKERS` line, `partial`, `failed`,
+`cancelled`. `NEXT` is what the lead's own board still lists as pending. The
+panel opens when the mode is turned on, does not take keyboard focus, is not
+reopened once you put it away, and is removed when the mode is turned off; for
+a session in the mode it replaces the Subagents auto-open. `/agentbar auto off`
+keeps both panels shut. A short or narrow panel drops the brief lines first and
+folds reviewed waves into one line each.
+
+The mode targets `gpt-6.2-astra` and `gpt-6.2-sol` as lead; enabling it on
+another route says so. The prompt itself names no model, so any lead gets the
+same rules.
 
 Use `/dashboard` to watch delegated work under **Agents** and **Activity**;
 press `Esc` to return to chat and send another instruction. The **Tasks** panel
