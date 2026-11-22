@@ -309,6 +309,14 @@ bulk of the work. `/subagent` shows the route of every role; see
 [Subagent routes](#subagent-routes) to change them. DSH's native `subagent`,
 `subagent_fork` and `workflow` tools remain available.
 
+A child is a session of its own: it sees only its brief, never asks you for
+approval (what would need it is refused) and cannot delegate further. It keeps
+its parent's sandbox, with one exception: the `reviewer` and the `scout` are
+held read-only by the harness. Their session is put in the read-only sandbox
+before their first tool runs, `edit`, `write` and `apply_patch` are refused,
+and so is a request for wider access. A check that writes files belongs to a
+`tester`. The `planner` is read-only by its persona only.
+
 ### Subagents panel
 
 Outside orchestrator mode, a **Subagents** panel opens while children run:

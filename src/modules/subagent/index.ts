@@ -18,6 +18,7 @@ import { describeRoute, resolveRole, roleByName, roleNames, REVIEWER_SCHEMA, ROL
 import { contractBlock, parseTypedReply, type SchemaNode } from './schema.js'
 import { installOrchestrator, type Orchestration } from './orchestrator.js'
 import { installNudges } from './nudge.js'
+import { HARD_READ_ONLY, installReadOnlyRoles, READ_ONLY_NOTE } from './readonly.js'
 import { runInHerdr, type HerdrPermission, type HerdrRoute } from './herdr.js'
 import { herdrEnv } from '../../core/herdr.js'
 import { planActive } from '../../core/plan-mode.js'
@@ -46,10 +47,13 @@ interface SubagentRuntimeLike {
 
 const HERDR_HINT = 'This session runs inside a herdr pane: `delegate` with `runner: "herdr"` runs the child as a headless DSH in a visible pane beside this one and returns its final answer when it ends (it blocks this call). Use it only when the user wants to watch the child work; read the herdr skill before driving panes by hand.'
 
-/** Read-only roles keep a read-only sandbox in a herdr pane; plan mode makes every role read-only. */
+/**
+ * Read-only roles keep a read-only sandbox in a herdr pane; plan mode makes every role read-only.
+ * A native child is held read-only for the reviewer and the scout only (`readonly.ts`).
+ */
 const READ_ONLY_ROLES = new Set(['planner', 'reviewer', 'scout'])
 
-const ROLE_HINTS = 'planner (read-only design), reviewer (independent review), scout (codebase recon), tester (verification), worker (isolated implementation)'
+const ROLE_HINTS = 'planner (design, no edits), reviewer (independent review, read-only sandbox), scout (codebase recon, read-only sandbox), tester (verification), worker (isolated implementation)'
 
 /**
  * Inherited policy for delegated children — ports upstream ceulen's
@@ -75,7 +79,8 @@ function inheritedPolicy(settings: CeulenSettings, cwd: string): string {
 
 function composePrompt(role: RoleDefinition, task: string, policy = '', schema?: SchemaNode): string {
   const contract = schema === undefined ? '' : `\n\n---\n\n${contractBlock(schema)}`
-  return `You are the "${role.name}" subagent role.\n\n${role.persona}${policy === '' ? '' : `\n\n---\n\n${policy}`}${contract}\n\n---\n\n${task}`
+  const held = HARD_READ_ONLY.has(role.name) ? `\n\n${READ_ONLY_NOTE}` : ''
+  return `You are the "${role.name}" subagent role.\n\n${role.persona}${held}${policy === '' ? '' : `\n\n---\n\n${policy}`}${contract}\n\n---\n\n${task}`
 }
 
 function asSchema(value: unknown): SchemaNode | undefined {
@@ -120,7 +125,9 @@ function roleDetail(settings: CeulenSettings, role: RoleDefinition): string[] {
   const chain = first === undefined
     ? 'parent route'
     : first === resolution.selector ? first : `${resolution.selector} -> ${resolution.candidates.join(' -> ')}`
-  const tools = role.name === 'worker' ? 'full' : role.name === 'tester' ? 'read + scratch writes' : 'read-only'
+  const tools = role.name === 'worker' ? 'full'
+    : role.name === 'tester' ? 'read + scratch writes (advisory)'
+      : HARD_READ_ONLY.has(role.name) ? 'read-only (enforced: read-only sandbox, edits refused)' : 'read-only (advisory)'
   const lines = [
     `${role.name}: ${role.description}`,
     `  selector: ${resolution.selector}${resolution.selector === role.model ? ' (role default)' : ''}`,
@@ -130,7 +137,7 @@ function roleDetail(settings: CeulenSettings, role: RoleDefinition): string[] {
     `  preset: ${settings.subagent.presets[role.name] ?? 'parent composition'}`,
   ]
   if (resolution.unresolved.length > 0) lines.push(`  unresolved: ${resolution.unresolved.join(', ')}`)
-  lines.push(`  tools (advisory): ${tools}`)
+  lines.push(`  tools: ${tools}`)
   return lines
 }
 
@@ -160,7 +167,7 @@ function delegateTool(service: SubagentRuntimeLike, ctx: PluginContext, herdr: b
       role: {
         type: 'string',
         enum: roleNames(),
-        description: 'Role preset. planner and reviewer are read-only; worker implements; scout and tester investigate and verify.',
+        description: 'Role preset. reviewer and scout run in a read-only sandbox and cannot edit; planner designs without editing; worker implements; tester verifies.',
       },
       task: {
         type: 'string',
@@ -305,6 +312,7 @@ export function apply(ctx: PluginContext): void {
     },
   })
   installNudges(ctx)
+  installReadOnlyRoles(ctx)
 
   registerPromptSection(ctx, {
     name: 'ceulen:subagent',
