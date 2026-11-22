@@ -16,7 +16,7 @@ import { displayPath, settingsPath } from '../../core/paths.js'
 import { logLine } from '../../core/log.js'
 import { describeRoute, resolveRole, roleByName, roleNames, REVIEWER_SCHEMA, ROLES, type RoleDefinition } from './roles.js'
 import { contractBlock, parseTypedReply, type SchemaNode } from './schema.js'
-import { installOrchestrator } from './orchestrator.js'
+import { installOrchestrator, type Orchestration } from './orchestrator.js'
 import { installNudges } from './nudge.js'
 import { runInHerdr, type HerdrPermission, type HerdrRoute } from './herdr.js'
 import { herdrEnv } from '../../core/herdr.js'
@@ -152,7 +152,7 @@ function renderHerdr(role: string, value: Record<string, unknown>) {
   return [{ type: 'text' as const, text: `${head}\n\n${text}` }]
 }
 
-function delegateTool(service: SubagentRuntimeLike, ctx: PluginContext, herdr: boolean) {
+function delegateTool(service: SubagentRuntimeLike, ctx: PluginContext, herdr: boolean, orchestration: Orchestration) {
   return ceulenTool({
     name: 'delegate',
     description: `Delegate a self-contained task to a Ceulen role preset running in a fresh context: ${ROLE_HINTS}. The role persona is prepended to the task, and the child's provider/model route comes from the Ceulen subagent settings (an unset route inherits this session). Pass \`schema\` to make the child answer with one JSON object (the reviewer role has a default verdict/findings schema); validate the reply with \`validate_schema\`. This tool starts an independently managed subagent and immediately returns its id; the runtime notifies you when it finishes. Use native \`subagent\` for plain delegation and \`subagent_fork\` when the child needs the current conversation.`,
@@ -227,7 +227,11 @@ function delegateTool(service: SubagentRuntimeLike, ctx: PluginContext, herdr: b
       }
 
       const schema = asSchema(input.schema) ?? (role.name === 'reviewer' ? REVIEWER_SCHEMA : undefined)
-      const prompt = composePrompt(role, task, inheritedPolicy(settings, cwdOf(exec)), schema)
+      // In team-lead mode the task must be a full brief; it gains the handoff block.
+      const briefed = orchestration.brief(agent, task, schema !== undefined)
+      // ... and a worker or tester waits for the user's approval of the plan it belongs to.
+      await orchestration.admit(agent, role.name, task, exec)
+      const prompt = composePrompt(role, briefed, inheritedPolicy(settings, cwdOf(exec)), schema)
       if (input.runner === 'herdr') {
         const cwd = typeof input.cwd === 'string' && input.cwd.trim().length > 0 ? resolve(cwdOf(exec), input.cwd.trim()) : cwdOf(exec)
         const permission: HerdrPermission = READ_ONLY_ROLES.has(role.name) || planActive(ctx, agent) ? 'read-only' : 'workspace-write'
@@ -259,6 +263,7 @@ function delegateTool(service: SubagentRuntimeLike, ctx: PluginContext, herdr: b
         delivery: 'parent',
       })
       const subagentId = String(activation.childId)
+      orchestration.record(agent, subagentId, role.name, labelFor(input, role), task)
       logLine('subagent', `started ${role.name} ${subagentId} via ${describeRoute(resolution)}`)
       return { kind: 'activation', subagentId }
     },
@@ -290,7 +295,15 @@ function commandHandler(settings: CeulenSettings, rawInput: string, agent: Agent
 export function apply(ctx: PluginContext): void {
   if (!isModuleEnabled('subagent', loadSettingsSync())) return
 
-  installOrchestrator(ctx)
+  const orchestration = installOrchestrator(ctx, {
+    routes() {
+      const settings = loadSettingsSync()
+      return ROLES.map(role => {
+        const resolution = resolveRole(role.name, settings.subagent)
+        return `${role.name} ${resolution === undefined ? '?' : describeRoute(resolution)}`
+      }).join(' · ')
+    },
+  })
   installNudges(ctx)
 
   registerPromptSection(ctx, {
@@ -344,7 +357,7 @@ export function apply(ctx: PluginContext): void {
         return
       }
       if (service === undefined || typeof service.startActivation !== 'function') return
-      const tool = registerToolSafe(child, delegateTool(service, ctx, herdrEnv() !== undefined))
+      const tool = registerToolSafe(child, delegateTool(service, ctx, herdrEnv() !== undefined, orchestration))
       if (tool.actual === 'delegate') registered = true
     })
   } catch {

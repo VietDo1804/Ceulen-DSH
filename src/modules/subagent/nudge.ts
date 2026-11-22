@@ -43,7 +43,7 @@ export interface NudgeLimits {
 export type Nudge = { kind: 'recon' | 'review'; text: string }
 
 const DELEGATING = new Set(['delegate', 'subagent', 'subagent_fork'])
-const EDITING = new Set(['edit', 'write', 'apply_patch'])
+export const EDITING = new Set(['edit', 'write', 'apply_patch'])
 const SCRIPT_DELEGATES = /\btools\s*(?:\.\s*(?:delegate|subagent|subagent_fork)|\[\s*['"](?:delegate|subagent|subagent_fork)['"]\s*\])\s*\(/
 const SCRIPT_WRITES = /\btools\s*(?:\.\s*(?:edit|write|apply_patch)|\[\s*['"](?:edit|write|apply_patch)['"]\s*\])\s*\(/
 const PATCH_FILE = /^\*\*\* (?:Update|Add) File: (.+)$/gm
@@ -68,7 +68,7 @@ function args(argumentsJson: string | undefined): Record<string, unknown> {
   }
 }
 
-function editedPaths(name: string, input: Record<string, unknown>): string[] {
+export function editedPaths(name: string, input: Record<string, unknown>): string[] {
   if (name === 'apply_patch') {
     const patch = typeof input.patch === 'string' ? input.patch : typeof input.input === 'string' ? input.input : ''
     return [...patch.matchAll(PATCH_FILE)].map(match => match[1]!.trim())
