@@ -68,7 +68,7 @@ Download `ceulen-dsh-<version>.tgz` from the
 
 ```sh
 npm install -g @deepseek-ai/dsh@0.2.2-rc.1
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.7.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.8.tgz
 dsh --profile tui
 ```
 
@@ -88,13 +88,13 @@ npm ci --include=dev
 ./release/build.sh
 
 # Install BOTH the TUI app and this bundle into a new profile.
-./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.7.tgz"
+./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.8.tgz"
 dsh --profile tui
 ```
 
 The installer creates the profile under `${DSH_HOME:-$HOME/.dsh}/profiles/tui`
 and does not replace an existing profile's settings. To share the build, send
-`release/ceulen-dsh-0.2.7.tgz`; the other machine needs no clone and no build.
+`release/ceulen-dsh-0.2.8.tgz`; the other machine needs no clone and no build.
 
 ### Develop from a checkout
 
@@ -121,7 +121,7 @@ not hot-reload.
 /ceulen doctor   # compatibility and optional-backend diagnostics
 ```
 
-`/ceulen` shows the release line (`ceulen-dsh 0.2.7 (stable)`), the pinned
+`/ceulen` shows the release line (`ceulen-dsh 0.2.8 (stable)`), the pinned
 Ceulen version, and which modules are mounted. The bundle composes 35 rows.
 
 To upgrade, install a newer tarball into the same profile and restart. Your
@@ -129,7 +129,7 @@ settings are kept.
 
 ### Release line
 
-`package.json` carries this bundle's own version (`0.2.7`) plus
+`package.json` carries this bundle's own version (`0.2.8`) plus
 `release: { line: "stable", distTag: "stable" }`. The upstream Ceulen version it
 tracks lives in `upstream.lock.json` (`0.23.0`). The update check follows the
 `stable` npm dist-tag only, and reports `unknown` when that tag is missing

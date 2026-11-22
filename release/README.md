@@ -54,7 +54,7 @@ exact `dsh plugin` invocation without touching anything.
 With only a tarball, no wrapper is required:
 
 ```sh
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.7.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.8.tgz
 dsh --profile tui
 ```
 
