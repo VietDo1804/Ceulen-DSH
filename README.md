@@ -200,7 +200,10 @@ Six parts of this are enforced by the harness, not left to the prompt:
   `Acceptance:` lines. It appends the handoff rules and the report every child
   ends with (`STATUS`, `CHANGED`, `CHECKS`, `DEVIATIONS`, `BLOCKERS`).
 - **Checkpoint.** When every child of a wave has settled, the lead gets one
-  notice with the roster and the review steps.
+  notice with the roster and the review steps. After a wave of scouts the
+  steps ask for a spot-check of the anchors the plan rests on and a follow-up
+  question to the scout, not a second read of the files: the lead asks a scout
+  for quoted lines with `path:line`, so its report is enough to plan from.
 - **Takeover.** The lead's own edit outside `contracts/`, `.dsh/plans/` and
   `.scratch/` is refused once. Sending the same edit again declares a takeover,
   which is counted in `status`. Bash is not gated.

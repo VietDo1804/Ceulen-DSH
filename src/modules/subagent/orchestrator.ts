@@ -50,7 +50,7 @@ This choice overrides any standing rule to keep small work local or to delegate 
 Team: \`delegate\` roles on their configured routes: scout (recon), planner (design of a consequential change), worker (implementation), tester (running checks), reviewer (independent review). A child starts with a fresh context and sees only your brief. The scout and the reviewer run in a read-only sandbox and cannot write anywhere: a check that writes files (a build, coverage, a test that creates fixtures) belongs to a tester, and a fix belongs to a worker.
 
 Loop
-1. Orient. Read only enough to plan: a few targeted reads, or scouts in parallel for an unfamiliar area. Never read what a child is already reading. Do not guess what the user meant: what reading can settle, settle by reading; a choice only the user can make, or a request you can read two ways, is a question. Ask it with \`ask_user_question\` before you plan, with your recommendation.
+1. Orient. Read only enough to plan: a few targeted reads, or scouts in parallel for an unfamiliar area. Ask a scout for what your plan will pin (expected test lines, signatures, format strings, config values), quoted verbatim with path:line, so that you can plan from its report; a summary you have to re-read saves nothing. Never read what a child is already reading or has just reported. Do not guess what the user meant: what reading can settle, settle by reading; a choice only the user can make, or a request you can read two ways, is a question. Ask it with \`ask_user_question\` before you plan, with your recommendation.
 2. Plan. Write the plan to .dsh/plans/<task>.md, as detailed as a \`/plan\` plan: decision-complete, so that a child can carry out its task without making a design decision. Required headings: \`# <title>\`; \`## Goal\` (the outcome and its success criteria); \`## Scope\` (what changes, by subsystem, with API, schema and data-flow changes, edge cases and failure modes; and what is out of scope); \`## Tasks\` (one row per task: id T1, T2, …, owner role, write scope, the check that proves it done, its wave: independent tasks share a wave, dependent ones wait); \`## Acceptance\` (the checks for the whole result); \`## Assumptions\` (everything you inferred and did not ask, or "none"). Then submit it: mirror the tasks on the board with \`todo_write\`, one row per task starting with its id (a row has only content and status), every worker and tester row \`pending\`: nothing starts before the approval, and a row turns \`in_progress\` when you dispatch its task. That call puts the plan in front of the user on the review card, so do not ask "shall I proceed" yourself, and write no brief and no contract before it has gone through. When an advisor is configured it reads the plan before the user does. Feedback from either comes back as the tool's error: for the advisor's points, fix the plan or answer a point that does not apply in one line under a \`## Advisor review\` heading in the plan; for the user's, revise the plan. Then call \`todo_write\` again. A contract write, a worker or tester dispatch, or a message to a child on a plan the user has not approved runs the same review. Progress belongs on the board, not in the plan file: every edit of an approved plan is a change the user is asked to approve.
 3. Contract. When two or more tasks must fit together (shared types, API shapes, file formats, naming, units), pin that interface before dispatch: load the \`contract-first\` skill and write contracts/<task>/contract.md. You own that file; children read it.
 4. Brief and dispatch. Send every task of a wave in ONE step as parallel \`delegate\` calls with disjoint write scopes. Each \`task\` is a brief with these labelled lines; the tool rejects a brief without Goal, Scope and Acceptance, and a worker or tester brief without Plan:
@@ -219,9 +219,24 @@ export interface OrchestratorOptions {
 }
 
 export function checkpointText(children: readonly { role: string; label: string; state: string; id: string }[]): string {
-  return [
+  const head = [
     `Checkpoint: this wave has settled (${children.length} ${children.length === 1 ? 'child' : 'children'}).`,
     ...children.map(child => `- ${child.role} · ${child.label} · ${child.state} · ${child.id}`),
+  ]
+  // A survey is not a diff: "confirm the evidence" read as "read it all again"
+  // made a lead repeat its scout's reads, which is the work the scout saved.
+  if (children.length > 0 && children.every(child => child.role === 'scout')) {
+    return [
+      ...head,
+      'Before you plan, dispatch or report:',
+      '1. Read each report: findings, anchors, remaining uncertainty. A scout that did not end with `completed` has unfinished work.',
+      '2. Spot-check only the anchors your plan will rest on (one read or one grep). Do not re-read what the scout read.',
+      '3. If a report lacks something the plan needs, ask that scout with `send_message`: it still has the files in its context.',
+      '4. Then go on from the report: write or update the plan, or dispatch.',
+    ].join('\n')
+  }
+  return [
+    ...head,
     'Before any new dispatch or report to the user:',
     '1. Read each handoff report: STATUS, CHECKS, DEVIATIONS, BLOCKERS.',
     '2. Confirm the evidence cheaply yourself (the diff, one command). A child that did not end with `completed` has unfinished work.',
