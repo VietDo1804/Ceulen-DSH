@@ -17,7 +17,11 @@
  *   direct order from the user (astra otherwise refused even that).
  * The plan is read twice before anything is built: by the advisor, whose
  * points go back to the lead once, and then by the user on the review card,
- * with whatever the advisor still holds open.
+ * with whatever the advisor still holds open. The lead submits the plan by
+ * mirroring it on the board (\`todo_write\`), a call that costs nothing to
+ * repeat: when the review only ran at the first dispatch, a lead in a
+ * 2026-11-22 run wrote its briefs again after every rejection, 11 \`delegate\`
+ * calls for 4 children.
  * The contract a lead writes is its own: a child's edit inside that contract
  * directory is refused. Everything the mode learns goes into the team ledger
  * (./team.ts), which the Team side panel draws.
@@ -47,7 +51,7 @@ Team: \`delegate\` roles on their configured routes: scout (recon), planner (des
 
 Loop
 1. Orient. Read only enough to plan: a few targeted reads, or scouts in parallel for an unfamiliar area. Never read what a child is already reading. Do not guess what the user meant: what reading can settle, settle by reading; a choice only the user can make, or a request you can read two ways, is a question. Ask it with \`ask_user_question\` before you plan, with your recommendation.
-2. Plan. Write the plan to .dsh/plans/<task>.md, as detailed as a \`/plan\` plan: decision-complete, so that a child can carry out its task without making a design decision. Required headings: \`# <title>\`; \`## Goal\` (the outcome and its success criteria); \`## Scope\` (what changes, by subsystem, with API, schema and data-flow changes, edge cases and failure modes; and what is out of scope); \`## Tasks\` (one row per task: id T1, T2, …, owner role, write scope, the check that proves it done, its wave: independent tasks share a wave, dependent ones wait); \`## Acceptance\` (the checks for the whole result); \`## Assumptions\` (everything you inferred and did not ask, or "none"). The harness shows the plan to the user for approval the first time you write a contract or dispatch a worker or tester, so do not ask "shall I proceed" yourself. Feedback comes back as the tool's error: revise the file and do the step again. When an advisor is configured it reads the plan before the user does, and its points come back the same way, once: fix the plan for each point, or answer a point that does not apply in one line under a \`## Advisor review\` heading in the plan. Then mirror the tasks on the board with \`todo_write\`, one row per task starting with its id (a row has only content and status).
+2. Plan. Write the plan to .dsh/plans/<task>.md, as detailed as a \`/plan\` plan: decision-complete, so that a child can carry out its task without making a design decision. Required headings: \`# <title>\`; \`## Goal\` (the outcome and its success criteria); \`## Scope\` (what changes, by subsystem, with API, schema and data-flow changes, edge cases and failure modes; and what is out of scope); \`## Tasks\` (one row per task: id T1, T2, …, owner role, write scope, the check that proves it done, its wave: independent tasks share a wave, dependent ones wait); \`## Acceptance\` (the checks for the whole result); \`## Assumptions\` (everything you inferred and did not ask, or "none"). Then submit it: mirror the tasks on the board with \`todo_write\`, one row per task starting with its id (a row has only content and status). That call puts the plan in front of the user on the review card, so do not ask "shall I proceed" yourself, and write no brief and no contract before it has gone through. When an advisor is configured it reads the plan before the user does. Feedback from either comes back as the tool's error: for the advisor's points, fix the plan or answer a point that does not apply in one line under a \`## Advisor review\` heading in the plan; for the user's, revise the plan. Then call \`todo_write\` again. A contract write, a worker or tester dispatch, or a message to a child on a plan the user has not approved runs the same review. Progress belongs on the board, not in the plan file: every edit of an approved plan is a change the user is asked to approve.
 3. Contract. When two or more tasks must fit together (shared types, API shapes, file formats, naming, units), pin that interface before dispatch: load the \`contract-first\` skill and write contracts/<task>/contract.md. You own that file; children read it.
 4. Brief and dispatch. Send every task of a wave in ONE step as parallel \`delegate\` calls with disjoint write scopes. Each \`task\` is a brief with these labelled lines; the tool rejects a brief without Goal, Scope and Acceptance, and a worker or tester brief without Plan:
    Plan: the id of the plan task this child carries out, e.g. T2.
@@ -104,6 +108,8 @@ const NEEDS_PLAN = new Set(['worker', 'tester'])
 
 const APPROVE = 'Approve'
 const KEEP_PLANNING = 'Keep planning'
+/** A plan file that exists but lacks a required part. */
+const PLAN_INCOMPLETE = 'PLAN_INCOMPLETE'
 const REVIEW_ID = 'plan-review'
 
 /**
@@ -319,7 +325,7 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
     }
     const plan = readPlan(text)
     const shown = relative(cwd, lead.planPath) || lead.planPath
-    if (plan.missing.length > 0) throw new Error(`The plan at ${shown} is not ready to show the user: it lacks ${plan.missing.join(', ')}.\n${PLAN_SHAPE}`)
+    if (plan.missing.length > 0) throw Object.assign(new Error(`The plan at ${shown} is not ready to show the user: it lacks ${plan.missing.join(', ')}.\n${PLAN_SHAPE}`), { code: PLAN_INCOMPLETE })
     return { plan, text, shown }
   }
   /**
@@ -354,6 +360,8 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
     if (result === undefined) return undefined
     lead.advice = { rounds: round, hash: plan.hash, notes: result.notes, raised: last.notes.length, reviewer: result.reviewer }
     logLine('subagent', `orchestrator plan advisor round ${round}: ${result.notes.length === 0 ? 'no open points' : points(result.notes.length)} (${shown})`)
+    // The card is not kept anywhere: without these lines nobody can tell later what the user was shown.
+    for (const note of result.notes) logLine('subagent', `orchestrator plan advisor point: ${note.replace(/\s+/g, ' ').slice(0, 400)}`)
     if (result.notes.length === 0 || round >= MAX_ADVISOR_ROUNDS) return lead.advice
     throw new Error([
       `The advisor read the plan at ${shown} before the user sees it and has ${points(result.notes.length)}:`,
@@ -520,8 +528,42 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
       }
     }
     if (exec.name === 'send_message') {
+      // A correction is the other way to hand out work. After the lead has
+      // edited an approved plan, the change goes to the user before the team
+      // hears of it.
+      if (lead.approved !== undefined) {
+        const cwd = cwdOf(exec)
+        try {
+          const loaded = loadPlan(lead, cwd, 'a message to the team')
+          if (lead.approved !== loaded.plan.hash) await approve(lead, id, loaded, exec, cwd)
+        } catch (error) {
+          return { kind: 'deny', reason: errorMessage(error) }
+        }
+      }
       const input = toolInput(exec.arguments)
       if (typeof input?.agent_id === 'string' && typeof input.message === 'string') team.message(id, input.agent_id, input.message)
+      return next()
+    }
+    if (exec.name === 'todo_write') {
+      // Mirroring the plan on the board submits it. A checklist written before
+      // there is a plan file is just a checklist.
+      const cwd = cwdOf(exec)
+      let loaded: LoadedPlan
+      try {
+        loaded = loadPlan(lead, cwd, 'the board')
+      } catch (error) {
+        // A plan file that is not a plan yet: say what it lacks now, not at the first dispatch.
+        return (error as { code?: unknown }).code === PLAN_INCOMPLETE ? { kind: 'deny', reason: errorMessage(error) } : next()
+      }
+      // Any edit of an approved plan is a change the user has not seen, also
+      // one that keeps the task list: a lead widened a task's write scope that
+      // way and took the board call for the approval.
+      if (lead.approved === loaded.plan.hash) return next()
+      try {
+        await approve(lead, id, loaded, exec, cwd)
+      } catch (error) {
+        return { kind: 'deny', reason: errorMessage(error) }
+      }
       return next()
     }
     if (!EDITING.has(exec.name)) return next()

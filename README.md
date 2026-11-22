@@ -158,7 +158,8 @@ How a run goes:
    request it can read two ways, becomes a question to you. It does not guess.
 2. **Plan.** It writes `.dsh/plans/<task>.md` with `Goal`, `Scope` (and what is
    out of scope), `Tasks` (`T1`, `T2`, … with owner, write scope, check and
-   wave), `Acceptance` and `Assumptions`.
+   wave), `Acceptance` and `Assumptions`. It submits the plan by mirroring
+   the tasks on its board.
 3. **The advisor reads it.** When an advisor route is set, a second model
    checks the plan against what you asked. Its points go back to the lead
    once; the lead fixes the plan or answers them.
@@ -174,11 +175,15 @@ How a run goes:
 
 Six parts of this are enforced by the harness, not left to the prompt:
 
-- **Plan.** Nothing is built before you approve. A `worker` or `tester` brief
-  must name its plan task (`Plan: T2`); a task the plan does not list is
-  refused. An edited plan comes back to you as a **Plan change** before the
-  next dispatch, so work outside the approved scope cannot start without you.
-  Scouts, planners and reviewers only read and may run earlier.
+- **Plan.** Nothing is built before you approve. The review starts when the
+  lead mirrors the plan on its board (`todo_write`), before it has written a
+  brief, so a plan you send back costs it one small call; a contract write or
+  a dispatch on an unapproved plan starts the same review. A `worker` or
+  `tester` brief must name its plan task (`Plan: T2`); a task the plan does
+  not list is refused. An edited plan comes back to you as a **Plan change**
+  before the next board update, dispatch or message to a child, so work
+  outside the approved scope cannot start without you. Scouts, planners and
+  reviewers only read and may run earlier.
 - **Plan review by the advisor.** Before your card opens, the advisor reads the
   plan with your own messages and the lead's steps beside it. Points from the
   first reading are returned to the lead, and nothing is shown to you yet. The
