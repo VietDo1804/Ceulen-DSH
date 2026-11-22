@@ -310,6 +310,7 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
       path: relative(cwd, lead.planPath) || lead.planPath,
       title: plan.title,
       tasks: plan.tasks,
+      rows: plan.rows,
       state: lead.approved === plan.hash ? 'approved' : lead.review?.hash !== plan.hash ? 'draft' : lead.review.withUser ? 'review' : 'advisor',
     })
   }
@@ -444,13 +445,31 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
     syncPlan(lead, id, cwd)
     return review.done
   }
-  const prompt = (): string => {
-    let routes = ''
+  const routeLine = (): string => {
     try {
-      routes = options.routes?.() ?? ''
+      return options.routes?.() ?? ''
     } catch {
       // A broken settings file must not take the mode prompt with it.
+      return ''
     }
+  }
+  /** The lead's route and effort and every role's route, for the Team panel's map. */
+  const describe = (lead: Lead, id: string): void => {
+    let effort: string | undefined
+    try {
+      effort = lead.agent.model?.current?.()?.reasoningEffort ?? lead.agent.options?.reasoningEffort
+    } catch {
+      effort = lead.agent.options?.reasoningEffort
+    }
+    const routes: Record<string, string> = {}
+    for (const part of routeLine().split(' · ')) {
+      const [role, ...route] = part.trim().split(' ')
+      if (role !== undefined && role !== '' && route.length > 0) routes[role] = route.join(' ')
+    }
+    team.describe(id, { route: agentRoute(lead.agent), ...(effort === undefined ? {} : { effort }), routes })
+  }
+  const prompt = (): string => {
+    const routes = routeLine()
     return routes === '' ? INSTRUCTIONS : `${INSTRUCTIONS}\n\nRoutes\nEach role runs on this route right now: ${routes}. Say which routes a wave uses when you dispatch it; do not look them up again. The user changes a route in the Ceulen settings (\`subagent.models\`, \`subagent.thinking\`), and an edit applies to the next dispatch.`
   }
 
@@ -495,7 +514,11 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
     const data = (event?.data !== null && typeof event?.data === 'object' ? event.data : {}) as { name?: unknown; arguments?: unknown; isError?: unknown }
     const called = type === 'tool/call' || (type === 'tool/ptc-dispatch' && data.isError !== true) ? data.name : undefined
     if (leads.has(id)) {
-      if (type === 'turn/start') team.setBusy(id, true)
+      if (type === 'turn/start') {
+        // The user may have changed the lead's model, its effort or a role's route since the last turn.
+        describe(leads.get(id)!, id)
+        team.setBusy(id, true)
+      }
       else if (type === 'turn/end') team.setBusy(id, false)
       else if (type === 'todo/write') team.board(id, data)
       else if (called === 'todo_write') team.board(id, data.arguments)
@@ -672,6 +695,7 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
         leads.set(id, { agent, refused: new Set(), takenOver: new Set(), contractDirs: new Set(), advice: { rounds: 0, notes: [] } })
       }
       team.open(id, route, Date.now())
+      describe(leads.get(id)!, id)
       shown = id
       paintFooter(true)
       if (target !== '' && action !== 'on') {

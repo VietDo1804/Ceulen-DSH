@@ -37,8 +37,18 @@ export interface TeamPlan {
   readonly title: string
   /** Task ids the plan lists (T1, T2, …). */
   readonly tasks: readonly string[]
+  /** What the plan says per task (owner, wave, title), for the team map. */
+  readonly rows?: readonly TeamTask[]
   /** `draft` until the user approves it; `advisor` while the advisor reads it; `review` while the approval card is open. */
   readonly state: 'draft' | 'advisor' | 'review' | 'approved'
+}
+
+export interface TeamTask {
+  readonly id: string
+  readonly title?: string
+  readonly owner?: string
+  readonly scope?: string
+  readonly wave?: number
 }
 
 export interface TeamBrief {
@@ -64,7 +74,11 @@ export interface TeamChild {
 
 export interface TeamState {
   readonly leadId: string
-  readonly route?: string
+  route?: string
+  /** The lead's reasoning effort, when the host says. */
+  effort?: string
+  /** Each role's route right now (`provider/model:effort`), for a role nobody was dispatched on yet. */
+  routes?: Readonly<Record<string, string>>
   readonly startedAt: number
   /** The lead's own turn is running. */
   busy: boolean
@@ -227,6 +241,18 @@ export class TeamStore {
     return state
   }
 
+  /** Who the lead is right now: its route and effort, and the route of every role. */
+  describe(leadId: string, lead: { route?: string; effort?: string; routes?: Readonly<Record<string, string>> }): void {
+    const state = this.leads.get(leadId)
+    if (state === undefined) return
+    const routes = lead.routes ?? state.routes
+    if (state.route === (lead.route ?? state.route) && state.effort === lead.effort && JSON.stringify(state.routes) === JSON.stringify(routes)) return
+    state.route = lead.route ?? state.route
+    state.effort = lead.effort
+    state.routes = routes
+    this.emit()
+  }
+
   close(leadId: string): void {
     const state = this.leads.get(leadId)
     if (state === undefined) return
@@ -327,7 +353,8 @@ export class TeamStore {
     const state = this.leads.get(leadId)
     if (state === undefined) return
     const old = state.plan
-    if (old?.path === plan?.path && old?.title === plan?.title && old?.state === plan?.state && old?.tasks.join() === plan?.tasks.join()) return
+    if (old?.path === plan?.path && old?.title === plan?.title && old?.state === plan?.state && old?.tasks.join() === plan?.tasks.join()
+      && JSON.stringify(old?.rows) === JSON.stringify(plan?.rows)) return
     state.plan = plan
     this.emit()
   }

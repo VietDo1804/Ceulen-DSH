@@ -9,6 +9,7 @@ import { phaseOf, runningEntries, type TeamChild, type TeamEntry, type TeamPhase
 import { logLine } from '../../core/log.js'
 import { duration, type AgentRow, type AgentStore } from './model.js'
 import { bar, usageLine, type PanelRow, type RowSource, type Run } from './panel.js'
+import { teamMap, type MapTier } from './teammap.js'
 
 export const TEAM_PANEL_ID = 'team'
 
@@ -147,7 +148,7 @@ function foldedWave(wave: TeamWave): PanelRow {
   return { left: [clean ? ['✓ ', 'success'] : ['◆ ', 'warning'], [`WAVE ${wave.index}`, 'subtle'], [' · ', 'subtle'], [parts.join(' · '), 'subtle']], agent: true }
 }
 
-function layout(state: TeamState, agent: (id: string) => AgentRow | undefined, now: number, width: number, frame: number, density: Density): PanelRow[] {
+function layout(state: TeamState, agent: (id: string) => AgentRow | undefined, now: number, width: number, frame: number, density: Density, listNext: boolean): PanelRow[] {
   const body: PanelRow[] = [rail(state, width)]
   if (state.plan !== undefined) {
     const stage: Run = state.plan.state === 'approved' ? ['approved', 'success'] : state.plan.state === 'review' ? ['needs you', 'warning'] : state.plan.state === 'advisor' ? ['advisor review', 'accent'] : ['draft', 'subtle']
@@ -183,7 +184,7 @@ function layout(state: TeamState, agent: (id: string) => AgentRow | undefined, n
     }
   }
   const next = phase === 'done' ? [] : (state.board ?? []).filter(item => item.status === 'pending')
-  if (next.length > 0 && state.waves.length > 0) {
+  if (listNext && next.length > 0 && state.waves.length > 0) {
     const shown = next.slice(0, density >= 2 ? 1 : NEXT_ROWS)
     body.push({ left: [] }, { left: [['NEXT', 'strong']] })
     for (const item of shown) body.push({ left: [['○ ', 'subtle'], [item.content, 'subtle']] })
@@ -200,9 +201,11 @@ function layout(state: TeamState, agent: (id: string) => AgentRow | undefined, n
 
 /**
  * Team panel rows for one moment. Given `room`, cards shrink until the body
- * fits if it can. Pure, so tests pin the layout without a host.
+ * fits if it can. `listNext: false` leaves out the NEXT rows, for when the
+ * team map's task list shows the same tasks. Pure, so tests pin the layout
+ * without a host.
  */
-export function teamRows(state: TeamState | undefined, agent: (id: string) => AgentRow | undefined, now: number, width: number, frame = 0, room = Number.POSITIVE_INFINITY): { header: PanelRow; body: PanelRow[] } {
+export function teamRows(state: TeamState | undefined, agent: (id: string) => AgentRow | undefined, now: number, width: number, frame = 0, room = Number.POSITIVE_INFINITY, listNext = true): { header: PanelRow; body: PanelRow[] } {
   if (state === undefined) {
     return {
       header: { left: [['◆ ', 'subtle'], ['Team', 'strong']] },
@@ -226,10 +229,31 @@ export function teamRows(state: TeamState | undefined, agent: (id: string) => Ag
   const densities: Density[] = width < BRIEF_CELLS ? [1, 2, 3] : [0, 1, 2, 3]
   let body: PanelRow[] = []
   for (const density of densities) {
-    body = layout(state, agent, now, width, frame, density)
+    body = layout(state, agent, now, width, frame, density, listNext)
     if (body.length <= room) break
   }
   return { header, body }
+}
+
+/**
+ * The panel as drawn: the rows, and under them the team map (./teammap.ts)
+ * when the panel has room left for it. The map costs the rows above nothing
+ * but NEXT, which its task list replaces (the pending tasks are there as
+ * `wave N`). It shrinks first (no lead box, then the task list only), and
+ * when even that does not fit it is left out and NEXT stays.
+ */
+export function teamView(state: TeamState | undefined, agent: (id: string) => AgentRow | undefined, now: number, width: number, frame = 0, room = Number.POSITIVE_INFINITY): { header: PanelRow; body: PanelRow[] } {
+  const full = teamRows(state, agent, now, width, frame, room)
+  // With no plan there is no task list in the map, and NEXT is the only place the board shows.
+  const listed = (state?.plan?.tasks.length ?? 0) > 0
+  const body = listed ? teamRows(state, agent, now, width, frame, room, false).body : full.body
+  for (const tier of [0, 1, 2] as const satisfies readonly MapTier[]) {
+    const map = teamMap(state, agent, width, frame, tier)
+    if (map.length === 0) break
+    if (body.length + 1 + map.length > room) continue
+    return { header: full.header, body: [...body, { left: [] }, ...map] }
+  }
+  return full
 }
 
 /** The panel's source: the ledger for the session in focus, the agent store for live child detail. */
@@ -244,7 +268,7 @@ export function teamSource(teamStore: TeamStore, store: AgentStore, onTouch: () 
     },
     // Both counters only grow, so the sum changes whenever either store does.
     getVersion: () => teamStore.getVersion() + store.getVersion(),
-    rows: (now, width, frame, room) => teamRows(current(), id => store.row(id), now, width, frame, room),
+    rows: (now, width, frame, room) => teamView(current(), id => store.row(id), now, width, frame, room),
     animating() {
       const state = current()
       return state !== undefined && (state.busy || runningEntries(state).length > 0)

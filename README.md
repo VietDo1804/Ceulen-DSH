@@ -250,6 +250,53 @@ the lead runs the team:
   child's blocker, `partial`, `failed`, `cancelled`).
 - `NEXT` lists what the lead's board still has pending.
 
+When the panel has room left under those rows, it draws the **team map**: the
+lead, the plan's task list, and one box per role.
+
+```
+        ┌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┐
+        ╎             glm-5.3 · team lead              ╎
+        ╎   splits the work · never writes the code    ╎
+        ╎               effort ▮▮▮▮▮ max               ╎
+        ╎              [ wave 2 running ]              ╎
+        └╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┘
+                               ◆
+                               ▼
+┌──────────────────────────────────────────────────────────────┐
+│ PLAN TASKS  [ 1/4 ]                                  tasks 4 │
+│ T1 Tax module              worker    ━━━━━━━━━━━━ done       │
+│ T2 Loyalty module          worker    ─────━━━──── ⠧ fixing   │
+│ T3 Receipt options         worker    ━━━━──────── ⠙ running  │
+│ T4 Independent review      reviewer  ──────────── wave 3     │
+│ the lead assigns · each wave is reviewed before the next     │
+└──────────────────────────────────────────────────────────────┘
+                               ◆
+                               ▼
+  » team · 3 subagents · own context each · fixes by message «
+                  ▼                        ▼
+       ┌──────────────────────┐ ┌──────────────────────┐
+       │        worker        │ │       reviewer       │
+       │ deepseek-v4.1-flash  │ │    glm-5.3-flash     │
+       │   [ ⠸ 2 running ]    │ │     [ waiting ]      │
+       │ ━━━━━━━───────────── │ │ ──────────────────── │
+       │    1/3 tasks done    │ │    0/1 tasks done    │
+       │    ↻ 1 correction    │ │   ✓ no corrections   │
+       └──────────────────────┘ └──────────────────────┘
+```
+
+- A task row shows its owner, a bar and where it stands: `wave N` before its
+  turn, `running` (the bar follows the child's todo list, or sweeps when there
+  is none), `in review`, `done` once the lead accepted it, or `fix sent`,
+  `fixing`, `blocked`, `partial`, `failed`, `cancelled`, `taken over`. The
+  owner and wave come from the plan's task table, the title from the board.
+- A role box shows the route that role runs on, how many of its tasks are
+  done, and how many corrections the lead had to send.
+- The map only uses free space. On a short panel it drops the lead box, then
+  the role boxes; when the task list does not fit either, it is left out. It
+  needs a panel at least 42 columns wide.
+- While the map shows, `NEXT` is left out: the task list has the same tasks
+  as `wave N`.
+
 The panel never takes keyboard focus, is not reopened once you close it, and is
 removed when the mode is turned off.
 
