@@ -1,93 +1,215 @@
 # ceulen-dsh
 
-Ceulen's toolkit for **DeepSeek Harness** (DSH): reviewer, memory, rules with behaviour guards, cron, GitHub, web extraction, A2A, UX audit, themes, structural search, an evidence-gated self-evolution loop, and a built-in upstream release watcher — installed as one DSH bundle.
+**The Ceulen toolkit for DeepSeek Harness (DSH), installed as one plugin bundle.**
 
-Ceulen itself is a Pi extension bundle. DSH has a different plugin API, so this project is an independent port: UI-independent logic is vendored from Ceulen (MIT), and each feature gets a thin DSH adapter. The module-by-module status lives in `docs/parity.md` (kept with the source checkout, not published).
+ceulen-dsh adds the parts of a coding agent that DSH leaves to plugins: a team
+mode where one model leads and others build, a second-model reviewer, guards
+for destructive commands, long-term memory, web and browser tools, a settings
+panel, themes, and model-specific tuning. Every feature is a module you can
+turn off.
 
-## Native agent dashboard
+Ceulen itself is a bundle for the Pi agent. DSH has a different plugin API, so
+this is an independent port: logic that does not depend on the UI is vendored
+from Ceulen (MIT), and each feature gets a thin DSH adapter.
 
-`/dashboard` opens a read-only scene in the current TUI session; `Esc` returns
-to chat. `Tab`/`Shift+Tab` selects tasks, agents or activity; arrows and page keys
-navigate, `Enter` opens detail, and `Esc` returns to overview first.
-`/dashboard status` prints a native projection summary without a scene host
-(child run metrics require the live TUI channel). See [dashboard integration](docs/dashboard.md).
-Opening the view never starts work, changes model, or changes approval policy.
-Disable with `/plugin disable ceulen-dashboard` if needed. Herdr is optional.
+## Contents
 
-## Orchestrator mode
+- [Highlights](#highlights)
+- [Requirements](#requirements)
+- [Install](#install)
+- [Working with a team of agents](#working-with-a-team-of-agents)
+- [Feature reference](#feature-reference)
+- [Configuration](#configuration)
+- [Guides](#guides)
+- [Optional TUI patches](#optional-tui-patches)
+- [Known gaps](#known-gaps)
+- [Credential safety](#credential-safety)
+- [Upstream releases](#upstream-releases)
+- [Development](#development)
+- [License](#license)
 
-`/orchestrator <task>` turns the current live lead session into a team lead and
-submits the task. The lead asks you what it cannot settle by reading, writes a
-detailed plan that you approve, tracks it on a task board, pins a contract when
-tasks must fit together, briefs children on the existing Ceulen role/model
-routes and dispatches each wave in parallel, reviews their reports at a
-checkpoint, and advises or corrects them. It does not do the execution itself.
-`/orchestrator` or `/orchestrator on` enables the mode for subsequent chat
-messages; `/orchestrator status` shows the team (dispatched, running, settled,
-checkpoints, corrections, lead takeovers, the plan and whether you approved it,
-the contract); `/orchestrator approve` approves the current plan without the
-card; `/orchestrator off` exits without cancelling
-existing children. Restarting the session resets the mode. While the mode is
-active, the native TUI footer shows `Orchestrator`; `off`, plugin reload or
-session disposal clears it.
+## Highlights
 
-Five parts of the mode are enforced by the harness, not left to the prompt:
+| You want to | Use |
+|---|---|
+| Have one model plan and review while cheaper models build in parallel | `/orchestrator` and the `delegate` tool |
+| See what every child agent is doing without scrolling | the Team and Subagents side panels, `/dashboard` |
+| Get a second opinion on finished work | `/advisor` |
+| Stop an agent from deleting work you did not ask it to delete | `/classifier` and rule guards |
+| Run many tool calls in one step and keep the noise out of the context | the `codemode` tool |
+| Read, capture and click through web pages | `web_extract`, `web_screenshot`, `web_interact` |
+| Keep project knowledge between sessions | the `munin_*` memory tools |
+| Change settings without editing JSON | `/ceulen-config` |
+| Check that everything is wired correctly | `/ceulen doctor` |
 
-- **Plan.** Nothing is built before you approve a plan. The lead writes
-  `.dsh/plans/<task>.md`, as detailed as a `/plan` plan, with `Goal`, `Scope`
-  (and what is out of scope), `Tasks` (ids `T1`, `T2`, … with owner, write
-  scope, check and wave), `Acceptance` and `Assumptions` (what it inferred and
-  did not ask). The first contract write, or the first `worker` or `tester`
-  dispatch, puts the whole plan on the native plan review card: **Approve**, or
-  **Keep planning** with your feedback, which goes back to the lead. Scouts,
-  planners and reviewers may run before that. A worker or tester brief must
-  name its task with a `Plan:` line, and a task the plan does not list is
-  refused. An edited plan is a new plan: it comes back to you as a **Plan
-  change** before the next dispatch, so work outside the approved scope cannot
-  start without you. Where there is no review card (headless), approve with
-  `/orchestrator approve`.
+## Requirements
 
-- **Brief.** `delegate` refuses a task without labelled `Goal:`, `Scope:` and
-  `Acceptance:` lines, and appends the handoff rules plus the report every
-  child ends with (`STATUS`, `CHANGED`, `CHECKS`, `DEVIATIONS`, `BLOCKERS`). A
-  child with a typed reply (`schema`, or the reviewer default) keeps its JSON
-  contract and gets the rules only.
-- **Checkpoint.** When every child dispatched since the last checkpoint has
-  settled, the lead receives one notice with the roster and the review steps.
-  A child resumed with `send_message` reopens the wave.
-- **Takeover.** The lead's own `edit`, `write` or `apply_patch` is refused
-  once outside `contracts/`, `.dsh/plans/` and `.scratch/`. Re-issuing the
-  refused call declares a takeover of those files:
-  for a child that is blocked, work still wrong after one correction, or a
-  piece you told the lead to do itself. Takeovers are counted in `status`.
-  Bash is not gated.
-- **Contract.** Once the lead has written `contracts/<task>/contract.md`, a
-  child's `edit`, `write` or `apply_patch` inside that directory is refused:
-  a child that disagrees with the contract reports it under `BLOCKERS`. The
-  `contract-first` skill no longer commits the contract to protect it.
+- DSH `0.2.2-rc.1` (the `dsh` CLI and `dsh-tui` 0.20.2 profile)
+- Node.js `>=24.9.0` for a fresh installation (required by the pinned DSH CLI; the bundle itself supports `>=22.19`)
+- On Windows, run the commands below in WSL.
 
-The mode prompt lists the route each role resolves to right now, so the lead
-names the models of a wave without reading the settings file.
+Optional backends, each needed only for its own feature: `gh`, `sg`/`ast-grep`,
+`rtk`, Serena, Chrome or Chromium, a Munin server, a Brave Search key, an
+OpenAI-compatible router, A2A peers.
 
-While the mode is on, a **Team** side panel opens beside the chat (the
-`agentbar` module; fullscreen, 93 columns or more). The Subagents panel shows
-who is running; this one shows how the lead runs the team:
+ceulen-dsh ships no API key and no subscription. You add your own model
+provider with `/provider`.
+
+## Install
+
+`ceulen-dsh` is not on npm yet (`dsh plugin add ceulen-dsh` returns 404), so
+install it from a tarball. The tarball is already compiled and has no runtime
+dependencies.
+
+### Install a release (no build)
+
+Download `ceulen-dsh-<version>.tgz` from the
+[Releases](https://github.com/VietDo1804/Ceulen-DSH/releases) page, then:
+
+```sh
+npm install -g @deepseek-ai/dsh@0.2.2-rc.1
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.7.tgz
+dsh --profile tui
+```
+
+An HTTPS tarball URL works in place of `file:...`. Do not install from a Git
+URL: the compiled `lib/` directory is not committed. Checksums and installer
+options are in [release/README.md](release/README.md).
+
+DSH has no `tui` template, so the command above installs two things into the
+`tui` profile: the TUI app and this bundle.
+
+### Build from source
+
+```sh
+git clone https://github.com/VietDo1804/Ceulen-DSH.git
+cd Ceulen-DSH
+npm ci --include=dev
+./release/build.sh
+
+# Install BOTH the TUI app and this bundle into a new profile.
+./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.7.tgz"
+dsh --profile tui
+```
+
+The installer creates the profile under `${DSH_HOME:-$HOME/.dsh}/profiles/tui`
+and does not replace an existing profile's settings. To share the build, send
+`release/ceulen-dsh-0.2.7.tgz`; the other machine needs no clone and no build.
+
+### Develop from a checkout
+
+After `npm ci --include=dev` and `npm run build`, link the checkout instead of
+installing a tarball:
+
+```sh
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 link:"$PWD"
+dsh --profile tui
+```
+
+Rebuild with `npm run build` after a change and restart DSH. Plugin code does
+not hot-reload.
+
+### First run
+
+1. Follow the TUI's first-run setup, or run `/setup`.
+2. Add a provider and key with `/provider`, then pick a model with `/model`.
+3. Check the installation:
+
+```text
+/ceulen          # version, release line, module status
+/ceulen-config   # full-screen settings panel
+/ceulen doctor   # compatibility and optional-backend diagnostics
+```
+
+`/ceulen` shows the release line (`ceulen-dsh 0.2.7 (stable)`), the pinned
+Ceulen version, and which modules are mounted. The bundle composes 35 rows.
+
+To upgrade, install a newer tarball into the same profile and restart. Your
+settings are kept.
+
+### Release line
+
+`package.json` carries this bundle's own version (`0.2.7`) plus
+`release: { line: "stable", distTag: "stable" }`. The upstream Ceulen version it
+tracks lives in `upstream.lock.json` (`0.23.0`). The update check follows the
+`stable` npm dist-tag only, and reports `unknown` when that tag is missing
+rather than offering another line as an upgrade. `/ceulen doctor` prints the
+line and dist-tag.
+
+## Working with a team of agents
+
+### Orchestrator mode
+
+`/orchestrator <task>` turns the current session into a **team lead**. The lead
+plans, hands out the work, reads every result and corrects it. It does not
+build the result itself.
+
+| Command | Effect |
+|---|---|
+| `/orchestrator <task>` | turn the mode on and submit the task |
+| `/orchestrator` or `/orchestrator on` | turn the mode on for the following messages |
+| `/orchestrator status` | the team, the plan and whether you approved it, the contract, the counters |
+| `/orchestrator approve` | approve the current plan where there is no review card (headless) |
+| `/orchestrator off` | leave the mode; running children are not cancelled |
+
+How a run goes:
+
+1. **Orient.** The lead reads what it needs. A choice only you can make, or a
+   request it can read two ways, becomes a question to you. It does not guess.
+2. **Plan.** It writes `.dsh/plans/<task>.md` with `Goal`, `Scope` (and what is
+   out of scope), `Tasks` (`T1`, `T2`, … with owner, write scope, check and
+   wave), `Acceptance` and `Assumptions`.
+3. **You approve.** The whole plan appears on the plan review card. Choose
+   **Approve**, or **Keep planning** with feedback that goes back to the lead.
+4. **Contract.** When tasks must fit together, the lead pins the interfaces in
+   `contracts/<task>/contract.md` (the `contract-first` skill).
+5. **Dispatch.** It briefs the children and sends each wave in parallel.
+6. **Checkpoint.** When a wave settles, it reads every report, then accepts,
+   corrects or takes over.
+7. **Report.** It tells you what was built and how it was checked.
+
+Five of these steps are enforced by the harness, not left to the prompt:
+
+- **Plan.** Nothing is built before you approve. A `worker` or `tester` brief
+  must name its plan task (`Plan: T2`); a task the plan does not list is
+  refused. An edited plan comes back to you as a **Plan change** before the
+  next dispatch, so work outside the approved scope cannot start without you.
+  Scouts, planners and reviewers only read and may run earlier.
+- **Brief.** `delegate` refuses a task without `Goal:`, `Scope:` and
+  `Acceptance:` lines. It appends the handoff rules and the report every child
+  ends with (`STATUS`, `CHANGED`, `CHECKS`, `DEVIATIONS`, `BLOCKERS`).
+- **Checkpoint.** When every child of a wave has settled, the lead gets one
+  notice with the roster and the review steps.
+- **Takeover.** The lead's own edit outside `contracts/`, `.dsh/plans/` and
+  `.scratch/` is refused once. Sending the same edit again declares a takeover,
+  which is counted in `status`. Bash is not gated.
+- **Contract.** A child cannot edit inside the lead's contract directory. A
+  child that disagrees reports it under `BLOCKERS`.
+
+The mode is tuned for `gpt-6.2-astra` and `gpt-6.2-sol` as lead and says so on
+any other model; the rules are the same for every lead. It does not change the
+lead's model, permissions or approvals. While it is on, the footer shows
+`Orchestrator`. Restarting the session turns it off.
+
+#### Team panel
+
+While the mode is on, a **Team** side panel opens beside the chat and shows how
+the lead runs the team:
 
 ```
  chat …                              │ ◆ Team · glm-5.3 lead                   wave 2
                                      │
                                      │   Plan ✓  Contract ✓  ▸ Dispatch  Review  Report
+                                     │   plan     Add tax and loyalty     approved
                                      │   contract contracts/tax-loyalty-receipt
                                      │   board    ━━━━━━━───────────── 2/6
                                      │
                                      │ WAVE 1 · reviewed                        1m30s
-                                     │ ✓ worker · Tax module                 accepted
-                                     │ ↻ worker · Loyalty module            corrected
+                                     │ ✓ worker · T1 · Tax module            accepted
+                                     │ ↻ worker · T2 · Loyalty module       corrected
                                      │
                                      │ WAVE 2 · running                           30s
-                                     │ ⠸ worker · Loyalty module                  30s
-                                     │     Fix     Guard inherited keys with Object.hasOwn
-                                     │ ⠧ worker · Receipt options                 29s
+                                     │ ⠧ worker · T3 · Receipt options            29s
                                      │     Goal    Integrate tax + loyalty into the receipt
                                      │     Scope   src/receipt.js, test/receipt.test.js
                                      │     Accept  npm test green; pinned 6-line example
@@ -99,38 +221,31 @@ who is running; this one shows how the lead runs the team:
                                      │ 1 checkpoint · 1 correction · 0 takeovers
 ```
 
-The rail is the lead's loop; a step it went past without doing (no approved
-plan, no contract) shows `–`. A `plan` row above the contract names the plan and
-says `draft`, `needs you` while the review card is open, or `approved`; a child's
-title carries its plan task (`worker · T2 · Receipt options`). A wave is everyone dispatched or resumed between two
-checkpoints. A running child shows its brief (or the correction it is fixing),
-its todo, model and context. After the checkpoint each child shows the lead's
-decision: `accepted` (the lead moved on without correcting it), `corrected`
-(a `send_message` to settled work), `lead took over`, or what stands in the
-way: `blocked` with the child's `BLOCKERS` line, `partial`, `failed`,
-`cancelled`. `NEXT` is what the lead's own board still lists as pending. The
-panel opens when the mode is turned on, does not take keyboard focus, is not
-reopened once you put it away, and is removed when the mode is turned off; for
-a session in the mode it replaces the Subagents auto-open. `/agentbar auto off`
-keeps both panels shut. A short or narrow panel drops the brief lines first and
-folds reviewed waves into one line each.
+- The rail is the lead's loop. A step it skipped shows `–`.
+- The `plan` row says `draft`, `needs you` while the review card is open, or
+  `approved`.
+- A wave is everyone dispatched between two checkpoints. A running child shows
+  its brief (or the correction it is fixing), its todo, model and context.
+- After the checkpoint each child shows the lead's decision: `accepted`,
+  `corrected`, `lead took over`, or what stands in the way (`blocked` with the
+  child's blocker, `partial`, `failed`, `cancelled`).
+- `NEXT` lists what the lead's board still has pending.
 
-The mode targets `gpt-6.2-astra` and `gpt-6.2-sol` as lead; enabling it on
-another route says so. The prompt itself names no model, so any lead gets the
-same rules.
+The panel never takes keyboard focus, is not reopened once you close it, and is
+removed when the mode is turned off.
 
-Use `/dashboard` to watch delegated work under **Agents** and **Activity**;
-press `Esc` to return to chat and send another instruction. The **Tasks** panel
-is the native Team board, not the lead's `todo_write` checklist; ordinary
-delegation does not create Team tasks. `/subagent` shows the configured worker
-routes. Orchestrator mode requires the subagent module/runtime, does not open a
-second chat, and does not change the lead model, permissions, or approvals.
+### Delegation and roles
 
-## Subagent progress
+The `delegate` tool starts a child agent with a fresh context and one of five
+roles: `planner`, `reviewer`, `scout`, `tester`, `worker`. Each role has its own
+persona and model route, so a strong model can lead while cheaper models do the
+bulk of the work. `/subagent` shows the route of every role; see
+[Subagent routes](#subagent-routes) to change them. DSH's native `subagent`,
+`subagent_fork` and `workflow` tools remain available.
 
-While children run, the `agentbar` module opens a **Subagents** side panel
-beside the chat (about a third of the width, the dsh-tui `sidePanel.ratio`
-default of 0.68), so you never scroll back to the delegate card:
+### Subagents panel
+
+Outside orchestrator mode, a **Subagents** panel opens while children run:
 
 ```
  chat …                                        │ ◆ Subagents        2 running · 1 done
@@ -148,25 +263,14 @@ default of 0.68), so you never scroll back to the delegate card:
                                                │ Ctrl+A dashboard
 ```
 
-Each running child is a card: role and label, model and effort, a moving
-`Working…`, its `todo_write` list, its context against the model window, and
-the share of prompt tokens served from cache. Tool names are left out (under
-the `ptc` preset every call is `run_code`). Finished children shrink to one
-line. When the panel is short, cards shrink (only the active todo, then no
-model line) so every running child stays in view; the rest scroll with the
-wheel, or ↑/↓ once the panel has focus (`Ctrl+B`; `Esc` returns to the chat).
-The panel opens when a batch starts and closes 60 s after the last child
-ends, unless you focused it or opened it yourself. Typing is never
-interrupted: auto-open needs `node scripts/tui-panel-patch.mjs apply`, which
-adds an open that leaves focus in the prompt. Without that patch the panel
-stays on `Ctrl+B`. `/ceulen doctor` shows `panel-reveal applied|stock`, and
-`/dsh-update` re-applies the patch after a dsh-tui update.
-`/agentbar auto off` keeps it manual (saved as `agentbar.autoOpen`, applied
-from the next batch); `/agentbar auto on` turns it back on.
+Each running child is a card with its role, model and effort, todo list,
+context use and cache hit rate. Finished children shrink to one line. The panel
+opens when a batch starts and closes 60 seconds after the last child ends,
+unless you focused it or opened it yourself (`Ctrl+B`; `Esc` returns to the
+chat).
 
-The split needs fullscreen mode and at least 93 columns. Elsewhere (inline
-mode, a narrow terminal, a closed panel) the same data shows as up to three
-rows above the prompt:
+Both panels need fullscreen mode and at least 93 columns. Elsewhere, the same
+data shows as up to three rows above the prompt:
 
 ```
 ◆ Subagents  2 running · 1 done                         Ctrl+B panel · /agentbar
@@ -174,181 +278,92 @@ rows above the prompt:
   ⠼ worker · Add login form    Writing the form component…   4 steps · ctx 31k · 48s
 ```
 
-After the batch, one summary row stays for 60 s. `/agentbar` prints every
-child of the session; the native dashboard (`Ctrl+A`) remains the detail view.
-Both views cover every in-process child session (`delegate` and the native
-subagent tools). Herdr-runner children already have their own pane, so they are
-left out. `/ceulen module off agentbar` removes the panel and the band.
-
-## Requirements
-
-- DSH `0.2.2-rc.1` (the `dsh` CLI and `dsh-tui` 0.20.2 profile)
-- Node.js `>=24.9.0` for a fresh installation (required by the pinned DSH CLI; the bundle itself supports `>=22.19`)
-- Optional backends: `gh`, `sg`/`ast-grep`, `rtk`, Serena, Chrome/Chromium, a Munin server, a Brave Search key, an OpenAI-compatible router, A2A peers
-
-## Install
-
-### Fresh DeepSeek Harness installation
-
-Use Node.js **24.9 or newer** (Node 24 LTS recommended), npm, and Git.
-On Windows, run these Bash commands in WSL. No existing DSH profile is needed.
-
-`ceulen-dsh` is **not published to npm yet**: `dsh plugin add ceulen-dsh`
-currently returns 404. Build a tarball from this repository instead:
-
-```sh
-node --version
-npm install -g @deepseek-ai/dsh@0.2.2-rc.1
-dsh --version
-
-git clone https://github.com/VietDo1804/Ceulen-DSH.git
-cd Ceulen-DSH
-npm ci --include=dev
-./release/build.sh
-
-# Install BOTH the TUI app and this bundle into a new profile.
-./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.7.tgz"
-dsh --profile tui
-```
-
-DSH does not ship a `tui` template: installing only Ceulen-DSH does **not**
-install the TUI app. `--with-tui` adds the pinned TUI as well. The installer
-creates the profile under `${DSH_HOME:-$HOME/.dsh}/profiles/tui`; it does not
-replace an existing profile's settings. Restart an already-running session
-after installation.
-
-Follow the TUI's first-run setup, or run `/setup` again. Use `/provider` to add
-your model provider/API key and `/model` to select a model before sending
-prompts. Ceulen-DSH does not include an API key or subscription. Optional
-backends below are needed only for their respective features, not to install
-the bundle.
-
-### Install on a friend's machine without building
-
-Send `release/ceulen-dsh-0.2.7.tgz` to your friend after building it. With Node
-24.9+ and the pinned DSH CLI installed, they can run (replace the tarball path):
-
-```sh
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.7.tgz
-dsh --profile tui
-```
-
-The tarball includes compiled code; no clone or build is needed on their
-machine. An HTTPS tarball URL works in place of `file:...`. Do not install
-directly from a Git URL: compiled `lib/` is not committed. See
-[release/README.md](release/README.md) for checksums and installer options.
-
-### Develop from a checkout
-
-After `npm ci --include=dev` and `npm run build`, link this checkout instead:
-
-```sh
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 link:"$PWD"
-dsh --profile tui
-```
-
-`link:` keeps this checkout as the source of truth; rebuild with `npm run build`
-after changes and restart DSH. To upgrade a tarball installation, install a
-newly built tarball into the same profile and restart. npm-based update notices
-and `/ceulen upgrade` cannot supply a release until the package is published.
-
-After restart:
-
-```text
-/ceulen
-/ceulen-config   # full-screen settings panel
-/ceulen doctor  # compatibility and optional-backend diagnostics
-```
-
-You should see the release line (`ceulen-dsh 0.2.7 (stable)`), the pinned
-Ceulen version, and the mounted/native/planned modules.
-
-Installation is per machine and profile, not inherited from this checkout. The bundle composes
-35 rows. See `docs/live-verification.md` and `docs/dashboard.md` for the evidence.
-
-### Release line
-
-`package.json` carries this bundle's own version (`0.2.7`) plus
-`release: { line: "stable", distTag: "stable" }`; the upstream Ceulen version it
-tracks lives in `upstream.lock.json` (`0.23.0`). The bundle update check follows
-the `stable` npm dist-tag, so `latest` staying on the old `0.23.0-dsh.x` line
-never reads as an upgrade — and a missing tag reports `unknown` instead of
-inventing one. `/ceulen doctor` prints the line and dist-tag it follows.
-
-## Credential safety
-
-Keep API keys and login state in your own DSH credential store, never in this
-repository or a shared tarball. `.gitignore` excludes local `.env` files,
-credential files, and Codex/Claude login directories. Example environment files
-may be committed, but must contain placeholders only. Ignoring a file does not
-remove it from Git if it was already tracked.
-
-The `secrets` GitHub Actions workflow scans Git history with Gitleaks on pushes
-and pull requests, redacts findings, and fails if a secret is detected. It needs
-no API key. GitHub's billing lock must be resolved before this workflow can run.
-Keep GitHub's native secret scanning and push protection enabled in repository
-security settings too: push protection can reject supported secret types before
-GitHub accepts the push, independently of Actions.
-With Gitleaks 8.30.1 installed, run the same check locally before pushing:
-
-```sh
-gitleaks git . --redact --log-opts="--all"
-```
-
-History scanning does not cover uncommitted or ignored files. Share only the
-built tarball, not your workspace, `~/.dsh`, or `~/.codex`. If a real secret was
-committed, revoke/rotate it immediately; adding it to `.gitignore` is not enough.
-
-## What works today
-
-| Area | DSH surface |
+| Command | Effect |
 |---|---|
-| Status/config | `/ceulen`, `/ceulen modules`, `/ceulen tools` (schema budget), `/ceulen-config` (full-screen panel), `/ceulen config`, `/ceulen doctor` (services, compat flags, release line) |
-| Upstream | `/ceulen update`, status line, `ceulen-sync` CLI, weekly CI check |
-| Advisor | second-model review after settled work, one severity note, `/advisor`, `advisor` tool |
-| Subagent roles | `delegate` starts a fresh-context child with a Ceulen role preset (planner, reviewer, scout, tester, worker); the role persona and provider/model route come from `subagent.roles`, `subagent.models`, and `subagent.thinking`; `/subagent` shows the routes. Native `subagent`, `subagent_fork`, and `workflow` remain; inside a Herdr pane `delegate` also takes `runner: "herdr"` (see Herdr below). Delegation nudges: on a lead whose route matches `subagent.nudge.models` (default `deepseek-v4.1-flash`, `deepseek-flash`), at most one notice per turn of each kind. Recon: after `discoveryAfter` (10) local reads/searches with no delegation once the lead context reaches `reconMinContext` (60k tokens), it asks whether a `scout` would pay. Review: once the turn has edited `reviewAfterFiles` (3) files, it asks for a `reviewer` only for new logic, behaviour/API changes or risky areas, and says mechanical edits may skip it. The thresholds were set by replaying past flash sessions against gpt-6.1-sol's rates. `[]` or 0 turns them off |
-| Memory | Munin is the primary store: `munin_search/get/store/...`, `/munin-status`, the Memory Protocol, and the first-turn brief (`munin.brief`, resolved in the background so it lands from the first re-composed prompt — usually turn 2). `munin.fallback.baseUrl` + `MUNIN_FALLBACK_API_KEY` make a dead cloud answer from the opimem bridge instead of erroring (transport failures only — a 401 still surfaces) |
-| AgentMem | the same eleven tools under `agentmem_*` plus `/agentmem-status`: one opimem server on the LAN, by default the Pi replica that `munin.fallback` fails over to. Reads are ~50x faster than the cloud but can lag it by up to a week (the pull window is weekly; the UI's "Sync now" refreshes on demand), so its brief is off and the protocol says not to double-write through it |
-| Rules | sticky `.dsh/RULES.md` + rulebook, `when-*` behaviour guards (`rules.guards`), read-only `AGENTS.md` / `.cursor/rules/*.mdc` / `.clinerules` sources, `rule_get`, `/rules` |
-| GitHub | read-only `github` tool over the `gh` CLI |
-| Ponytail | `/ponytail off|lite|full|ultra`, prompt discipline, skills |
-| Agent Mode | `/agent-mode` loads `~/vietdo_workspace/DHS/agent_mode/AGENTS.md`; run again to reload edits, `off` to remove the role, `status` to inspect it. Starts off after restart; permissions and Plan Mode are unchanged. Routes listed under `/ceulen-config` → Model → Agent Mode (empty by default) load the role automatically; an explicit on/off outranks the route default. Override the file with the plugin's `path` config. |
-| Skills | all 20 bundled skill packs registered (15 ported from Ceulen) |
-| Evolve | Weekly audit with no model: `scripts/evo-weekly.mjs` (systemd timer) scans every session, gathers recurring tool errors into fix groups and writes an HTML report plus `report-<date>.md`; the review is a session the user starts on a strong model (skill `evo`, "evo weekly review"): diagnose, fix in a worktree with a test, then `evo-report.mjs --fixed` so later reports compare before and after; `/evo-status` names the newest report; `evo_notice` shows a 💾 Self-improvement block; `/evo` session postmortem → ledger → Munin; see `docs/evo.md` |
-| Cron | `cron` tool, `/cron`, persisted jobs fired into the live session |
-| Classifier | `classify` typed decisions, bash audit, `/classifier` (audit + enforce). The destructive-command gate judges each command against the user's latest request and their latest `ask_user_question`/`ask_human` answer (never tool output), so a target the user named passes and a general goal does not authorize deleting anything else. A `typesafe/jev-*` route (e.g. `/classifier model router/typesafe/jev-1.14,deepseek/deepseek-flash`) calls OpenRouter's System One endpoint with `OPENROUTER_API_KEY` for decisions only (the gate, `/ux auto`, the `classify` tool; the per-command bash audit logs its static verdict without a model call); other routes use chat |
+| `/agentbar` | print every child of the session |
+| `/agentbar auto off` / `on` | keep the panels manual, or open them automatically again |
+| `/ceulen module off agentbar` | remove the panels and the band |
+
+Opening a panel automatically without interrupting your typing needs the
+[panel patch](#optional-tui-patches). Without it the panels stay on `Ctrl+B`.
+
+### Dashboard
+
+`/dashboard` (or `Ctrl+A`) opens a read-only view of tasks, agents and activity
+in the current session. `Tab` and `Shift+Tab` switch between the three lists,
+arrows navigate, `Enter` opens detail, and `Esc` goes back. Opening it never
+starts work and never changes the model or the approval policy.
+`/dashboard status` prints a summary without the full-screen view.
+
+## Feature reference
+
+Every area below is a module. `/ceulen modules` lists them, and
+`/ceulen module off <name>` turns one off.
+
+### Agents and review
+
+| Area | What it gives you |
+|---|---|
+| Orchestrator | `/orchestrator`: the team-lead mode described above |
+| Subagent roles | `delegate` with five role presets; `/subagent` shows the routes. On DeepSeek flash leads, at most one notice per turn asks whether a `scout` or a `reviewer` would pay off (`subagent.nudge`) |
+| Agent bar | the Team and Subagents side panels, the progress band, `/agentbar` |
+| Dashboard | `/dashboard`: tasks, agents and activity |
+| Advisor | a second model reviews settled work and leaves one note with a severity; `/advisor`, `advisor` tool |
+| Plan mode | submitted plans are saved to `.dsh/plans/`; `/plan-approve`; separate model routes for planning and for implementing |
+| Goal recovery | an active goal is resumed automatically after a provider error or `Esc` |
+| Cron | `cron` tool and `/cron`: persisted jobs that fire into the live session |
+
+### Safety and rules
+
+| Area | What it gives you |
+|---|---|
+| Classifier | `/classifier`: audits bash commands and can gate destructive ones against what you actually asked for; `classify` tool for typed decisions |
+| Rules | sticky rules in `.dsh/RULES.md`, a rulebook served by `rule_get`, and `when-*` guards checked before every tool call; `/rules` |
+| Ponytail | `/ponytail off\|lite\|full\|ultra`: prompt discipline against over-engineering, with review and audit skills |
+| Web guard | fetch and capture refuse non-public targets; loopback and LAN dev servers stay reachable for audits |
+
+### Tools
+
+| Area | What it gives you |
+|---|---|
+| Codemode | `codemode`: one JavaScript program calls every visible tool, and only its result reaches the model |
 | Repair | `apply_patch`, `read_slice` |
-| Themes | 104 Ceulen Pi themes converted to DSH runtime themes (`ceulen-<name>`) |
-| Providers | `/router-status`, `/router-model`, `/zai`, `/provider-compat` with ready `llm-pi-ai` recipes; the DeepSeek recipe pins the three tool-loop compat flags and `/ceulen doctor` names a missing one |
-| Web | `web_extract`, `web_map`, `web_status`; native `web_search`/`web_fetch` remain. Fetch and capture refuse non-public targets: fetch resolves DNS and re-checks every redirect hop, captures refuse link-local/metadata literals while loopback and LAN dev servers stay auditable |
-| A2A | `a2a_peers`, `a2a_list`, `a2a_call`, `a2a_status` (outbound JSON-RPC) |
-| UX | `/ux off|lite|strict|auto` (auto classifies each user request as off, keep, lite or strict and sends the level as runtime context), `ux_audit` (static gates + 6-viewport runtime + two screenshots on image routes + motion checks and load frames) |
-| Usage | `/usage` subscription windows and credits (OpenCode Go, Z.AI, Command Code, Codex, router) plus DSH token-meter totals |
-| Steering | model-family prompt hints and `/steering`. For routes in `steering.models` (default `deepseek-v4.1-flash`, `deepseek-flash`): the `ceulen:playbook` prompt section (leads only) shows how gpt-6.1-sol works here: one opening codemode batch of grep/glob/read, a need → tool map, and delegating only when it pays. A bash call that only greps/cats/`sed -n`/heads/finds files is not run; the reply names the exact `grep`/`read`/`glob` call (several lookups become one codemode batch, GNU grep BRE patterns are converted to ripgrep syntax), and sending the same command again unchanged runs it. This covers codemode's nested calls and children; a bash call that only takes headless-Chrome screenshots is redirected to `web_screenshot` the same way. `steering.bashLookups: "off"` disables the redirect. The same routes get tuned `codemode` and `web_interact` definitions (named browser sessions, hover, `text=` selectors, `screenshot:false`), registered in the agent's own scope so every other route keeps the untuned ones, and `steering.cold` holds tools out of their prompt only; a `/model` switch swaps both before the next step |
+| Web | `web_extract`, `web_map`, `web_status`, a Brave search provider and a fetch fallback; native `web_search` and `web_fetch` remain |
+| Browser capture | `web_screenshot`, `web_pdf`, `web_interact` through local headless Chrome |
 | Structural search | `ast_grep`, `ast_edit` when the `sg` binary is installed |
-| Semantic find | `jfind`: behavior query -> lexical prior -> the agent model judges filenames, sketches, and passages |
-| RTK | `rtk` tool and `/rtk`: rewrite one supported command, then run it with bash (explicit two-step) |
-| NotebookLM | `notebooklm` CLI bridge when the `notebooklm` (notebooklm-py) binary is installed: one argument-vector tool with destructive / `--yes` / browser-login gates, redacted error text, and capped output |
-| Codemode | `codemode` tool over the DSH PTC runtime: one JavaScript program calls every visible tool, only its result reaches the model; on by default in `/ceulen-config` → Tools |
-| Browser capture | `web_screenshot`, `web_pdf`, `web_interact` via local headless Chrome/CDP |
-| Tool budget | `/ceulen tools` (count, KB, top 5 by bytes, per-module split); `tools.cold` holds rarely used tools out of the prompt and `ceulen_tools` searches them by regex and dispatches by name (`/cold-tools`) |
-| Serena | `/serena` status and the exact native `dsh-mcp-client` row (no bundled Python worker) |
-| Context | `/context` dashboard: a Claude Code-style colored cell grid (⛁/⛶/⛝) beside the per-category token legend (system prompt / tools / messages / free / autocompact buffer), from `tokenMeter` + session projections; `scripts/tui-context-patch.mjs` redirects the TUI's built-in `/context` dump to it and preserves only SGR colors from the ANSI dashboard |
-| Plan mode | the plan submitted through `exit_plan_mode` persists to `.dsh/plans/<timestamp>-<slug>.md` (same-title refinement overwrites); `/plan-approve [current\|new\|stay]` asks ceulen's three options — implement in this session · clear context and implement in a new session · continue planning. Per-phase routes: `plan.model` answers while plan mode is active, `plan.implement` once a plan was submitted, configured in `/ceulen-config → Tasks → Plan mode` (a `/model` switch during a phase wins). `scripts/tui-plan-patch.mjs` makes bare `/plan` toggle and puts the plan-mode name in the footer |
-| Native DSH | todo, subagent/fork/workflow, attachments, permission/sandbox, shell jobs, grep/glob, notifications |
+| Semantic find | `jfind`: describe a behaviour, and the model judges candidate files and passages |
+| GitHub | read-only `github` tool over the `gh` CLI |
+| RTK | `rtk` tool and `/rtk`: rewrite a supported command, then run it with bash |
+| NotebookLM | `notebooklm` CLI bridge with gates for destructive and login actions |
+| A2A | `a2a_peers`, `a2a_list`, `a2a_call`, `a2a_status`: outbound calls to other agents |
+| Serena | `/serena`: status and the exact MCP row to add |
+| Tool budget | `/ceulen tools` shows what the tool schemas cost; `tools.cold` holds rarely used tools out of the prompt and `ceulen_tools` finds and calls them on demand |
 
-### Herdr (optional)
+### Memory, models and interface
 
-[Herdr](https://herdr.dev) is a terminal multiplexer for coding agents. Nothing here needs it; outside a Herdr pane (ACP/hermes delegation, the web profile, a plain terminal) every Herdr feature stays off.
+| Area | What it gives you |
+|---|---|
+| Memory | Munin: `munin_search`, `munin_get`, `munin_store` and eight more tools, `/munin-status`, an optional failover server |
+| Steering | model-family prompt hints and `/steering`; extra tool habits for DeepSeek flash routes only |
+| Providers | `/router-status`, `/router-model`, `/zai`, `/provider-compat` with ready provider recipes |
+| Usage | `/usage`: subscription windows and credits for OpenCode Go, Z.AI, Command Code, Codex and a generic router, plus a footer segment |
+| Context | `/context`: a colored grid of what fills the context window, by category |
+| UX | `/ux off\|lite\|strict\|auto` design guidance and `ux_audit` (static checks, six viewports, screenshots, motion checks) |
+| Themes | 104 Ceulen Pi themes converted to DSH themes (`ceulen-<name>`), plus the `skins` and `thread` UI styles |
+| Skills | all 20 bundled skill packs registered (15 ported from Ceulen) |
+| Config | `/ceulen-config`: full-screen settings panel |
+| Status | `/ceulen`, `/ceulen modules`, `/ceulen tools`, `/ceulen doctor`, `/ceulen update` |
+| Evolve | a weekly audit of past sessions that groups recurring tool errors into a report; `/evo`, `/evo-status` |
+| Agent Mode | `/agent-mode`: loads a translation role from an `AGENTS.md` file you point it to (the plugin's `path` config); off after every restart |
+| Herdr | optional: a `herdr` skill and a `delegate` runner that puts a child in its own terminal pane |
 
-- **Skill** `herdr`: `herdr --skill` verbatim plus a ceulen note and a DSH addendum (no `dsh` agent kind; drive a DSH TUI pane with `pane send-text` + `send-keys enter` and a settled `agent wait`; `/exit` quits; alternate-screen reads). Refresh after a Herdr update with `node scripts/herdr-skill-sync.mjs` (`--check` reports drift); `/ceulen doctor` shows client/server versions, the pane, and drift.
-- **`delegate` runner `herdr`**: offered only when DSH runs in a Herdr pane. The child runs as `dsh --profile headless --json` in a pane split beside the caller (right first, then stacked below), driven by `scripts/herdr-child.mjs`, which prints progress and writes `result.json` under `$DSH_HOME/ceulen/herdr-runs/<id>/`. The call blocks and returns the child's final text, exit code and tool count; the pane closes on success and stays open on failure. The run overlay re-enables the credential store, copies the parent profile's `llm-pi-ai` row, and pins the role route; planner/reviewer/scout run `read-only`, tester/worker `workspace-write`, and plan mode forces `read-only`. Children carry `CEULEN_HERDR=off`, which keeps them (and any process given it) from driving Herdr. Routes must use a provider declared in the profile's `llm-pi-ai` row.
-
-Not ported (documented gaps): Pi composer shapes, Pi entry renderers, inbound A2A server/mDNS, Gemini research / image generation / ChatGPT-web chat, usage subscription windows, per-role subagent sandbox/tool enforcement and timeouts, worktree sandbox. DSH also reserves the bare `/config` local command for its own “configuration source” output, so a plugin cannot replace it; the full-screen panel is `/ceulen-config` (and `/ceulen config`) in the TUI, and the `/config` registration covers compositions that do not ship that local command.
+DSH's own features stay as they are: todo, native subagents and workflows,
+attachments, permissions and sandbox, shell jobs, grep and glob, notifications.
 
 ## Configuration
 
-Settings live at `$DSH_HOME/ceulen/settings.json` (mode `0600`):
+Settings live at `$DSH_HOME/ceulen/settings.json` (mode `0600`). The main keys
+and their defaults:
 
 ```json
 {
@@ -359,7 +374,6 @@ Settings live at `$DSH_HOME/ceulen/settings.json` (mode `0600`):
   "classifier": { "provider": null, "model": null, "audit": true, "enforce": false, "fallbacks": [] },
   "tools": { "cold": ["a2a_call", "a2a_list", "a2a_peers", "a2a_status", "jfind", "munin_delete", "munin_share", "web_interact", "web_map", "web_pdf", "web_screenshot"] },
   "munin": { "project": "", "baseUrl": "", "allowProjectConfig": false, "brief": { "enabled": false, "maxChars": 600, "recencyDays": 30 } },
-  "agentmem": { "project": "", "baseUrl": "", "brief": { "enabled": false, "maxChars": 600, "recencyDays": 30 } },
   "cron": { "enabled": true, "tickMs": 30000 },
   "rules": { "guards": "audit" },
   "ponytail": { "level": "full" },
@@ -372,21 +386,47 @@ Settings live at `$DSH_HOME/ceulen/settings.json` (mode `0600`):
 }
 ```
 
-`subagent.roles` maps the `fast`/`coder`/`smart` aliases to ordered
-`provider/model[:effort]` chains; `*` inherits the parent route.
-`subagent.models` overrides one role (`"reviewer": "@smart:high"`) and
-`subagent.thinking` overrides its effort. `/subagent` prints the effective
-route for every role. A role's effort is applied when it resolves to an
-explicit route; an inherited `*` route keeps the session's own effort.
-`subagent.presets` independently selects a DSH preset per role, for example
-`{"scout": "ptc", "worker": "standard", "planner": "standard", "reviewer": "standard"}`.
-Omitted roles inherit the parent's composition. Settings are re-read for each
-`delegate` spawn; existing children and native `subagent`/`subagent_fork` are unchanged.
-`/subagent <role>` shows the configured preset. Reviewers load `ponytail-review`
-for diffs or `ponytail-audit` for explicitly requested repo-wide audits, while
-retaining correctness/security checks and the structured reply contract.
+### Config panel
 
-Secrets belong in the environment or the DSH credential store, never in this file:
+`/ceulen-config` edits that file in a full-screen panel with nine tabs:
+Appearance, Model, Memory, Context, Shell, Tasks, Providers, Tools, Plugins.
+
+| Key | Action |
+|---|---|
+| `↑` / `↓` | move between rows |
+| `←` / `→` or `Tab` | switch tabs |
+| `Enter` | edit a value (text and numbers edit inline, enums cycle, toggles flip) |
+| `Esc` | save and close |
+
+- Model rows open a filterable list of every model your providers advertise.
+  A typed `provider/model[:effort]` is accepted when the list has no match, and
+  `-` clears the row.
+- API-key rows (Munin, Brave, Z.AI) mask the input and write to the DSH
+  credential store, so a key never lands in `settings.json` or the transcript.
+- `/ceulen config <tab>` prints one tab; `/ceulen config --raw` prints the
+  redacted file.
+
+In the TUI the command is `/ceulen-config` because DSH keeps bare `/config`
+for itself.
+
+### Subagent routes
+
+| Setting | Meaning |
+|---|---|
+| `subagent.roles` | maps the `fast`, `coder` and `smart` aliases to ordered `provider/model[:effort]` chains; `*` inherits the parent's route |
+| `subagent.models` | overrides one role, for example `"reviewer": "@smart:high"` |
+| `subagent.thinking` | overrides one role's reasoning effort |
+| `subagent.presets` | picks a DSH preset per role, for example `{"scout": "ptc", "worker": "standard"}` |
+
+`/subagent` prints the effective route of every role. Settings are read again
+for each `delegate` call, so a change applies to the next child. A role's
+effort applies when the role resolves to an explicit route; an inherited `*`
+route keeps the session's own effort.
+
+### Secrets
+
+Secrets belong in the environment or the DSH credential store, never in the
+settings file:
 
 ```sh
 export MUNIN_API_KEY=... MUNIN_PROJECT=...
@@ -395,56 +435,15 @@ export ZAI_ANTHROPIC_API_KEY=...
 export GITHUB_TOKEN=...          # optional, for upstream release notes
 ```
 
-### Config panel
+An environment variable wins over the stored value of the same name.
 
-`/ceulen-config` opens the full-screen settings panel for the whole bundle:
-Appearance · Model · Memory · Context · Shell · Tasks · Providers · Tools ·
-Plugins. It edits the file above directly — `↑/↓` moves, `←/→` or `Tab`
-switches tabs, `Enter` edits a value, and `Esc` saves and closes. Text and
-number rows edit inline; enums cycle; toggles flip. `/ceulen config` opens the
-same panel, `/ceulen config <tab>` prints one tab, and `/ceulen config --raw`
-prints the redacted JSON file.
-
-Route rows (Advisor → Primary model, Classifier → Decision model, Subagents →
-`<role>` model) open a filterable list of every model the registered providers
-advertise: type to narrow, `↑/↓` to move, `Enter` to select. A typed
-`provider/model[:effort]` is accepted when the catalog has no match, and
-picking a model keeps the row's existing reasoning suffix. `-` clears the row:
-the advisor and classifier fall back to the agent route, a subagent role falls
-back to its default selector.
-
-Subagents → `<role>` model and `<role>` reasoning (planner, reviewer, scout,
-tester, worker) write `subagent.models.<role>` and `subagent.thinking.<role>`.
-A role model accepts a `provider/model[:effort]` route, an `@fast`/`@coder`/
-`@smart` alias, or `*` for the parent route; the placeholder shows the alias
-the role ships with. `/subagent` prints the resulting route for every role.
-
-Bare `/config` is a DSH local command (“show the dsh-tui configuration source”)
-and local commands win name collisions, so the plugin spelling in the TUI is
-`/ceulen-config`. The `/config` registry command still works where the harness
-does not own that name (headless, web).
-
-API-key rows (Munin, Brave, Z.AI) are editable here: the panel masks input and writes
-through the DSH credential store (`$DSH_HOME/.credentials.yaml`, mode `0600`),
-so no key ever lands in `settings.json` or the transcript. An environment
-variable with the same name still wins; entering `-` clears the stored key.
+## Guides
 
 ### Codemode
 
-The `codemode` tool lets the model write one JavaScript program instead of a
-sequence of tool calls. The program runs on DSH's PTC runtime (the same
-`ctx.ptcRuntime` that backs `run_code`) and every tool the calling agent can see
-is bound as `tools.<name>(args)`. Only the program's return value and
-`console.log` output reach the model, so fan-out and filtering stay out of the
-transcript.
-
-It is on by default. Turn it off in `/ceulen-config` → Tools → Codemode, then
-restart DSH (`/reload` does not reload plugin code). The panel also reports
-whether the `ptcRuntime` service is mounted. The chain-hint experiment lives
-there too: after `codemode.chainHintAfter` (default 2, `0` = off) consecutive
-steps that each make one read-only call, the next step gets a one-line nudge to
-batch the following reads into one script or one parallel tool batch; the
-nudge names the steps it is about.
+`codemode` lets the model write one JavaScript program instead of a chain of
+tool calls. Every tool the agent can see is bound as `tools.<name>(args)`, and
+only the program's return value and `console.log` output reach the model.
 
 ```js
 const results = await Promise.allSettled([
@@ -454,43 +453,29 @@ const results = await Promise.allSettled([
 return results.map(result => result.status === 'fulfilled' ? result.value : String(result.reason));
 ```
 
-The contract: `code` is the body of an async function (top-level `await` and
-`return` work), tool names are exact (`tools['mcp__server__tool']` for names
-that are not identifiers), and a failed/blocked/denied call rejects. Nested
-calls run through the full tool pipeline, so approvals, guards and sandbox
-policy still apply. `bash` keeps its DSH arguments and requires `description`
-plus `command`.
+- `code` is the body of an async function: top-level `await` and `return` work.
+- Tool names are exact. Use `tools['mcp__server__tool']` for names that are not
+  identifiers. A typo such as `tools.Bash` gets a "did you mean" hint.
+- A failed, blocked or denied call rejects. Nested calls go through the full
+  tool pipeline, so approvals, guards and sandbox policy still apply.
+- Calls resolve to structured values (bash output is `r.stdout.text`; `read`
+  returns `{ lines: [{ number, text }] }`).
+- Output past about 6k characters is truncated in the middle and the full text
+  is written to a file named in the result.
+- A first line `// @options: {"timeout_ms": 60000, "max_output_chars": 4000}`
+  changes the deadline (default 120 s, max 600 s) and the output budget.
+- `state.store({ key, value })` and `state.load({ key })` keep small JSON
+  values in memory for the life of the session.
 
-Distilled by design: calls resolve to their structured value (bash output is
-`r.stdout.text`, `read` returns `{ lines: [{ number, text }] }`), and a return plus
-console block past ~6k characters is middle-truncated with the full text
-spilled to a file path named in the result — an unfiltered dump can never blow
-up the context. A first line `// @options: {"timeout_ms": 60000,
-"max_output_chars": 4000}` overrides the per-call deadline (default 120s, max
-600s) and the budget (200–50 000 chars). `state.store({ key, value })` /
-`state.load({ key })` keep small JSON values across calls of one live session
-(~256k per value, ~1M total) in memory, never in the session log: an event type
-the resume reader does not know makes that whole session refuse to open. Writes
-commit only when the script succeeds, and a typo like `tools.Bash` gets a "did
-you mean 'tools.bash'?" hint in the error.
-
-While it runs, the card shows the script under a `Codemode` header (the body
-folds past three lines; click or `Ctrl+O` expands). Once it settles, the header
-becomes `Codemode (<description>)` and the body lists each nested call
-(`▸ bash · git status --short · 0.1s`) above the script output; a failed script
-adds ` · failed` and a red `exit code 1` line. The call list is persisted with
-the result, so a resumed transcript renders the same block.
-
-Not ported: the `models` namespace (scripts can call the `classify` tool
-instead), `text()`/`image()` (redundant with `return` here), and
-`searchTools`/`ALL_TOOLS` (every visible tool is bound by exact name). The
-runtime is a Node subprocess, not QuickJS: treat scripts as bash-level trust,
-not a security sandbox. See `docs/codemode-plan.md` for
-the research and the parity matrix.
+It is on by default. Turn it off in `/ceulen-config` → Tools → Codemode and
+restart DSH. Scripts run in a Node subprocess with the same trust as bash; it
+is not a security sandbox.
 
 ### Advisor
 
-The reviewer is off by default to avoid surprise model calls. Enable it with a chain:
+A second model reviews the work after a turn settles and leaves one note with
+a severity. `blocker` and `concern` notes wake a follow-up turn; `nit` notes
+wait. It is off by default, so no model is called until you turn it on:
 
 ```text
 /advisor model zai/glm-5.3:high, opencode-go/deepseek-v4-pro
@@ -498,37 +483,74 @@ The reviewer is off by default to avoid surprise model calls. Enable it with a c
 /advisor status
 ```
 
-The `:high` suffix persists as the advisor's reasoning effort; the Model tab in
-`/ceulen-config` exposes the same route and a Reasoning row. The shipped default
-is `zai/glm-5.3:max` (Z.AI GLM-5.3 at max thinking); clear the route row to fall
-back to the parent agent's route. Notes are delivered as logged user context; `blocker`/`concern` notes wake a follow-up turn, `nit` notes are deferred.
+- The route is a chain: the second entry is the fallback. The `:high` suffix is
+  the reviewer's reasoning effort.
+- The review sees your latest request and the diff of the files the turn
+  touched, so it judges the actual request and the actual edit.
+- `advisor.skipModels` lists main models that should not be reviewed
+  (`gpt-6-astra` by default).
+- `Esc` cancels a running review.
 
-When the main model is Astra (`gpt-6-astra`), both automatic reviews and the
-on-demand `advisor` tool skip reviewer calls by default. Other main models keep
-their normal advisor behavior. Configure **Model → Advisor → Skip main models**
-in `/ceulen-config` (`advisor.skipModels` in settings): comma-separated model ids
-or exact `provider/model` routes; clear it or enter `-` to allow every model.
-The exclusion follows the current model after a model switch.
+### Classifier and the destructive-command gate
 
-A review pins the latest real user request above the turn transcript (harness
-notices like `time-context` are never mistaken for it) and appends the
-working-tree diff of the files this turn touched as evidence, so the reviewer
-judges the actual request and the actual edit. Pressing `Esc` cancels a running
-review.
+`/classifier` audits every bash command. With enforcement on, a destructive
+command is judged against your latest request and your latest answer to a
+question. Tool output never counts. A target you named passes; a general goal
+does not authorize deleting anything else. Whole-tree git discards
+(`git checkout -- .`, `git restore .`, `switch -f`) are gated like
+`reset --hard`.
+
+Set the decision model with `/classifier model <route>[,<fallback>]`. A
+`typesafe/jev-*` route on OpenRouter is used for decisions only and needs
+`OPENROUTER_API_KEY`.
+
+### Steering for DeepSeek flash routes
+
+For routes listed in `steering.models` (default `deepseek-v4.1-flash` and
+`deepseek-flash`), and for no other model:
+
+- a playbook in the prompt shows an efficient way to work: one opening
+  codemode batch of searches and reads, a need → tool map, and delegating only
+  when it pays;
+- a bash call that only greps, cats or finds files is not run. The reply names
+  the equivalent `grep`, `read` or `glob` call. Sending the same command again
+  runs it. `steering.bashLookups: "off"` disables this;
+- a bash call that only takes headless-Chrome screenshots is redirected to
+  `web_screenshot` the same way;
+- `web_interact` gains named browser sessions, a `hover` step, `text=Label`
+  selectors and `screenshot: false`.
+
+Every other route keeps the untuned tools, and a `/model` switch swaps the two
+sets before the next step.
+
+### Plan mode
+
+- A plan submitted through `exit_plan_mode` is saved to
+  `.dsh/plans/<timestamp>-<slug>.md`.
+- `/plan-approve [current|new|stay]` offers three paths: implement in this
+  session, implement in a new session with a clean context, or keep planning.
+- `/ceulen-config` → Tasks → Plan mode sets separate models, efforts and
+  fallbacks for planning and for implementing. When a provider keeps failing,
+  the next untried fallback continues in a new turn of the same session.
+
+### Goal recovery
+
+DSH stops a goal for good when a turn dies from a provider error or `Esc`. The
+`goal-retry` module resumes the same goal after 5, 10, 20, 40 and 60 seconds,
+at most five times per failure streak. A completed turn resets the streak.
+`/goal pause|edit|complete|block|clear` is never undone. After five failed
+recoveries the goal is blocked as `recovery-exhausted`, and `/goal resume`
+starts a fresh budget. `/ceulen module off goal-retry` restores the stock
+behaviour.
 
 ### Usage
 
-`/usage` shows the active provider's 5-hour, weekly, and monthly windows plus
-monthly credits. The compact segment (`Go · 5h 86% · W 88% · M 94%`) is
-model-gated: it appears only while the session runs on a subscription route,
-clears the moment `/model` switches to another provider, and repaints when the
-route comes back. `/usage --all` checks every configured provider; `/usage
-refresh` forces a fetch. Supported: OpenCode Go, Z.AI (international and CN),
-Command Code, Codex (OAuth access token), and a generic router `/usage` JSON
-endpoint.
+`/usage` shows the active provider's 5-hour, weekly and monthly windows plus
+credits. `/usage --all` checks every configured provider and `/usage refresh`
+forces a fetch. The footer segment (`Go · 5h 86% · W 88% · M 94%`) appears only
+while the session runs on a subscription route.
 
-Credentials resolve from the environment first, then the DSH credential store
-`$DSH_HOME/.credentials.yaml` under `refs:`:
+Credentials resolve from the environment first, then the DSH credential store:
 
 ```text
 OPENCODE_GO_API_KEY   ZAI_ANTHROPIC_API_KEY / ZAI_API_KEY
@@ -536,162 +558,42 @@ COMMAND_CODE_API_KEY  OPENAI_CODEX_ACCESS_TOKEN + OPENAI_CODEX_ACCOUNT_ID
 ROUTER_BASE_URL + ROUTER_API_KEY
 ```
 
-Refresh defaults to every 5 minutes; `usage.intervalMinutes` and
-`usage.showStatus` are in the settings file. Failures stay quiet (the segment
-clears or shows `unavailable`) and never block a turn.
+The refresh interval is five minutes (`usage.intervalMinutes`). A failed fetch
+stays quiet and never blocks a turn.
 
-dsh-tui 0.17.0+ has a native footer slot (`ctx.tuiStatus.setField`, shipped in
-the installed 0.20.2), so the `ceulen:usage` segment joins the head of the
-footer's right group beside the model/effort/mode/cwd fields
-(`Go · 5h 86% · W 88% · M 94%`) with no patch. The 0.16.1 footer patch was
-deleted for this reason (plan 5.5); `/ceulen doctor` still prints
-`tui footer: tui:<version> footer-native|stock · advisor-block applied|stock …`
-and names the script to run for every patch that is missing, so a dsh-tui
-upgrade's silent revert is visible instead of silent.
+### Memory (Munin)
 
-Advisor notes have the same gap: dsh-tui drops every user message whose
-`source.kind` is not `user`, so a `ceulen-advisor` note reached no transcript
-and only the 15 s status line showed it. `node scripts/tui-advisor-patch.mjs`
-keeps the note's own source and renders it as a rounded block row
-(`check` and `revert` included, same version guard).
-
-For the separate `dsh-fff` 0.1.0 plugin, run
-`node scripts/fff-search-patch.mjs apply` (`check`/`revert` supported; use
-`--fff <package-dir>` for another profile). It uses ripgrep for ignore-aware
-filename indexing, accepts exact directory/file search scopes before fuzzy
-resolution, and reports unresolved scopes without pretending a search ran.
-Restart DSH after applying; reapply after reinstalling FFF. Without ripgrep,
-filename indexing retains the original walker and its hardcoded exclusions.
-Run its regression checks with `node --test scripts/fff-search-patch.test.mjs`.
-For routine code search, use scoped `grep`/`glob` first, FFF for vague filenames,
-and `jfind` when the behavior cannot be expressed as a literal search.
-
-Tool cards name an unmapped tool id by upper-casing its first letter, which
-turns the acronym `fff_grep` into `Fff_grep`.
-`node scripts/tui-toolname-patch.mjs` (`apply`/`check`/`revert`) adds the
-alias table that renders it as the short id (`fff`) — add a row per acronym family,
-not per tool.
-
-dsh-tui keeps one reasoning effort for every model: the `/settings` default
-reasoning effort (or the last `/effort`) is re-applied on each `/model`
-switch, so a `max` default puts every model on max.
-`node scripts/tui-effort-patch.mjs` (`apply`/`check`/`revert`) makes it
-per model, as in Pi: `/effort <level>` (or ←/→ in the `/model` picker, which
-now previews the level a switch will apply) records the level for the current
-model in `~/.dsh-tui/effort-by-model.json` (`{ "provider/model": "level" }`, also
-fine to edit by hand), a switch applies that model's entry, and a model with no
-entry uses the `/settings` default. A level the model does not offer still
-steps down to the nearest lower one; a resumed session keeps the level it ran
-on. `/effort` no longer moves the global default. `/ceulen doctor` reports
-`effort-per-model applied|stock`.
-
-`/ceulen-config → Tasks → Plan mode` exposes separate model, reasoning, and ordered fallback controls for planning and implementation. Reasoning stays in the existing `provider/model:effort` route strings; each fallback has its own reasoning. `plan.fallbacks` and `plan.implementFallbacks` default to empty. After native recovery is exhausted for a provider failure, Ceulen waits for the failed turn to settle, selects the next untried fallback, and continues in a new turn of the same session. The original failed attempt remains visible. Cancellation, context/offload errors, and manual model overrides do not trigger fallback. A phase change restores that phase's primary model.
-
-Plan mode has three TUI gaps the harness cannot reach.
-`node scripts/tui-plan-patch.mjs` (`apply`/`check`/`revert`) makes bare
-`/plan` toggle instead of opening the on/off picker that confirmed the state
-already set, lets the "clear context and implement in new session" answer open
-a real fresh session seeded with the plan handoff, and names `plan mode` in
-the footer while it is active — a bare `/plan` writes no sandbox/approval
-atoms, so the stock indicator fell back to the base mode (or kept the
-permission preset's "Full access" label). `/ceulen doctor` reports
-`plan-mode applied|stock`.
-
-### Goal mode: automatic recovery
-
-DSH's goal driver stops for good when a turn dies outside the model's control:
-it disarms the goal on `agent/error` and pauses a cancelled goal round (Esc)
-once the agent goes idle. The `goal-retry` module adds the missing recovery
-over the public services — the harness stays untouched:
-
-- the same active goal is re-armed after 5/10/20/40/60 s, at most 5 times per
-  consecutive failure streak, and `agent/error` + `turn/end` for one turn count
-  as a single failure;
-- re-arming is `goals.resume()`: the driver's own `goal/changed` listener starts
-  the next round in the same session, so no prompt is injected and the round
-  budget, revision fence and checkpoint keep working;
-- a completed turn resets the streak and cancels a pending retry;
-  `/goal pause|edit|complete|block|clear` cancels it and is never undone;
-- Esc is recovered by reading the harness's own pause (it lands right after the
-  cancelled turn) instead of treating it as a human stop;
-- after 5 recoveries the goal is blocked with `recovery-exhausted` and
-  `/goal resume` restarts it with a fresh 5-attempt budget (only a human resume
-  refreshes the streak; the module's own re-arm must not, or the cap never
-  binds). `max-tokens`, a disposed session and an exhausted round budget still
-  stop the goal.
-
-`/ceulen module off goal-retry` restores stock behaviour.
-
-### Memory: Munin cloud first, opimem bridge as failover
-
-Munin (the cloud endpoint below) is the primary store. The opimem bridge on the
-Pi is the failover endpoint: `munin.fallback.baseUrl` is tried when the cloud is
-unreachable, with its own key from `MUNIN_FALLBACK_API_KEY` (a token is scoped to
-one server, so it never inherits the primary's). The same Pi server is reachable
-directly as `agentmem_*`; it is a pull of the cloud corpus, so it can lag by up
-to an hour and is not a write target.
+Munin stores durable project knowledge that later sessions can search.
 
 ```sh
 export MUNIN_API_KEY=... MUNIN_PROJECT=my-project
 export MUNIN_BASE_URL=https://munin.kalera.ai   # optional
 ```
 
-The API key also resolves from the DSH credential store, and
-`/ceulen-config` → Memory → Munin → API key writes it there. `MUNIN_API_KEY`
-in the environment wins over the stored value. Project and base URL live in
-the Settings section as usual.
+- Tools: `munin_search`, `munin_get`, `munin_store`, `munin_list`,
+  `munin_recent`, `munin_delete`, `munin_versions`, `munin_diff`,
+  `munin_rollback`, `munin_capabilities`, `munin_share`. `/munin-status` shows
+  the connection.
+- The key can also be stored from `/ceulen-config` → Memory → Munin.
+- **Failover.** Set `munin.fallback.baseUrl` and `MUNIN_FALLBACK_API_KEY` to a
+  second server that speaks the same protocol. It answers when the primary is
+  unreachable. An authentication error still surfaces as an error.
+- **Brief.** `munin.brief` adds a short summary of recent memories to the
+  prompt. It is off by default and usually arrives from the second turn.
+- A project-level `.dsh/ceulen.json` is read only when
+  `munin.allowProjectConfig` is `true`, so a checkout cannot redirect your key.
 
-Munin registers **no prompt section** of its own: the Memory Protocol lives in
-`ceulen-agentmem` and says to mirror each stored memory with `munin_store` at
-session end. `munin_search`/`munin_get` are cold tools (`tools.cold`) used only
-when the local store is down; `munin_store` stays warm for the one mirror call.
-`munin.brief` still exists but is off by default — the AgentMem brief already
-falls back to it.
+### Web search and fetch
 
-Project-level `.dsh/ceulen.json` is only read when `munin.allowProjectConfig` is `true`; a checkout must not be able to redirect the API key.
+The web module registers two providers for DSH's native web tools:
 
-### AgentMem
+- `brave`: `web_search` on the Brave Search API (`BRAVE_API_KEY`, or the key
+  row in `/ceulen-config` → Tools → Web).
+- `deepseek-fetch-fallback`: `web_fetch` asks the DeepSeek Fetch API for the
+  page as Markdown and, on any failure, fetches it over plain HTTP with the
+  public-URL guard. Without `DEEPSEEK_API_KEY` only the local path is used.
 
-The failover endpoint for the same wire protocol: one local
-[opimem](https://github.com/kalera/opimem) server, in the default setup the Pi
-bridge that `munin.fallback.baseUrl` points at:
-
-```sh
-export AGENTMEM_BASE_URL=http://<pi-host>:8900
-export AGENTMEM_PROJECT=proj_pi-agents
-export AGENTMEM_API_KEY=...
-```
-
-`/ceulen-config` → Memory → **AgentMem** writes the project and base URL to
-the settings section and the key to the DSH credential store. Resolution per
-field is tool param > `AGENTMEM_*` env > credential store (key) > the
-`agentmem` settings section. There is deliberately **no default endpoint**, no
-project-level config file and **no write failover**: an unconfigured AgentMem
-refuses to run rather than guess a server, and a write never lands in the
-backup store by accident. Reads are the exception — `search`, `get`, `list`
-and `recent` fail over to the configured Munin cloud after one bounded attempt,
-and the result says it came from the backup (with the cloud as primary, that
-path only matters on the day the Pi is the one that is down). The first-turn
-brief takes the same path. `agentmem_share`
-copies memories into other projects on the same opimem server (opimem
-identifies a memory by its key, so `memory_ids` are keys); it is
-capability-gated, so an older server without `share` answers with a clean
-`FEATURE_DISABLED` instead of a fake success.
-
-### Web search (Brave) and fetch fallback
-
-The `ceulen-web` module registers `brave` as a native `ctx.web` search
-provider, so `web_search` can run on the Brave Search API. The key resolves
-from `BRAVE_API_KEY` or the DSH credential store (also editable in
-`/ceulen-config` → Tools → Web). Restart DSH after installing this build so
-the module registers the providers.
-
-It also registers `deepseek-fetch-fallback`: `ctx.web.fetch` first asks the
-DeepSeek Fetch API for page Markdown and, on any failure (401/429, timeout, a
-page its extractor cannot read), re-fetches over plain HTTP with the public-URL
-guard. Without `DEEPSEEK_API_KEY` it uses the local leg only.
-
-The providers activate when the profile pins them:
+They become active when the profile pins them:
 
 ```yaml
 - id: web
@@ -701,13 +603,12 @@ The providers activate when the profile pins them:
 ```
 
 Without a pin, the web service uses the single usable provider and reports
-`WEB_PROVIDER_AMBIGUOUS` if more than one is available. With no key set,
-search falls back to the configured pin's error rather than silently using a
-different backend.
+`WEB_PROVIDER_AMBIGUOUS` when there is more than one.
 
-### Rules
+### Rules and guards
 
-Create `.dsh/RULES.md` in the project and/or `$DSH_HOME/ceulen/RULES.md`:
+Create `.dsh/RULES.md` in the project, `$DSH_HOME/ceulen/RULES.md` for every
+project, or both:
 
 ```md
 ## never-push
@@ -718,11 +619,11 @@ description: How to write HTTP handlers.
 Use the shared json() helper.
 ```
 
-`## name` sections without a `description:` line are sticky; sections with one are rulebook entries served by `rule_get`.
+A section without a `description:` line is always in the prompt. A section with
+one is a rulebook entry that the model fetches with `rule_get` when it applies.
 
-Add a `when-*` directive trio to a section and it becomes a behaviour guard
-instead of prompt text — checked before every tool call, so it costs no prompt
-bytes:
+Add three `when-*` lines and the section becomes a **guard**: a check before
+every tool call that costs no prompt space.
 
 ```md
 ## Guard: no force push
@@ -733,24 +634,89 @@ when-action: deny
 Never force-push a shared branch.
 ```
 
-`when-tool` is a tool name or `*`; `when-match` is a JS regex (no flags) tested
-against the command for `bash`, the path for `edit`/`write`/`apply_patch`, and
-the JSON arguments otherwise; `when-action` is `audit` (default) or `deny`.
-`rules.guards` picks the mode: `audit` logs matches, `enforce` denies the rules
-that opted into `deny` (the refusal names the rule, the matched text, the body
-and the settings key), `off` disables the hook. `/rules status` lists every
-guard and the mode.
+| Line | Meaning |
+|---|---|
+| `when-tool` | a tool name, or `*` |
+| `when-match` | a JavaScript regex tested against the command (`bash`), the path (`edit`, `write`, `apply_patch`) or the JSON arguments (other tools) |
+| `when-action` | `audit` (default) or `deny` |
 
-Existing repo conventions are read too, in this precedence order: nearest
-`.dsh/RULES.md`, then `AGENTS.md` (one sticky rule, capped at 4 KB), then
-`.cursor/rules/*.mdc` (one rulebook entry per file, named after the file), then
-`.clinerules` (one rulebook entry), then `$DSH_HOME/ceulen/RULES.md`. The
-foreign sources are read-only and only at the workspace root — never above it,
-never written to.
+`rules.guards` sets the mode: `audit` logs matches, `enforce` denies the rules
+that chose `deny`, `off` disables the check. `/rules status` lists every guard.
+
+Existing conventions are read too, in this order: the nearest `.dsh/RULES.md`,
+`AGENTS.md`, `.cursor/rules/*.mdc`, `.clinerules`, then
+`$DSH_HOME/ceulen/RULES.md`. The foreign files are read only at the workspace
+root and are never written.
+
+### Herdr (optional)
+
+[Herdr](https://herdr.dev) is a terminal multiplexer for coding agents. Nothing
+here needs it, and outside a Herdr pane every Herdr feature stays off.
+
+- The `herdr` skill teaches the agent to drive panes. Refresh it after a Herdr
+  update with `node scripts/herdr-skill-sync.mjs`.
+- `delegate` accepts `runner: "herdr"` inside a Herdr pane. The child runs
+  headless in a pane split beside the caller, and the call returns its final
+  text. The pane closes on success and stays open on failure.
+
+## Optional TUI patches
+
+Some behaviour lives in the TUI app itself and cannot be reached by a plugin.
+These scripts edit the **installed** `dsh-tui` copy. Each supports `apply`,
+`check` and `revert`:
+
+```sh
+node scripts/tui-<name>-patch.mjs apply
+```
+
+| Patch | What it changes |
+|---|---|
+| `advisor` | shows advisor notes as a block in the transcript instead of a 15-second status line |
+| `context` | makes `/context` open the token dashboard |
+| `toolname` | renders acronym tool names correctly (`fff` instead of `Fff_grep`) |
+| `plan` | bare `/plan` toggles, "implement in a new session" opens a real new session, and the footer names plan mode |
+| `effort` | remembers the reasoning effort per model instead of one level for all |
+| `style` | adds the `skins` and `thread` UI styles (`/theme style …`) |
+| `usage` | keeps every usage window visible in the footer |
+| `panel` | lets side panels open without taking keyboard focus |
+
+A `dsh-tui` upgrade reverts all of them without notice, so apply them again
+after every upgrade. `/ceulen doctor` reports the state of the UI patches, and
+each script's `check` exits non-zero when its patch is missing. For the
+separate `dsh-fff` plugin, `scripts/fff-search-patch.mjs` adds ignore-aware
+filename indexing with ripgrep.
+
+## Known gaps
+
+Not ported from Ceulen: Pi composer shapes and entry renderers, the inbound A2A
+server and mDNS, Gemini research, image generation, ChatGPT-web chat, per-role
+subagent sandboxes and timeouts, and the worktree sandbox. Codemode has no
+`models` namespace; scripts call the `classify` tool instead.
+
+## Credential safety
+
+- Keep API keys and login state in your own DSH credential store, never in this
+  repository or in a tarball you share.
+- `.gitignore` excludes local `.env` files, credential files and login
+  directories. Ignoring a file does not remove it from Git if it was already
+  tracked.
+- The `secrets` GitHub Actions workflow scans the Git history with Gitleaks on
+  every push and pull request. Keep GitHub's own secret scanning and push
+  protection enabled as well.
+- Run the same scan locally before you push:
+
+```sh
+gitleaks git . --redact --log-opts="--all"
+```
+
+A history scan does not cover uncommitted or ignored files. Share only the
+built tarball, never your workspace or `~/.dsh`. If a real secret was
+committed, revoke it at once; adding it to `.gitignore` is not enough.
 
 ## Upstream releases
 
-`/ceulen update` checks npm and the GitHub release notes. When Ceulen publishes a new version:
+`/ceulen update` checks npm and the GitHub release notes. When Ceulen publishes
+a new version:
 
 ```sh
 node scripts/ceulen-sync.mjs report --version <new>
@@ -760,41 +726,31 @@ npm run check
 node scripts/ceulen-sync.mjs bump --version <new>
 ```
 
-`apply-vendor` only upgrades files whose local hash still matches the lock. Files marked `patched` (DSH path/import changes) are never overwritten; they become a manual-merge report. Nothing from upstream is executed. Full runbook: `docs/upstream-sync.md`.
+`apply-vendor` upgrades only the files whose local hash still matches the lock.
+Files marked `patched` are never overwritten; they become a manual-merge
+report. Nothing from upstream is executed.
 
 ## Development
 
 ```sh
 npm ci --include=dev
 npm run build
-npm test
 node scripts/check-bundle.mjs
+node scripts/check-pack.mjs
 node scripts/ceulen-sync.mjs parity --check
 ```
 
-The Vitest suite lives in `test/` and is kept out of the public repo; run it from
-the full development checkout (CI checks the build, bundle, pack and parity).
+CI runs the lint, build, strict typecheck, bundle, pack and parity checks on
+Node 22.19 and 24. The Vitest suite is kept out of the public repository and
+runs from the full development checkout.
 
-The dev profile helper creates a workspace-local `DSH_HOME` and dumps the composed profile without touching `~/.dsh`:
+`./scripts/dev-profile.sh` creates a workspace-local `DSH_HOME` and prints the
+composed profile without touching `~/.dsh`.
 
-```sh
-./scripts/dev-profile.sh
-```
-
-### Search benchmark
-
-Compare Brave against DeepSeek's official search (the backend `dsh web` ships
-with) on the same queries:
-
-```sh
-npm run bench:search -- --max 8
-npm run bench:search -- --queries "rust async runtime;postgres WAL" --brave-only
-```
-
-Brave needs `BRAVE_API_KEY`; the DeepSeek side needs `DEEPSEEK_API_KEY` or a
-signed-in DeepSeek account, otherwise the row prints `unavailable` and the
-rest of the matrix still runs.
+`npm run bench:search -- --max 8` compares Brave with DeepSeek's own search on
+the same queries. Brave needs `BRAVE_API_KEY`; the DeepSeek side needs
+`DEEPSEEK_API_KEY` or a signed-in account.
 
 ## License
 
-MIT. Ported Ceulen files retain their MIT headers; see [NOTICE](NOTICE).
+MIT. Ported Ceulen files keep their MIT headers; see [NOTICE](NOTICE).

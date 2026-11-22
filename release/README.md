@@ -62,7 +62,7 @@ Inside DSH, follow the first-run wizard (or run `/setup`), add your credentials
 with `/provider`, and select a model with `/model` before sending prompts.
 Then check `/ceulen` and `/ceulen doctor`. No credentials are included.
 `ceulen-dsh` is not published on npm yet; installing by its bare package name
-returns 404. Build from the [source checkout](../README.md#fresh-deepseek-harness-installation)
+returns 404. Build from the [source checkout](../README.md#build-from-source)
 or obtain a built tarball from its maintainer.
 
 The pinned upstream TUI can emit `dsh-working-activity` peer warnings and
