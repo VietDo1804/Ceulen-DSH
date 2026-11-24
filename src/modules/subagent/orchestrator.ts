@@ -22,6 +22,14 @@
  * repeat: when the review only ran at the first dispatch, a lead in a
  * 2026-11-22 run wrote its briefs again after every rejection, 11 \`delegate\`
  * calls for 4 children.
+ * Two failures of a 2026-11-23 run are held the same way. Both scouts lost
+ * their provider connection while streaming the final report ("WebSocket
+ * error") and settled as failed with nothing delivered, so the lead did their
+ * work itself: a child whose turn was cut by the transport is resumed once
+ * before its wave settles. One of them had first sent its report three times
+ * as a heading followed by terminal escape codes, which the lead read as a
+ * broken channel: a team message with control characters is refused at the
+ * sender, who still has the text.
  * The contract a lead writes is its own: a child's edit inside that contract
  * directory is refused. Everything the mode learns goes into the team ledger
  * (./team.ts), which the Team side panel draws.
@@ -29,15 +37,15 @@
  */
 import { AsyncResource } from 'node:async_hooks'
 import { randomUUID } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { dirname, relative, resolve } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import type { AgentLike, PluginContext } from '../../core/types.js'
 import { cwdOf, errorMessage, registerCommandSafe, registerPromptSection } from '../../core/tools.js'
 import { logLine } from '../../core/log.js'
 import { agentRoute } from '../../core/route.js'
 import { EDITING, editedPaths } from './nudge.js'
 import { briefTasks, childState, runningEntries, team } from './team.js'
-import { PLAN_FILE, PLAN_SHAPE, readPlan, type LeadPlan, type PlanTask } from './leadplan.js'
+import { DATED_PLAN, PLAN_FILE, PLAN_SHAPE, planDate, readPlan, type LeadPlan, type PlanTask } from './leadplan.js'
 import { planAdviser } from '../advisor/plan-review.js'
 
 /** The lead models this mode targets; a lead on any other route is told so when it turns the mode on. */
@@ -51,7 +59,7 @@ Team: \`delegate\` roles on their configured routes: scout (recon), planner (des
 
 Loop
 1. Orient. Read only enough to plan: a few targeted reads, or scouts in parallel for an unfamiliar area. Ask a scout for what your plan will pin (expected test lines, signatures, format strings, config values), quoted verbatim with path:line, so that you can plan from its report; a summary you have to re-read saves nothing. Never read what a child is already reading or has just reported. Do not guess what the user meant: what reading can settle, settle by reading; a choice only the user can make, or a request you can read two ways, is a question. Ask it with \`ask_user_question\` before you plan, with your recommendation.
-2. Plan. Write the plan to .dsh/plans/<task>.md, as detailed as a \`/plan\` plan: decision-complete, so that a child can carry out its task without making a design decision. Required headings: \`# <title>\`; \`## Goal\` (the outcome and its success criteria); \`## Scope\` (what changes, by subsystem, with API, schema and data-flow changes, edge cases and failure modes; and what is out of scope); \`## Tasks\` (one row per task: id T1, T2, …, owner role, write scope, the check that proves it done, its wave: independent tasks share a wave, dependent ones wait); \`## Acceptance\` (the checks for the whole result); \`## Assumptions\` (everything you inferred and did not ask, or "none"). Then submit it: mirror the tasks on the board with \`todo_write\`, one row per task starting with its id (a row has only content and status), every worker and tester row \`pending\`: nothing starts before the approval, and a row turns \`in_progress\` when you dispatch its task. That call puts the plan in front of the user on the review card, so do not ask "shall I proceed" yourself, and write no brief and no contract before it has gone through. When an advisor is configured it reads the plan before the user does. Feedback from either comes back as the tool's error: for the advisor's points, fix the plan or answer a point that does not apply in one line under a \`## Advisor review\` heading in the plan; for the user's, revise the plan. Then call \`todo_write\` again. A contract write, a worker or tester dispatch, or a message to a child on a plan the user has not approved runs the same review. Progress belongs on the board, not in the plan file: every edit of an approved plan is a change the user is asked to approve.
+2. Plan. Write the plan to .dsh/plans/<today>-<task>.md (the day it is written comes first, so the user can tell later when a plan is from; a new plan file without a date is refused), as detailed as a \`/plan\` plan: decision-complete, so that a child can carry out its task without making a design decision. Required headings: \`# <title>\`; \`## Goal\` (the outcome and its success criteria); \`## Scope\` (what changes, by subsystem, with API, schema and data-flow changes, edge cases and failure modes; and what is out of scope); \`## Tasks\` (one row per task: id T1, T2, …, owner role, write scope, the check that proves it done, its wave: independent tasks share a wave, dependent ones wait); \`## Acceptance\` (the checks for the whole result); \`## Assumptions\` (everything you inferred and did not ask, or "none"). Then submit it: mirror the tasks on the board with \`todo_write\`, one row per task starting with its id (a row has only content and status), every worker and tester row \`pending\`: nothing starts before the approval, and a row turns \`in_progress\` when you dispatch its task. That call puts the plan in front of the user on the review card, so do not ask "shall I proceed" yourself, and write no brief and no contract before it has gone through. When an advisor is configured it reads the plan before the user does. Feedback from either comes back as the tool's error: for the advisor's points, fix the plan or answer a point that does not apply in one line under a \`## Advisor review\` heading in the plan; for the user's, revise the plan. Then call \`todo_write\` again. A contract write, a worker or tester dispatch, or a message to a child on a plan the user has not approved runs the same review. Progress belongs on the board, not in the plan file: every edit of an approved plan is a change the user is asked to approve.
 3. Contract. When two or more tasks must fit together (shared types, API shapes, file formats, naming, units), pin that interface before dispatch: load the \`contract-first\` skill and write contracts/<task>/contract.md. You own that file; children read it.
 4. Brief and dispatch. Send every task of a wave in ONE step as parallel \`delegate\` calls with disjoint write scopes. Each \`task\` is a brief with these labelled lines; the tool rejects a brief without Goal, Scope and Acceptance, and a worker or tester brief without Plan:
    Plan: the id of the plan task this child carries out, e.g. T2.
@@ -96,6 +104,24 @@ CHANGED: the files you wrote, or none
 CHECKS: each Acceptance check with pass or fail (or "not run" and why)
 DEVIATIONS: anything done differently from the brief, or none
 BLOCKERS: questions or issues for the lead, or none`
+
+/**
+ * A turn that ended because the connection to the provider broke, not because
+ * of anything the child did. A usage limit, a missing provider or a refused
+ * request would fail the same way again and is left to the lead.
+ */
+const TRANSPORT_FAILURE = /websocket|socket hang up|fetch failed|network|econn|etimedout|eai_again|terminated|overloaded|timed? ?out/i
+
+/** The transport failure a `turn/end` event reports, if that is what ended the turn. */
+export function transportFailure(data: unknown): string | undefined {
+  const reason = (data as { reason?: { kind?: unknown; error?: { message?: unknown } } } | undefined)?.reason
+  const message = reason?.kind === 'error' && typeof reason.error?.message === 'string' ? reason.error.message : ''
+  return TRANSPORT_FAILURE.test(message) ? message.replace(/\s+/g, ' ').slice(0, 120) : undefined
+}
+
+/** C0 control characters other than tab and line breaks, and DEL: terminal output, never prose. */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this looks for
+const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/
 
 /** Files the lead writes as coordinator: the contract, the plan, scratch checks, a route override. */
 const LEAD_OWNED = /(?:^|\/)(?:contracts|\.scratch|\.dsh\/plans)\/|\/\.dsh\/ceulen\/settings\.json$/
@@ -216,6 +242,8 @@ export interface Orchestration {
 export interface OrchestratorOptions {
   /** One line of resolved role routes for the mode prompt; empty when unknown. */
   routes?(): string
+  /** Wake a settled child of this lead with a message. Absent when the host cannot. */
+  resume?(lead: AgentLike, childId: string, text: string): Promise<unknown>
 }
 
 export function checkpointText(children: readonly { role: string; label: string; state: string; id: string }[]): string {
@@ -286,7 +314,11 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
   const leads = new Map<string, Lead>()
   // A child can end before `startActivation` hands its id back.
   const endedEarly = new Map<string, string>()
-  // Footer indicator: the same native tuiStatus seam /agent-mode uses.
+  // The transport failure that ended a child's last turn, by child id.
+  const cut = new Map<string, string>()
+  // Children resumed after such a failure and not settled since: one resume each.
+  const revived = new Set<string>()
+  // Footer indicator, through the native tuiStatus seam.
   let paintFooter = (_on: boolean): void => {}
   // Only the lead whose state the footer reflects may clear it.
   let shown: string | undefined
@@ -330,6 +362,37 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
     } catch (error) {
       logLine('subagent', `orchestrator checkpoint failed: ${errorMessage(error)}`)
     }
+  }
+  /**
+   * A child whose reply was cut by the transport runs again instead of
+   * settling as failed. False when there is nothing to resume it with, or it
+   * was resumed already: then it settles like any other failure.
+   */
+  const revive = (childId: string, failure: string): boolean => {
+    const state = team.leadOfChild(childId)
+    const lead = state === undefined ? undefined : leads.get(state.leadId)
+    const child = state?.children.get(childId)
+    const resume = options.resume
+    if (state === undefined || lead === undefined || child === undefined || resume === undefined || revived.has(childId)) return false
+    revived.add(childId)
+    logLine('subagent', `orchestrator resumed ${child.role} ${childId} after: ${failure}`)
+    void Promise.resolve()
+      .then(() => resume(lead.agent, childId, `Harness notice, not from your lead: the connection to your model provider broke while you were replying (${failure}). That reply was lost and your lead received nothing from it. Your context is intact. Go on from where you stopped; if you were sending your result, send it again in full.`))
+      .then(() => {
+        // The host has already told the lead that this child failed.
+        lead.agent.inject({
+          id: randomUUID(),
+          role: 'user',
+          content: [{ type: 'text', text: `Team notice: ${child.role} · ${child.label} (${childId}) lost its provider connection in the middle of a reply (${failure}); that is the failure you were just told about. It has been resumed, once, with its context intact, and needs nothing from you: do not redo its work and do not dispatch a replacement. Its result, or a second failure, arrives with the checkpoint.` }],
+          source: { kind: 'ceulen-orchestrator', form: 'notice', summary: `resumed: ${child.role}` },
+        })
+      }, (error: unknown) => {
+        // Nothing woke it: it is a failed child after all.
+        logLine('subagent', `orchestrator resume failed for ${childId}: ${errorMessage(error)}`)
+        if (team.settle(childId, 'error', Date.now()) !== undefined) checkpoint(state.leadId)
+      })
+      .catch((error: unknown) => logLine('subagent', `orchestrator resume notice failed: ${errorMessage(error)}`))
+    return true
   }
   // The plan file as it stands, mirrored into the ledger for the panel and `status`.
   const syncPlan = (lead: Lead, id: string, cwd: string): void => {
@@ -506,7 +569,9 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
   }
   const prompt = (): string => {
     const routes = routeLine()
-    return routes === '' ? INSTRUCTIONS : `${INSTRUCTIONS}\n\nRoutes\nEach role runs on this route right now: ${routes}. Say which routes a wave uses when you dispatch it; do not look them up again. The user changes a route in the Ceulen settings (\`subagent.models\`, \`subagent.thinking\`), and an edit applies to the next dispatch.`
+    // The date is spelled out: a lead copies a name, it does not work one out. The text changes once a day.
+    const instructions = INSTRUCTIONS.replace('<today>', planDate())
+    return routes === '' ? instructions : `${instructions}\n\nRoutes\nEach role runs on this route right now: ${routes}. Say which routes a wave uses when you dispatch it; do not look them up again. The user changes a route in the Ceulen settings (\`subagent.models\`, \`subagent.thinking\`), and an edit applies to the next dispatch.`
   }
 
   if (!registerPromptSection(ctx, {
@@ -519,6 +584,8 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
     leads.clear()
     team.reset()
     endedEarly.clear()
+    cut.clear()
+    revived.clear()
     shown = undefined
     paintFooter(false)
   })
@@ -531,6 +598,10 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
   ctx.on('subagent/end', (info: { id?: unknown; stopReason?: unknown; lastAssistantMessage?: unknown } | undefined) => {
     const id = String(info?.id ?? '')
     const stop = typeof info?.stopReason === 'string' ? info.stopReason : 'ended'
+    const failure = stop === 'error' ? cut.get(id) : undefined
+    cut.delete(id)
+    if (failure !== undefined && revive(id, failure)) return
+    revived.delete(id)
     if (typeof info?.lastAssistantMessage === 'string') team.report(id, info.lastAssistantMessage)
     const state = team.settle(id, stop, Date.now())
     if (state === undefined) {
@@ -560,7 +631,14 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
       else if (called === 'todo_write') team.board(id, data.arguments)
       return
     }
-    if (called !== 'send_message' || team.leadOfChild(id) === undefined) return
+    if (team.leadOfChild(id) === undefined) return
+    if (type === 'turn/end') {
+      const failure = transportFailure(event?.data)
+      if (failure === undefined) cut.delete(id)
+      else cut.set(id, failure)
+      return
+    }
+    if (called !== 'send_message') return
     const message = toolInput(data.arguments)?.message
     if (typeof message === 'string') team.report(id, message)
   })
@@ -571,6 +649,13 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
     const id = sessionId(exec?.agent)
     if (id === undefined || typeof exec.name !== 'string') return next()
     const lead = leads.get(id)
+    if (exec.name === 'send_message' && (lead !== undefined || team.leadOfChild(id) !== undefined)) {
+      const message = toolInput(exec.arguments)?.message
+      if (typeof message === 'string' && CONTROL.test(message)) {
+        logLine('subagent', `orchestrator garbled message refused: ${lead === undefined ? 'child' : 'lead'} ${id}`)
+        return { kind: 'deny', reason: 'This message was not delivered: it contains terminal control characters (such as the escape code ESC[0m), which is what cut-off or garbled text looks like. Write the whole message again as plain text and send it. If you build it in a script, type the text out; do not paste coloured terminal output.' }
+      }
+    }
     if (lead === undefined) {
       // A child of a lead: the contract directory is its lead's.
       const owner = EDITING.has(exec.name) ? leads.get(team.leadOfChild(id)?.leadId ?? '') : undefined
@@ -637,6 +722,13 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
     const cwd = cwdOf(exec)
     const paths = editedPaths(exec.name, input).map(path => resolve(cwd, path))
     if (paths.length > 0 && paths.every(path => LEAD_OWNED.test(path) || lead.takenOver.has(path))) {
+      const plan = paths.find(path => PLAN_FILE.test(path))
+      // A new plan file says in its name when it was written. One that exists keeps its name.
+      if (plan !== undefined && !DATED_PLAN.test(basename(plan)) && !existsSync(plan)) {
+        const dated = relative(cwd, join(dirname(plan), `${planDate()}-${basename(plan)}`))
+        logLine('subagent', `orchestrator plan name refused: ${relative(cwd, plan)}`)
+        return { kind: 'deny', reason: `Orchestrator mode: a plan file's name starts with the day it was written, so the user can tell later when a plan is from. Nothing was written. Write this plan to ${dated} instead, with the same content.` }
+      }
       // The contract is the first thing built on the plan: the user approves the plan before it.
       if (paths.some(path => CONTRACT_PATH.test(path))) {
         try {
@@ -650,13 +742,8 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
         lead.contractDirs.add(dirname(path))
         team.contract(id, relative(cwd, path))
       }
-      const plan = paths.find(path => PLAN_FILE.test(path))
-      if (plan === undefined) return next()
-      // The file exists once the write has run: then the ledger can read it.
-      const result = await next()
-      lead.planPath = plan
-      syncPlan(lead, id, cwd)
-      return result
+      // The plan file itself is read after the write has run (`tools/post-execute` below).
+      return next()
     }
     const target = paths.length === 0 ? 'this change' : paths.join(', ')
     const key = `${exec.name}\n${typeof exec.arguments === 'string' ? exec.arguments : JSON.stringify(input)}`
@@ -677,6 +764,24 @@ export function installOrchestrator(ctx: PluginContext, options: OrchestratorOpt
         'Your own files (contracts/, .dsh/plans/, .scratch/) are never refused. Do not route around this with bash.',
       ].join('\n'),
     }
+  })
+
+  // The lead's plan file, read once the write has run. `next()` in
+  // `tools/pre-execute` only returns the decision, so a read there saw the file
+  // as it was before the call: no plan after the first write, the old text
+  // after an edit, until the next board call read it again.
+  ctx.on('tools/post-execute', (exec: ExecLike & { name?: string; arguments?: unknown }, result: { isError?: boolean } | undefined, next: () => Promise<unknown>) => {
+    const id = sessionId(exec?.agent)
+    const lead = id === undefined ? undefined : leads.get(id)
+    if (id === undefined || lead === undefined || typeof exec.name !== 'string' || !EDITING.has(exec.name) || result?.isError === true) return next()
+    const input = toolInput(exec.arguments)
+    const cwd = cwdOf(exec)
+    const plan = input === undefined ? undefined : editedPaths(exec.name, input).map(path => resolve(cwd, path)).find(path => PLAN_FILE.test(path))
+    if (plan !== undefined) {
+      lead.planPath = plan
+      syncPlan(lead, id, cwd)
+    }
+    return next()
   })
 
   registerCommandSafe(ctx, {

@@ -15,7 +15,7 @@ job. The method is the same every time.
 One party, or parts that do not touch each other: no contract, plain delegation.
 The method pays off at two or more parties that must fit.
 
-In orchestrator mode the plan comes first: the user approves `.dsh/plans/<task>.md`
+In orchestrator mode the plan comes first: the user approves `.dsh/plans/<date>-<task>.md`
 before any contract is written, and the contract only pins how that plan's tasks
 fit together. A party is a plan task (`T1`, `T2`, …); the contract adds no work
 the plan does not list.

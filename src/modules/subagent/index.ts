@@ -43,6 +43,8 @@ interface SubagentRuntimeLike {
     signal: AbortSignal
     delivery: 'parent'
   }): Promise<{ readonly childId: unknown }>
+  /** The native `send_message`: to a settled continuable child it starts a new turn. */
+  sendMessage?(sender: unknown, targetId: string, content: readonly { type: 'text'; text: string }[], options: { signal: AbortSignal }): Promise<unknown>
 }
 
 const HERDR_HINT = 'This session runs inside a herdr pane: `delegate` with `runner: "herdr"` runs the child as a headless DSH in a visible pane beside this one and returns its final answer when it ends (it blocks this call). Use it only when the user wants to watch the child work; read the herdr skill before driving panes by hand.'
@@ -302,7 +304,12 @@ function commandHandler(settings: CeulenSettings, rawInput: string, agent: Agent
 export function apply(ctx: PluginContext): void {
   if (!isModuleEnabled('subagent', loadSettingsSync())) return
 
+  let runtime: SubagentRuntimeLike | undefined
   const orchestration = installOrchestrator(ctx, {
+    resume(lead, childId, text) {
+      if (typeof runtime?.sendMessage !== 'function') return Promise.reject(new Error('this host cannot message a child'))
+      return runtime.sendMessage(lead, childId, [{ type: 'text', text }], { signal: new AbortController().signal })
+    },
     routes() {
       const settings = loadSettingsSync()
       return ROLES.map(role => {
@@ -365,6 +372,7 @@ export function apply(ctx: PluginContext): void {
         return
       }
       if (service === undefined || typeof service.startActivation !== 'function') return
+      runtime = service
       const tool = registerToolSafe(child, delegateTool(service, ctx, herdrEnv() !== undefined, orchestration))
       if (tool.actual === 'delegate') registered = true
     })

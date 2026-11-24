@@ -156,10 +156,11 @@ How a run goes:
 
 1. **Orient.** The lead reads what it needs. A choice only you can make, or a
    request it can read two ways, becomes a question to you. It does not guess.
-2. **Plan.** It writes `.dsh/plans/<task>.md` with `Goal`, `Scope` (and what is
-   out of scope), `Tasks` (`T1`, `T2`, … with owner, write scope, check and
-   wave), `Acceptance` and `Assumptions`. It submits the plan by mirroring
-   the tasks on its board.
+2. **Plan.** It writes `.dsh/plans/<date>-<task>.md` (for example
+   `2026-11-23-login-form.md`) with `Goal`, `Scope` (and what is out of
+   scope), `Tasks` (`T1`, `T2`, … with owner, write scope, check and wave),
+   `Acceptance` and `Assumptions`. It submits the plan by mirroring the tasks
+   on its board.
 3. **The advisor reads it.** When an advisor route is set, a second model
    checks the plan against what you asked. Its points go back to the lead
    once; the lead fixes the plan or answers them.
@@ -173,7 +174,7 @@ How a run goes:
    corrects or takes over.
 8. **Report.** It tells you what was built and how it was checked.
 
-Six parts of this are enforced by the harness, not left to the prompt:
+Eight parts of this are enforced by the harness, not left to the prompt:
 
 - **Plan.** Nothing is built before you approve. The review starts when the
   lead mirrors the plan on its board (`todo_write`), before it has written a
@@ -186,6 +187,10 @@ Six parts of this are enforced by the harness, not left to the prompt:
   reviewers only read and may run earlier. The board that submits a first
   plan must show its worker and tester tasks as pending: one that marks them
   started is refused before you are asked.
+- **Plan file name.** A new plan file starts with the day it was written, like
+  the plans `/plan` saves, so the folder shows when each plan is from. The
+  prompt gives the lead today's date; a new file without one is refused with
+  the name to use. A plan file that already exists keeps its name.
 - **Plan review by the advisor.** Before your card opens, the advisor reads the
   plan with your own messages and the lead's steps beside it. Points from the
   first reading are returned to the lead, and nothing is shown to you yet. The
@@ -204,6 +209,14 @@ Six parts of this are enforced by the harness, not left to the prompt:
   steps ask for a spot-check of the anchors the plan rests on and a follow-up
   question to the scout, not a second read of the files: the lead asks a scout
   for quoted lines with `path:line`, so its report is enough to plan from.
+- **Dropped connection.** A child whose reply was cut by the provider
+  connection (`WebSocket error`, `fetch failed` and the like) is not settled as
+  failed: it is resumed once with its context intact, and the lead is told to
+  wait for it. A second failure, a usage limit or any other error goes to the
+  lead at the checkpoint as before.
+- **Garbled message.** A message between the lead and a child that contains
+  terminal control characters is refused at the sender, who is asked to write
+  it again as plain text. The other side never receives half a report.
 - **Takeover.** The lead's own edit outside `contracts/`, `.dsh/plans/` and
   `.scratch/` is refused once. Sending the same edit again declares a takeover,
   which is counted in `status`. Bash is not gated.

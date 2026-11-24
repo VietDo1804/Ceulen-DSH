@@ -10,8 +10,22 @@
  */
 import { createHash } from 'node:crypto'
 
-/** A plan file the lead writes: .dsh/plans/<name>.md. */
+/** A plan file the lead writes: .dsh/plans/<date>-<task>.md. */
 export const PLAN_FILE = /(?:^|\/)\.dsh\/plans\/[^/]+\.md$/
+
+/**
+ * A plan file name that says when it was written: a date first, as on the
+ * plans `/plan` saves (`2026-11-16T05-01-37-079Z-<slug>.md`). A lead named its
+ * plan `tokeneconomizer-research.md`, and beside dated files nobody could tell
+ * afterwards when that plan was from.
+ */
+export const DATED_PLAN = /^\d{4}-\d{2}-\d{2}[-T]/
+
+/** The user's calendar day, the prefix of a lead's plan file. */
+export function planDate(now = new Date()): string {
+  const two = (value: number): string => String(value).padStart(2, '0')
+  return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`
+}
 
 /** Headings a plan must have, in the words the mode prompt gives. */
 export const PLAN_SECTIONS = ['Goal', 'Scope', 'Tasks', 'Acceptance', 'Assumptions'] as const
@@ -128,7 +142,7 @@ export function readPlan(markdown: string): LeadPlan {
 
 /** What the lead is told when it has no plan, or a plan that is not a plan yet. */
 export const PLAN_SHAPE = [
-  'Write the plan to .dsh/plans/<task>.md with these headings:',
+  'Write the plan to .dsh/plans/<YYYY-MM-DD>-<task>.md (today\'s date first) with these headings:',
   '# <title>',
   '## Goal — the outcome and its success criteria',
   '## Scope — what changes, by subsystem; what is out of scope',
