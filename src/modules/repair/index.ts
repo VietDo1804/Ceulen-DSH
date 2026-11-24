@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve as resolvePath }
 import type { AgentLike, PluginContext, ToolContent, ToolDefinition } from '../../core/types.js'
 import { isModuleEnabled, loadSettingsSync } from '../../core/settings.js'
 import { logLine } from '../../core/log.js'
-import { ceulenTool, clampText, coldTool, editDistance, nativeTool, objectSchema, registerToolSafe, cwdOf, errorMessage, sessionSandboxPolicy } from '../../core/tools.js'
+import { ceulenTool, clampText, coldTool, coldToolEntries, editDistance, nativeTool, nativeToolEntries, objectSchema, registerToolSafe, cwdOf, errorMessage, sessionSandboxPolicy } from '../../core/tools.js'
 import { missingRequired, synthesizeUsage } from '../../core/toolguard.js'
 
 export const name = 'ceulen-repair'
@@ -358,7 +358,7 @@ async function candidatePaths(path: string, cwd: string): Promise<string | undef
  * `ceulen_tools` form with the real argument names, and what each required
  * one is. Sending the model to search first costs it a second failed call.
  */
-function heldToolHint(name: string, definition: ToolDefinition, sent: unknown): string {
+function heldToolHint(name: string, definition: ToolDefinition, sent: unknown, alias?: string): string {
   const parameters = (definition.parameters ?? {}) as { properties?: Record<string, { type?: unknown; enum?: unknown; description?: unknown }>; required?: unknown }
   const properties = parameters.properties ?? {}
   const required = Array.isArray(parameters.required) ? parameters.required.filter((key): key is string => typeof key === 'string') : []
@@ -372,12 +372,35 @@ function heldToolHint(name: string, definition: ToolDefinition, sent: unknown): 
   const usable = sentKeys.length > 0 && missingRequired(sent, parameters as Record<string, unknown>).length === 0
   const optional = Object.keys(properties).length > required.length
   return [
-    `Closest tool: ceulen_tools — "${name}" exists but is held behind ceulen_tools, so it is not callable by its own name. Call it like this:`,
+    alias === undefined
+      ? `Closest tool: ceulen_tools — "${name}" exists but is held behind ceulen_tools, so it is not callable by its own name. Call it like this:`
+      : `Closest tool: ceulen_tools — "${alias}" is the short name of "${name}", which is held behind ceulen_tools, so it is not callable by either name. Call it like this:`,
     `ceulen_tools({ action: "call", name: "${name}", arguments: ${synthesizeUsage(parameters as Record<string, unknown>)} })`,
     ...lines,
     ...(usable ? ['The arguments you sent are fine: put the same object in `arguments`.'] : []),
     ...(optional ? [`ceulen_tools({ action: "search", query: "^${name}$" }) describes the optional arguments.`] : []),
   ].join('\n')
+}
+
+/**
+ * The held tool a short name means. An MCP server's instructions name its tools
+ * without the `mcp__<server>__` prefix, and a model that cannot see the schema
+ * calls that name. Two servers with the same tool name give no answer.
+ */
+function heldByShortName(wanted: string): ToolDefinition | undefined {
+  const matches = [...coldToolEntries(), ...nativeToolEntries()].filter(entry => entry.name.endsWith(`__${wanted}`))
+  return matches.length === 1 ? (coldTool(matches[0]!.name) ?? nativeTool(matches[0]!.name)) : undefined
+}
+
+/** Whether the calling agent is offered `name` itself (a restricted-away tool is not). */
+function offeredTo(ctx: PluginContext, agent: AgentLike | undefined, name: string): boolean {
+  if (agent === undefined) return false
+  const registry = ctx.get('tools', false) as { schemas?(scope?: unknown): readonly { name?: string }[] } | undefined
+  try {
+    return (registry?.schemas?.(agent) ?? []).some(entry => entry.name === name)
+  } catch {
+    return false
+  }
 }
 
 function registeredToolNames(ctx: PluginContext, agent?: AgentLike): string[] {
@@ -467,6 +490,13 @@ async function repair(ctx: PluginContext, exec: ExecuteHook, result: HookResult)
     // A cold tool is real but not callable by its own name: name the way in.
     const held = coldTool(wanted) ?? nativeTool(wanted)
     if (held !== undefined) return { kind: 'tool', text: heldToolHint(wanted, held, args) }
+    const full = heldByShortName(wanted)
+    if (full !== undefined) {
+      // Held for some agent, but this one has the schema: only the name was wrong.
+      return offeredTo(ctx, exec.agent, full.name)
+        ? { kind: 'tool', text: `Closest tool: ${full.name} — "${wanted}" is its short name. Call it by the full name.` }
+        : { kind: 'tool', text: heldToolHint(full.name, full, args, wanted) }
+    }
     const closest = closestToolName(wanted, registeredToolNames(ctx, exec.agent))
     // A near name is a guess, not a correction (`codemap` is not `codemode`):
     // say that no such tool exists and leave the choice to the model.

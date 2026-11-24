@@ -123,6 +123,12 @@ export interface CeulenSettings {
     bashLookups: 'redirect' | 'off'
     /** Tool names held out of the prompt (behind `ceulen_tools`) for these routes only; `tools.cold` applies to every route. */
     cold: string[]
+    /**
+     * More routes (substring; `*` = all) that get `cold` held and nothing else of the
+     * steering: no playbook, no bash redirect, no tuned tool variants. For a lead on
+     * a small window (gpt-6.2-astra/sol: 272k) that does not use those tools.
+     */
+    coldModels: string[]
   }
   subagent: {
     /** Function alias (`fast`, `coder`, `smart`) -> ordered `provider/model[:effort]` chain. */
@@ -232,7 +238,7 @@ export function defaultSettings(): CeulenSettings {
     gh: { enabled: true },
     codemode: { enabled: true, chainHintAfter: 2 },
     rtk: { enabled: true },
-    steering: { models: ['deepseek-v4.1-flash', 'deepseek-flash'], bashLookups: 'redirect', cold: [] },
+    steering: { models: ['deepseek-v4.1-flash', 'deepseek-flash'], bashLookups: 'redirect', cold: [], coldModels: [] },
     // ponytail: `*` = inherit the parent route, so a fresh install assumes no provider.
     subagent: { roles: { fast: ['*'], coder: ['*'], smart: ['*'] }, models: {}, thinking: {}, presets: {}, nudge: { models: ['deepseek-v4.1-flash', 'deepseek-flash'], discoveryAfter: 10, reviewAfterFiles: 3, reconMinContext: 60_000 } },
     // Both phases inherit the client's model until a route is configured.
@@ -443,6 +449,7 @@ export function normalizeSettings(raw: unknown, env = true): CeulenSettings {
       models: Array.isArray(steering.models) ? strArray(steering.models) : base.steering.models,
       bashLookups: steering.bashLookups === 'off' ? 'off' : 'redirect',
       cold: Array.isArray(steering.cold) ? strArray(steering.cold) : base.steering.cold,
+      coldModels: Array.isArray(steering.coldModels) ? strArray(steering.coldModels) : base.steering.coldModels,
     },
     subagent: {
       roles: { ...base.subagent.roles, ...chainRecord(subagent.roles) },

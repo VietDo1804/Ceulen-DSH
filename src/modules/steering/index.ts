@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { lookupReplacements, redirectText } from './bash-search.js'
 import { captureRedirectText, chromeScreenshotCalls } from './bash-capture.js'
 import { PLAYBOOK } from './playbook.js'
-import { installRouteVariants } from '../../core/variants.js'
+import { heldToolsNote, installRouteVariants } from '../../core/variants.js'
 
 export const name = 'ceulen-steering'
 
@@ -84,6 +84,15 @@ export function apply(ctx: PluginContext): void {
     order: 86,
     interpolate: false,
     text: (context = {}) => steeredLead(context.scope) ? PLAYBOOK : '',
+  })
+
+  // For an agent that holds `steering.cold` tools: which ones, and the way in.
+  // The text changes only when the agent's route or the held set does.
+  registerPromptSection(ctx, {
+    name: 'ceulen:held-tools',
+    order: 87,
+    interpolate: false,
+    text: (context = {}) => heldToolsNote(context.scope),
   })
 
   // Nested codemode calls run through the same pipeline, so this sees

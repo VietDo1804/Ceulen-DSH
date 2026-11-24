@@ -606,6 +606,19 @@ For routes listed in `steering.models` (default `deepseek-v4.1-flash` and
 Every other route keeps the untuned tools, and a `/model` switch swaps the two
 sets before the next step.
 
+`steering.cold` (tool names, such as MCP tools a route never uses) is held
+behind `ceulen_tools` on those routes, and also on the routes in
+`steering.coldModels`, which get that hold and nothing else of the steering.
+For a lead on a 272k window such as `gpt-6.2-astra`, holding the 27
+openmotion/renesas MCP tools cut the first request from 33k to 18k tokens.
+A child on a route outside both lists still gets those tools.
+
+An agent that holds such tools gets a short `Held tools` note in its prompt:
+the held names grouped by MCP server, and the way in (`ceulen_tools` search,
+then call; `tools['<full name>']` inside codemode). A call to a held tool by
+the short name an MCP server's instructions use (`openmotion_get_project`)
+is answered with the full name and the `ceulen_tools` call to make.
+
 ### Plan mode
 
 - A plan submitted through `exit_plan_mode` is saved to
