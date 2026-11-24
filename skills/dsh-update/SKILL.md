@@ -105,10 +105,12 @@ node -p "require(process.env.HOME+'/.dsh/profiles/tui/node_modules/@deepseek-har
 # an add/remove/reinstall wipes every one of them.
 for p in advisor context toolname plan effort style panel; do node scripts/tui-$p-patch.mjs apply || exit 1; done
 for p in advisor context toolname plan effort style panel; do node scripts/tui-$p-patch.mjs check || exit 1; done
+# `check` proves anchors, not behaviour: render the question cards headless.
+node scripts/tui-question-fit-smoke.mjs || exit 1
 ```
 
 Repeat for every profile with an installed TUI, passing `--tui <resolved-dir>`
-to every patch script. Finish all profile package changes before applying
+to every patch script and to the smoke. Finish all profile package changes before applying
 patches: another add/remove can rewrite the dependency tree again.
 
 Preserve the existing `~/.dsh-tui/effort-by-model.json` (resolved from the
@@ -142,8 +144,8 @@ not replace a literal old version that becomes a no-op after an upgrade.
 - Seven patches ride the installed dsh-tui tree, and a missed one breaks silently:
   `advisor` (reviewer notes in the transcript), `context` (`/context` opens the
   dashboard instead of the loaded-context text dump), `toolname` (grep tool
-  renders as `fff`, not `Fff_grep`), `plan` (bare `/plan` toggles and the footer
-  names plan mode), `effort` (per-model reasoning effort). `apply` fails loudly when an anchor moves; `check` exits 1
+  renders as `fff`, not `Fff_grep`), `plan` (bare `/plan` toggles, the footer
+  names plan mode, and both question cards fit the screen), `effort` (per-model reasoning effort). `apply` fails loudly when an anchor moves; `check` exits 1
   when not applied.
 - `style` adds live `/theme style dsh|pi|omp` layout selection without changing
   the color theme; `ui-style.json` shares the effort preference directory.
@@ -157,6 +159,23 @@ not replace a literal old version that becomes a no-op after an upgrade.
   anchors (the class `open(id)` head and its `request('open', …)` line, the
   bridge `request.kind === 'open'` branch and its `openPanel(…, { focus: true })`)
   before extending the gate.
+- `plan` also patches `components/questions/PlanReviewPanel.js` and
+  `AskUserQuestionPanel.js`. Stock sizes the plan body and the option list
+  as the terminal height minus a fixed 12 rows, ignoring the goal/todo band,
+  spinner and status views stacked above. With a board up (e.g. the second
+  `/orchestrator` plan, a "Plan change" card) "Keep planning", the feedback/
+  answer row and the hint fell off the bottom, and a short plan left a blank
+  block (fixed 2026-11-25). The patch measures after layout (the card's yoga
+  position, the plan's natural height in a wrapper box) with a shrink-only
+  limit. Anchors: `detailMax`/`detailScrollRef`, the detail `ScrollBox` with its
+  `Markdown`, both panels' root `Box`, and the `optionBudget` line. If upstream
+  now sizes the cards from real layout, drop these edges instead of porting
+  them, and keep `scripts/tui-question-fit-smoke.mjs` as the proof. The smoke
+  must pass on the patched tree and fail on a reverted copy. It is a stand-in
+  stack (not the real Chat), so the live card check after restart stays.
+  Exit 1 is a card that does not fit (patch lost or anchors moved). Exit 2
+  means the smoke could not run: TUI not found, or `@xterm/headless` missing
+  from the global core. Fix the harness and do not count that as a patch result.
 - dsh-tui 0.19.0 dropped the context patch with no warning (2026-11-06):
   `/context` still answered, it just dumped the stock report again. That is why
   the loop now covers all seven, not the two this section used to list.
@@ -211,7 +230,8 @@ Run one read-only independent review of the compatibility delta, distinguishing
 pre-existing user edits; fix blockers and rerun affected checks before reporting.
 
 After review and any resulting fixes/package operations, run all seven patch
-`check` commands again for every installed TUI profile. This is the final gate,
+`check` commands and `node scripts/tui-question-fit-smoke.mjs` again for every
+installed TUI profile. This is the final gate,
 not just a step-4 check: bundle installs or reinstalls later in the task can
 replace patched files even when the TUI version is unchanged. If any check
 fails, reapply the compatible patches and recheck before declaring success.
@@ -252,6 +272,10 @@ Verify after restart:
   segment means that patch is missing — run its script and restart again.
 - `/context` renders the colour dashboard (that is `context-redirect applied`
   proving itself).
+- With a todo/goal band up, a plan-review card (or `/orchestrator`'s "Plan
+  change") shows Approve, Keep planning, the ✎ feedback row and the key hint,
+  with no blank block under a short plan. Leave it pending if no plan is due;
+  do not start a paid run only to see it.
 - Switch model A → B → A using existing per-model preferences: reasoning must
   return to A's saved level, not the global `max`; the model picker must preview
   that level too. Do not overwrite user preferences to test this. Resumed
@@ -272,6 +296,7 @@ npm i -g --allow-scripts=@deepseek-ai/dsh-subprocess-local,koffi,node-pty,@googl
 dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@<exact-old-tui>
 for p in advisor context toolname plan effort style panel; do node scripts/tui-$p-patch.mjs apply || exit 1; done
 for p in advisor context toolname plan effort style panel; do node scripts/tui-$p-patch.mjs check || exit 1; done
+node scripts/tui-question-fit-smoke.mjs || exit 1
 ```
 
 Restore only update-owned compatibility hunks (including `dshTui` and release

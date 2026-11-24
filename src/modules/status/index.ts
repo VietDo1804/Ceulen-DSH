@@ -218,14 +218,16 @@ export function tuiFooterState(): string {
     // sent `/planoff` ("no such command").
     const planMode = has('the argument carries its own leading space', 'screens', 'Chat.js') &&
       has("id: 'plan',", 'dsh-adapter', 'channel', 'mode-permission-actions.js') &&
-      has('ceulen-plan: Esc with feedback', 'components', 'questions', 'PlanReviewPanel.js')
+      has('ceulen-plan: Esc with feedback', 'components', 'questions', 'PlanReviewPanel.js') &&
+      has('ceulen-plan: fit the card to the screen', 'components', 'questions', 'PlanReviewPanel.js') &&
+      has('ceulen-plan: fit the question card', 'components', 'questions', 'AskUserQuestionPanel.js')
     const effortPerModel = has('readRouteEffortPref(capture.provider, capture.model) ?? preferredEffort', 'dsh-adapter', 'channel', 'model-actions.js')
     const uiStyle = has('ceulen-style:', 'uiStyle.js')
     // A tree patched before the newest style (thread) existed: the new script refuses it until the old one reverts it.
     const uiSkins = has("id: 'thread'", 'uiStyle.js')
     const panelReveal = has('ceulen-panel: open without moving keyboard focus', 'dsh-adapter', 'panels.js') &&
       has("ceulen-panel: reveal keeps the chat focused", 'components', 'sidePanel', 'useSidePanel.js')
-    states.push(`${profile}:${version} ${footer} · effort-per-model ${effortPerModel ? 'applied' : 'stock (one effort for every model; run scripts/tui-effort-patch.mjs apply)'} · ui-style ${uiStyle ? (uiSkins ? 'applied' : 'applied without the thread style (revert with the script that applied it, then run scripts/tui-style-patch.mjs apply)') : 'stock (layout stays dsh; run scripts/tui-style-patch.mjs apply)'} · advisor-block ${advisor ? 'applied' : 'stock (advisor notes stay out of the transcript; run scripts/tui-advisor-patch.mjs apply)'} · context-redirect ${contextRedirect ? 'applied' : 'stock (the built-in /context dump stays; run scripts/tui-context-patch.mjs apply)'} · tool-names ${toolNames ? 'applied' : 'stock (fff_grep renders as Fff_grep; run scripts/tui-toolname-patch.mjs apply)'} · plan-mode ${planMode ? 'applied' : 'stock (/plan asks on/off, Esc drops a typed answer and the footer may not name plan mode; run scripts/tui-plan-patch.mjs apply)'} · panel-reveal ${panelReveal ? 'applied' : 'stock (the Subagents panel cannot open without taking focus, so it never auto-opens; run scripts/tui-panel-patch.mjs apply)'}`)
+    states.push(`${profile}:${version} ${footer} · effort-per-model ${effortPerModel ? 'applied' : 'stock (one effort for every model; run scripts/tui-effort-patch.mjs apply)'} · ui-style ${uiStyle ? (uiSkins ? 'applied' : 'applied without the thread style (revert with the script that applied it, then run scripts/tui-style-patch.mjs apply)') : 'stock (layout stays dsh; run scripts/tui-style-patch.mjs apply)'} · advisor-block ${advisor ? 'applied' : 'stock (advisor notes stay out of the transcript; run scripts/tui-advisor-patch.mjs apply)'} · context-redirect ${contextRedirect ? 'applied' : 'stock (the built-in /context dump stays; run scripts/tui-context-patch.mjs apply)'} · tool-names ${toolNames ? 'applied' : 'stock (fff_grep renders as Fff_grep; run scripts/tui-toolname-patch.mjs apply)'} · plan-mode ${planMode ? 'applied' : 'stock (/plan asks on/off, Esc drops a typed answer, the footer may not name plan mode and a question or plan card under the todo band loses its bottom rows; run scripts/tui-plan-patch.mjs apply)'} · panel-reveal ${panelReveal ? 'applied' : 'stock (the Subagents panel cannot open without taking focus, so it never auto-opens; run scripts/tui-panel-patch.mjs apply)'}`)
   }
   return states.length === 0 ? 'dsh-tui not installed' : states.join(' · ')
 }

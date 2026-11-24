@@ -2,7 +2,7 @@
 /**
  * dsh-tui plan-mode polish for the installed profile tree.
  *
- * Target: dsh-tui 0.19.0 (anchors unchanged since 0.18.0). Four behaviors the stock TUI cannot express, each
+ * Target: dsh-tui 0.20.2 (anchors unchanged since 0.18.0). Five behaviors the stock TUI cannot express, each
  * anchored on the exact 0.18.0 source text (a dsh-tui update reverts them
  * silently — re-run `apply` and check `/ceulen doctor`):
  *
@@ -24,6 +24,14 @@
  *     the plan-review card, Esc used to cancel and drop what the user typed;
  *     the model then heard only "the user cancelled". With text typed, Esc now
  *     submits it like Enter. Empty Esc and Ctrl+C still cancel.
+ *  5. The plan-review card fits the screen. Stock sized the plan body as the
+ *     terminal height minus a fixed twelve rows, so with the goal/todo band
+ *     up (any later plan, e.g. an /orchestrator "Plan change") the stack ran
+ *     past the screen: "Keep planning", the feedback row and the hint were
+ *     cut off, and a short plan left a blank block. The card now measures
+ *     its plan and its place on screen after layout and trims the body.
+ *     The ask_user_question card had the same fixed budget for its option
+ *     list; it measures the same way and windows the list instead.
  *
  * Usage: node scripts/tui-plan-patch.mjs [apply|revert|check] [--tui <dir>]
  * Restart the TUI after apply/revert.
@@ -37,6 +45,43 @@ const MODE = 'lib/types/dsh-adapter/channel/mode-actions.js'
 const PERMISSION_MODE = 'lib/types/dsh-adapter/channel/mode-permission-actions.js'
 const PLAN_REVIEW = 'lib/types/components/questions/PlanReviewPanel.js'
 const LAUNCHPAD = 'lib/types/screens/Launchpad.js'
+const ASK_QUESTION = 'lib/types/components/questions/AskUserQuestionPanel.js'
+
+/**
+ * Shared by both question cards: after layout, how many rows of the card's
+ * stack (the card plus what follows it in each enclosing column, such as the
+ * usage band) fall outside the screen. Expects `panel` and `terminalRows`;
+ * defines `over`.
+ */
+const FIT_WALK = `        // Absolute top of the card (same walk as useTerminalViewport) plus
+        // what follows it in each enclosing column (the usage band).
+        let top = 0;
+        let below = 0;
+        let root = panel.yogaNode;
+        for (let node = panel; node; node = node.parentNode) {
+            const parent = node.parentNode;
+            if (node.yogaNode) {
+                top += node.yogaNode.getComputedTop();
+                root = node.yogaNode;
+                if (parent?.yogaNode && parent.style?.flexDirection === 'column') {
+                    const end = node.yogaNode.getComputedTop() + node.yogaNode.getComputedHeight();
+                    let last = end;
+                    for (const sibling of parent.childNodes.slice(parent.childNodes.indexOf(node) + 1)) {
+                        if (!sibling.yogaNode || sibling.style?.position === 'absolute')
+                            continue;
+                        last = Math.max(last, sibling.yogaNode.getComputedTop() + sibling.yogaNode.getComputedHeight());
+                    }
+                    below += last - end;
+                }
+            }
+            if (parent?.scrollTop)
+                top -= parent.scrollTop;
+        }
+        const screen = root.getComputedHeight();
+        const viewTop = screen > terminalRows ? screen - terminalRows + 1 : 0;
+        const bottom = top + panel.yogaNode.getComputedHeight() + below;
+        const over = Math.max(0, bottom - (viewTop + terminalRows), viewTop - top);
+`
 
 const commandEdge = [
   {
@@ -126,6 +171,98 @@ const commandEdge = [
             onCancel();
             return;
         }`,
+  },
+  {
+    file: PLAN_REVIEW,
+    label: 'plan card fit: terminal width',
+    stock: '    const { rows: terminalRows } = useTerminalSize();',
+    patched: '    const { rows: terminalRows, columns: terminalColumns } = useTerminalSize();',
+  },
+  {
+    file: PLAN_REVIEW,
+    label: 'plan card fit: measure',
+    stock: `    const detailMax = Math.max(0, terminalRows - reservedRows);
+    const detailScrollRef = React.useRef(null);`,
+    patched: `    const detailMax = Math.max(0, terminalRows - reservedRows);
+    const detailScrollRef = React.useRef(null);
+    // ceulen-plan: fit the card to the screen it is given. The twelve rows
+    // above are a guess: Chat stacks the goal/todo band, the spinner and
+    // plugin status views over the card in the same unshrinkable column, so
+    // a second plan (board already up) pushed "Keep planning", the feedback
+    // row and the hint off the bottom. And the body kept its whole budget
+    // even for a short plan, leaving a blank block. After each layout the
+    // card measures its plan (body = content height, at most the budget)
+    // and where its stack really ends on screen; any rows past the screen
+    // come off the body. The limit only shrinks for a given terminal size,
+    // so the measuring settles in a frame or two and cannot oscillate.
+    const panelRef = React.useRef(null);
+    const detailContentRef = React.useRef(null);
+    const [fit, setFit] = React.useState(null);
+    const fitNow = fit !== null && fit.rows === terminalRows && fit.columns === terminalColumns && fit.detail === question.detail ? fit : null;
+    const detailRows = Math.max(0, Math.min(detailMax, fitNow?.content ?? detailMax, fitNow?.limit ?? detailMax));
+    React.useLayoutEffect(() => {
+        const panel = panelRef.current;
+        if (!panel?.yogaNode)
+            return;
+        // The plan's own height: ScrollBox's inner box grows to the
+        // viewport, so the markdown sits in a box of its natural height.
+        const body = question.detail !== undefined && detailRows > 0 ? detailContentRef.current : null;
+        // A body not laid out yet reads 0: keep the last reading, or the
+        // card would drop its plan and never measure it again.
+        const measured = body?.yogaNode?.getComputedHeight() ?? 0;
+        const content = measured > 0 ? measured : fitNow?.content;
+${FIT_WALK}        const rendered = body === null ? 0 : detailRows;
+        const limit = over > 0 ? Math.min(fitNow?.limit ?? Infinity, Math.max(0, rendered - over)) : fitNow?.limit;
+        if (fitNow === null || content !== fitNow.content || limit !== fitNow.limit) {
+            setFit({ rows: terminalRows, columns: terminalColumns, detail: question.detail, content, limit });
+        }
+    });`,
+  },
+  {
+    file: PLAN_REVIEW,
+    label: 'plan card fit: body height',
+    stock: 'question.detail !== undefined && detailMax > 0 && (_jsx(Box, { flexDirection: "column", marginTop: 1, height: detailMax, flexShrink: 0, children: _jsx(ScrollBox, { ref: detailScrollRef, flexDirection: "column", flexGrow: 1, height: detailMax, children: _jsx(Markdown, { children: question.detail }) }) }))',
+    patched: 'question.detail !== undefined && detailRows > 0 && (_jsx(Box, { flexDirection: "column", marginTop: 1, height: detailRows, flexShrink: 0, children: _jsx(ScrollBox, { ref: detailScrollRef, flexDirection: "column", flexGrow: 1, height: detailRows, children: _jsx(Box, { ref: detailContentRef, flexDirection: "column", flexShrink: 0, children: _jsx(Markdown, { children: question.detail }) }) }) }))',
+  },
+  {
+    file: PLAN_REVIEW,
+    label: 'plan card fit: panel ref',
+    stock: 'return (_jsxs(Box, { flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, width: "100%", children: [_jsx(Divider, { color: "permission"',
+    patched: 'return (_jsxs(Box, { ref: panelRef, flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, width: "100%", children: [_jsx(Divider, { color: "permission"',
+  },
+  {
+    file: ASK_QUESTION,
+    label: 'question card fit: measure',
+    stock: '    const optionBudget = Math.max(terminalRows - reservedRows, 2);',
+    patched: `    // ceulen-plan: fit the question card to the screen it is given. The
+    // twelve rows above are a guess: Chat stacks the goal/todo band, the
+    // spinner and plugin status views over the card in the same unshrinkable
+    // column, so a long option list asked while a board is up pushed the
+    // answer row, the key hint and the usage band off the bottom. After each
+    // layout the card measures where its stack really ends on screen and
+    // takes the rows past it off the option budget (the list then windows).
+    // The limit only shrinks for a given terminal size and question, so the
+    // measuring settles in a frame or two and cannot oscillate.
+    const panelRef = React.useRef(null);
+    const [fit, setFit] = React.useState(null);
+    const fitNow = fit !== null && fit.rows === terminalRows && fit.columns === terminalColumns && fit.id === question.id && fit.question === question.question ? fit : null;
+    const optionBudget = Math.max(Math.min(terminalRows - reservedRows, fitNow?.limit ?? Infinity), 2);
+    React.useLayoutEffect(() => {
+        const panel = panelRef.current;
+        if (!panel?.yogaNode)
+            return;
+${FIT_WALK}        const rendered = windowedOptions ? optionBudget : wrappedOptionRows;
+        const limit = over > 0 ? Math.max(2, Math.min(fitNow?.limit ?? Infinity, rendered - over)) : fitNow?.limit;
+        if (fitNow === null || limit !== fitNow.limit) {
+            setFit({ rows: terminalRows, columns: terminalColumns, id: question.id, question: question.question, limit });
+        }
+    });`,
+  },
+  {
+    file: ASK_QUESTION,
+    label: 'question card fit: panel ref',
+    stock: '    return (_jsxs(Box, { flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, width: "100%", children: [_jsx(Box, { flexDirection: "column", onClick: onToggleFold',
+    patched: '    return (_jsxs(Box, { ref: panelRef, flexDirection: "column", marginTop: 1, paddingLeft: 2, paddingRight: 2, width: "100%", children: [_jsx(Box, { flexDirection: "column", onClick: onToggleFold',
   },
   {
     file: MODE,
