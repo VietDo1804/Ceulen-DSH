@@ -738,9 +738,9 @@ a Memory Protocol:
 | `munin_capabilities` | shows what the server supports |
 
 `munin_delete`, `munin_rollback` and `munin_share` run only with
-`confirm: true`, which the agent is told to pass only after you asked.
-`munin_delete` and `munin_share` are also held behind `ceulen_tools` by
-default (`tools.cold`), so their schemas stay out of the prompt.
+`confirm: true`, which the agent is told to pass only after you asked. By
+default only `munin_search`, `munin_get` and `munin_store` have their schemas
+in the prompt; the other eight are held behind `ceulen_tools` (`tools.cold`).
 
 **Options.**
 

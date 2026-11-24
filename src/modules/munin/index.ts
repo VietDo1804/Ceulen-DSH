@@ -178,9 +178,9 @@ export function apply(ctx: PluginContext): void {
     }
   })
 
-  // The Memory Protocol text lives in ceulen-agentmem (it shows whichever
-  // module is loaded). Since 2026-11-02 Munin is the primary store and the
-  // `agentmem_*` bridge on the Pi is the failover endpoint it falls back to.
+  // The Memory Protocol text lives in ceulen-agentmem (it names whichever
+  // store is configured). Munin is the primary store; `munin.fallback` is an
+  // optional second server it fails over to.
   //
   // Order 56 sits right after the rules block: memory evidence before the
   // protocol reminder, and one section the model can ignore.

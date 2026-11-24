@@ -104,8 +104,7 @@ context.
 
 3. Store only durable, verified knowledge. `munin_search` for a near-duplicate
    first; found it → skip, or upsert the same key deliberately. Store once with
-   `munin_store`; never a second copy through `agentmem_store` (that is the Pi
-   replica, refreshed from the cloud). Store recurring bug root causes
+   `munin_store`; never a second copy in another store. Store recurring bug root causes
    (`type:bug-fix`), stable setup facts (`type:fact`), decisions with rationale
    (`type:decision`), dependency choices (`type:dependency`), each with one
    `domain:` tag. Never store transient progress, TODOs, raw logs, unverified

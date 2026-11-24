@@ -46,9 +46,9 @@ export interface CeulenSettings {
     baseUrl: string
     allowProjectConfig: boolean
     /**
-     * Secondary endpoint, tried when the primary is unreachable (munin cloud ->
-     * the opimem bridge on the Pi). Empty baseUrl = failover off. The key never lives in
-     * this file: it resolves from MUNIN_FALLBACK_API_KEY (env or DSH store).
+     * Secondary endpoint, tried when the primary is unreachable: any server
+     * that speaks the Munin protocol. Empty baseUrl = failover off. The key never
+     * lives in this file: it resolves from MUNIN_FALLBACK_API_KEY (env or DSH store).
      */
     fallback: {
       baseUrl: string
@@ -61,11 +61,10 @@ export interface CeulenSettings {
     }
   }
   /**
-   * Second memory family: one opimem server (same wire protocol as Munin) on
-   * its own project and key, so `munin_*` and `agentmem_*` can point at two
-   * servers at once. No fallback and no project config by design — this store
-   * sits on the LAN and answers ~50x faster than the cloud; since 2026-11-02
-   * it holds the Pi replica that `munin.fallback` fails over to.
+   * Second memory family: one self-hosted server (same wire protocol as
+   * Munin) on its own project and key, so `munin_*` and `agentmem_*` can point
+   * at two servers at once. No fallback and no project config by design.
+   * Optional: until it is configured its tools stay out of the prompt.
    */
   agentmem: {
     project: string
@@ -200,10 +199,9 @@ export function defaultSettings(): CeulenSettings {
         'notebooklm', 'web_status', 'web_chat',
         'munin_capabilities', 'munin_list', 'munin_recent',
         'munin_versions', 'munin_diff', 'munin_rollback',
-        // AgentMem is the default store: only its search/get/store earn prompt
-        // bytes. Munin is the backup — its one store call stays warm; its reads
-        // would just duplicate agentmem_search/get.
-        'munin_search', 'munin_get',
+        // Munin is the memory the protocol names: its search/get/store stay in
+        // the prompt. AgentMem, the optional second store, shows the same three
+        // once it is configured and none before.
         'agentmem_capabilities', 'agentmem_list', 'agentmem_recent',
         'agentmem_versions', 'agentmem_diff', 'agentmem_rollback',
         'agentmem_delete', 'agentmem_share',

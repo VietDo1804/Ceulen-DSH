@@ -13,7 +13,7 @@
       "status": "native",
       "dsh": "agentmem_search/get/store/list/recent/delete/versions/diff/rollback/share/capabilities; /agentmem-status; the Memory Protocol section; optional first-turn brief (agentmem.brief, off by default) with an automatic Munin fallback",
       "phase": 0,
-      "notes": "New in ceulen-dsh, no upstream counterpart: the default memory family on the Munin wire protocol, pinned to one opimem server (Munin keeps the cloud backup). Resolves AGENTMEM_* env > DSH credential store > the agentmem settings section, with no default endpoint, no project config and no write failover: a write never lands in the backup store by accident. Reads (search/get/list/recent) and the first-turn brief do fall back to the configured Munin cloud after one bounded attempt and label the answer; the protocol says to mirror each stored memory with munin_store at session end. share copies memories by key into other projects on the same pi server and is capability-gated: an older opimem without share answers with a clean FEATURE_DISABLED.",
+      "notes": "New in ceulen-dsh, no upstream counterpart: an optional second memory family on the Munin wire protocol, pinned to one self-hosted server. Resolves AGENTMEM_* env > DSH credential store > the agentmem settings section, with no default endpoint, no project config and no write failover: a write never lands in another store by accident. Until it is configured its tools are held behind ceulen_tools and cost no prompt bytes. Reads (search/get/list/recent) and the first-turn brief fall back to the configured Munin after one bounded attempt and label the answer. The Memory Protocol section lives in this module and names the store that is configured: Munin when it is, AgentMem when that is the only one. share copies memories by key into other projects on the same server and is capability-gated: a server without share answers with a clean FEATURE_DISABLED.",
       "rowId": "ceulen-agentmem"
     },
     {
@@ -73,9 +73,9 @@
       "name": "munin",
       "category": "Memory",
       "status": "port",
-      "dsh": "munin_search/get/store/list/recent/share/delete/capabilities/versions/diff/rollback; /munin-status; optional first-turn brief (munin.brief, off by default). The cloud backup: no prompt section of its own — munin_store mirrors at session end and search/get serve the read fallback",
+      "dsh": "munin_search/get/store/list/recent/share/delete/capabilities/versions/diff/rollback; /munin-status; optional first-turn brief (munin.brief, off by default); optional failover to a second server (munin.fallback)",
       "phase": 2,
-      "notes": "Now the cloud backup for the AgentMem default store: the Memory Protocol moved to ceulen-agentmem so disabling this module cannot delete the rules. Project config is opt-in because DSH exposes no project-trust predicate to plugins. The brief is pinned+recent memories (recency-filtered, undated dropped) rendered at order 56; /context prints its exact char count.",
+      "notes": "The primary memory store. The Memory Protocol text lives in ceulen-agentmem, so disabling this module cannot delete the rules. Project config is opt-in because DSH exposes no project-trust predicate to plugins. The brief is pinned+recent memories (recency-filtered, undated dropped) rendered at order 56; /context prints its exact char count.",
       "rowId": "ceulen-munin"
     },
     {

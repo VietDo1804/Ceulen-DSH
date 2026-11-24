@@ -163,7 +163,7 @@ export function buildCoreTabs(settings: CeulenSettings, context: ConfigContext, 
           label: 'AgentMem',
           rows: [
             text('agentmem.project', 'Project', settings.agentmem.project, value => { settings.agentmem.project = value }, { placeholder: 'AGENTMEM_PROJECT', description: 'Project id sent with every local-store memory call.' }),
-            text('agentmem.baseUrl', 'Base URL', settings.agentmem.baseUrl, value => { settings.agentmem.baseUrl = value }, { placeholder: 'AGENTMEM_BASE_URL', description: 'opimem server (a local Munin-protocol store). Empty means unconfigured: AgentMem refuses to guess an endpoint.' }),
+            text('agentmem.baseUrl', 'Base URL', settings.agentmem.baseUrl, value => { settings.agentmem.baseUrl = value }, { placeholder: 'AGENTMEM_BASE_URL', description: 'A self-hosted server that speaks the Munin protocol. Empty means unconfigured: AgentMem refuses to guess an endpoint, and its tools stay out of the prompt. Restart DSH after you set it.' }),
             secret(context, 'agentmem.apiKey', 'API key', 'AGENTMEM_API_KEY', "Enter to save to the DSH credential store ('-' clears); AGENTMEM_API_KEY in the environment wins."),
             toggle('agentmem.brief.enabled', 'First-turn brief', settings.agentmem.brief.enabled, value => { settings.agentmem.brief.enabled = value }, {
               description: 'Append pinned + recent local memories as evidence, not instructions. Resolved in the background, so it lands from the first re-composed prompt (usually turn 2).',

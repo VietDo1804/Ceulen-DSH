@@ -196,15 +196,17 @@ export function resetNativeTools(): void {
  * is exposed as `ceulen_<name>` when that alias is free, so the module remains
  * usable alongside a native tool with the same name.
  */
-export function registerToolSafe(ctx: PluginContext, definition: ToolDefinition): RegisteredTool {
+export function registerToolSafe(ctx: PluginContext, definition: ToolDefinition, options: { hold?: boolean } = {}): RegisteredTool {
   // A cold tool costs no schema bytes: it is held in-process and reachable
   // through `ceulen_tools` (search by regex, then call by name).
   try {
     const settings = loadSettingsSync()
     // The dispatcher is the tools module: without it a cold tool would be lost.
-    if (isModuleEnabled('tools', settings) && settings.tools.cold.includes(definition.name)) {
+    // `options.hold`: the module itself keeps the tool out of the prompt, as AgentMem does until it is configured.
+    const listed = settings.tools.cold.includes(definition.name)
+    if (isModuleEnabled('tools', settings) && (listed || options.hold === true)) {
       hold(coldTools, definition)
-      logLine('plugin', `tool ${definition.name} held behind ceulen_tools (tools.cold)`)
+      logLine('plugin', `tool ${definition.name} held behind ceulen_tools (${listed ? 'tools.cold' : 'held by its module'})`)
       return { requested: definition.name, actual: definition.name, renamed: false }
     }
   } catch {

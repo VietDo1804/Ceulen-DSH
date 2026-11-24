@@ -1,8 +1,9 @@
 // AgentMem config resolution.
 //
 // The Munin vendor resolver reads MUNIN_* / the `munin` section and a trusted
-// project file; AgentMem must do none of those — it is pinned to one opimem
-// server, so there is no default endpoint, no project file and no fallback.
+// project file; AgentMem must do none of those — it is pinned to one
+// self-hosted server, so there is no default endpoint, no project file and no
+// fallback.
 // Only the three-field precedence and the vendor URL validator are shared.
 
 import { credential } from '../../core/credentials.js'
