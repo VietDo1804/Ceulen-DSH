@@ -54,16 +54,15 @@ exact `dsh plugin` invocation without touching anything.
 With only a tarball, no wrapper is required:
 
 ```sh
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.9.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.10.tgz
 dsh --profile tui
 ```
 
 Inside DSH, follow the first-run wizard (or run `/setup`), add your credentials
 with `/provider`, and select a model with `/model` before sending prompts.
 Then check `/ceulen` and `/ceulen doctor`. No credentials are included.
-`ceulen-dsh` is not published on npm yet; installing by its bare package name
-returns 404. Build from the [source checkout](../README.md#build-from-source)
-or obtain a built tarball from its maintainer.
+`ceulen-dsh` is also on npm: with registry access, `ceulen-dsh` in place of the
+`file:` path installs the latest release, and no tarball is needed.
 
 The pinned upstream TUI can emit `dsh-working-activity` peer warnings and
 `tool-ralph` / `tool-subagent-list-agents` patch-entry warnings. The isolated
@@ -184,5 +183,5 @@ cd .. && npm publish # from the repo root, after ./release/build.sh
 |---|---|---|
 | Local tarball | `dsh plugin add file:…` | works today, verified clean-room |
 | HTTPS tarball | `dsh plugin add https://…` | works today, verified against a local HTTP server |
-| npm registry | `dsh plugin add ceulen-dsh` | not published yet; `/ceulen upgrade` and the startup check already target it |
+| npm registry | `dsh plugin add ceulen-dsh` | published since 0.2.10; `/ceulen update` and the startup check read its `stable` dist-tag |
 | git URL | `dsh plugin add git+https://…` | **not supported**: `lib/` is gitignored and pnpm does not rebuild it on install |

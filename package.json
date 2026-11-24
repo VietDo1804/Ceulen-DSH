@@ -1,6 +1,6 @@
 {
   "name": "ceulen-dsh",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "release": {
     "line": "stable",
     "distTag": "stable"
@@ -8,6 +8,15 @@
   "description": "Ceulen for DeepSeek Harness: router/model tooling, memory, rules, review, web, A2A and an upstream release watcher in one bundle.",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VietDo1804/Ceulen-DSH.git"
+  },
+  "homepage": "https://github.com/VietDo1804/Ceulen-DSH#readme",
+  "bugs": {
+    "url": "https://github.com/VietDo1804/Ceulen-DSH/issues"
+  },
+  "keywords": ["dsh", "deepseek", "deepseek-harness", "ceulen", "coding-agent", "plugin"],
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "exports": {

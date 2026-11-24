@@ -26,6 +26,7 @@ from Ceulen (MIT), and each feature gets a thin DSH adapter.
 - [Credential safety](#credential-safety)
 - [Upstream releases](#upstream-releases)
 - [Development](#development)
+- [Special thanks](#special-thanks)
 - [License](#license)
 
 ## Highlights
@@ -57,27 +58,39 @@ provider with `/provider`.
 
 ## Install
 
-`ceulen-dsh` is not on npm yet (`dsh plugin add ceulen-dsh` returns 404), so
-install it from a tarball. The tarball is already compiled and has no runtime
-dependencies.
+`ceulen-dsh` is on [npm](https://www.npmjs.com/package/ceulen-dsh). The
+package is already compiled and has no runtime dependencies.
 
-### Install a release (no build)
-
-Download `ceulen-dsh-<version>.tgz` from the
-[Releases](https://github.com/VietDo1804/Ceulen-DSH/releases) page, then:
+### Install from npm
 
 ```sh
 npm install -g @deepseek-ai/dsh@0.2.2-rc.1
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.9.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 ceulen-dsh
+dsh --profile tui
+```
+
+DSH has no `tui` template, so the second command installs two things into the
+`tui` profile: the TUI app and this bundle. A plugin is installed with
+`dsh plugin`, which runs the package manager inside the profile and mounts
+the bundle there; a plain `npm install ceulen-dsh` only downloads it.
+
+To pin a release, name it: `ceulen-dsh@0.2.10`.
+
+### Install a release tarball
+
+For a machine without registry access, download `ceulen-dsh-<version>.tgz`
+from the [Releases](https://github.com/VietDo1804/Ceulen-DSH/releases) page,
+then:
+
+```sh
+npm install -g @deepseek-ai/dsh@0.2.2-rc.1
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.10.tgz
 dsh --profile tui
 ```
 
 An HTTPS tarball URL works in place of `file:...`. Do not install from a Git
 URL: the compiled `lib/` directory is not committed. Checksums and installer
 options are in [release/README.md](release/README.md).
-
-DSH has no `tui` template, so the command above installs two things into the
-`tui` profile: the TUI app and this bundle.
 
 ### Build from source
 
@@ -88,13 +101,13 @@ npm ci --include=dev
 ./release/build.sh
 
 # Install BOTH the TUI app and this bundle into a new profile.
-./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.9.tgz"
+./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.10.tgz"
 dsh --profile tui
 ```
 
 The installer creates the profile under `${DSH_HOME:-$HOME/.dsh}/profiles/tui`
 and does not replace an existing profile's settings. To share the build, send
-`release/ceulen-dsh-0.2.9.tgz`; the other machine needs no clone and no build.
+`release/ceulen-dsh-0.2.10.tgz`; the other machine needs no clone and no build.
 
 ### Develop from a checkout
 
@@ -121,15 +134,16 @@ not hot-reload.
 /ceulen doctor   # compatibility and optional-backend diagnostics
 ```
 
-`/ceulen` shows the release line (`ceulen-dsh 0.2.9 (stable)`), the pinned
+`/ceulen` shows the release line (`ceulen-dsh 0.2.10 (stable)`), the pinned
 Ceulen version, and which modules are mounted. The bundle composes 34 rows.
 
-To upgrade, install a newer tarball into the same profile and restart. Your
-settings are kept.
+To upgrade, run `dsh plugin --profile tui add ceulen-dsh@latest` (or install a
+newer tarball into the same profile) and restart. Your settings are kept.
+`/ceulen update` tells you when a newer release is out.
 
 ### Release line
 
-`package.json` carries this bundle's own version (`0.2.9`) plus
+`package.json` carries this bundle's own version (`0.2.10`) plus
 `release: { line: "stable", distTag: "stable" }`. The upstream Ceulen version it
 tracks lives in `upstream.lock.json` (`0.23.0`). The update check follows the
 `stable` npm dist-tag only, and reports `unknown` when that tag is missing
@@ -867,6 +881,12 @@ composed profile without touching `~/.dsh`.
 `npm run bench:search -- --max 8` compares Brave with DeepSeek's own search on
 the same queries. Brave needs `BRAVE_API_KEY`; the DeepSeek side needs
 `DEEPSEEK_API_KEY` or a signed-in account.
+
+## Special thanks
+
+Special thanks to my big brother, [Ceulen](https://github.com/ceulen-dev/ceulen).
+ceulen-dsh follows its design, and the logic vendored from it (MIT) is the base
+this port is built on.
 
 ## License
 
