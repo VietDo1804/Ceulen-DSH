@@ -262,6 +262,19 @@ export function lookupReplacements(command: string): Replacement[] | undefined {
   return calls.length > 0 ? calls : undefined
 }
 
+/**
+ * True when the user's own latest message carries `command` itself, whitespace
+ * aside: "run \`grep -rn TODO src\` and paste the output", a runbook step they
+ * quoted. They asked for that command's output, so it runs; a redirect here
+ * would put the harness's preference above an explicit instruction.
+ */
+export function askedVerbatim(request: string | undefined, command: string): boolean {
+  if (request === undefined) return false
+  const flat = (text: string): string => text.replace(/\s+/g, ' ').trim()
+  const wanted = flat(command)
+  return wanted.length >= 4 && flat(request).includes(wanted)
+}
+
 /** The deny text: the exact replacement, and why it is better. Never a way to switch the check off. */
 export function redirectText(command: string, calls: readonly Replacement[]): string {
   const shown = command.length > 160 ? `${command.slice(0, 159)}…` : command

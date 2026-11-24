@@ -3,10 +3,10 @@
   "upstream": {
     "package": "ceulen",
     "repo": "ceulen-dev/ceulen",
-    "version": "0.23.0",
-    "commit": "ee0187ea923ee815615e984044788f2adb493e6e",
-    "tarball": "https://registry.npmjs.org/ceulen/-/ceulen-0.23.0.tgz",
-    "syncedAt": "2026-10-23T00:00:00.000Z"
+    "version": "0.31.0",
+    "commit": "28fe08a1465c1e2d4258974ccef96a77ab54fdca",
+    "tarball": "https://registry.npmjs.org/ceulen/-/ceulen-0.31.0.tgz",
+    "syncedAt": "2026-11-24T06:14:05.764Z"
   },
   "vendored": {
     "src/vendor/ceulen/rules/rules.ts": {

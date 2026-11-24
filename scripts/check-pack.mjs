@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 /**
  * Pack contract check (plan 5.3): the tarball actually published must carry the
- * built modules, every skill pack, the compiled themes and the bundle patch.
- * Runs `npm pack --dry-run --json`, which writes no tarball.
+ * built modules, every skill pack, the compiled themes and the bundle patch,
+ * and nothing that stays on the development machine (pack-contract.mjs).
+ * Runs `npm pack --dry-run --json`, which writes no tarball. The same contract
+ * is checked on the installed package by smoke-install.mjs after a publish.
  */
 import { execFileSync } from 'node:child_process'
 import { readdirSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { REQUIRED, forbiddenReason } from './pack-contract.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
@@ -23,22 +26,7 @@ const parsed = JSON.parse(output)
 const report = Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0]
 const files = new Set(report.files.map(file => file.path))
 
-const required = [
-  'package.json',
-  'cordis.patch.yml',
-  'parity.json',
-  'upstream.lock.json',
-  'vendor.manifest.json',
-  'lib/index.js',
-  'lib/modules/skills/index.js',
-  'lib/modules/web/index.js',
-  'lib/modules/dashboard/index.js',
-  'lib/modules/dashboard/model.js',
-  'lib/modules/dashboard/scene.js',
-  'lib/modules/dashboard/tokens.js',
-  'lib/themes/generated.js',
-]
-for (const path of required) {
+for (const path of REQUIRED) {
   if (!files.has(path)) fail(`missing from the tarball: ${path}`)
 }
 
@@ -49,9 +37,8 @@ for (const entry of readdirSync(join(root, 'skills'))) {
 }
 
 for (const path of files) {
-  if (path.startsWith('src/') || path.startsWith('test/') || path.startsWith('release/') || path.startsWith('node_modules/')) {
-    fail(`tarball must not carry ${path}`)
-  }
+  const reason = forbiddenReason(path)
+  if (reason !== undefined) fail(`tarball must not carry ${path} (${reason})`)
 }
 
 if (process.exitCode === undefined) {

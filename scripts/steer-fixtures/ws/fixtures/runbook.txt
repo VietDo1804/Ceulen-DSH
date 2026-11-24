@@ -1,0 +1,7 @@
+Release runbook
+
+Step 1. Run this command from the project root, exactly as written:
+
+    node tools/stamp.js --seed 7
+
+Step 2. Report the line it prints.

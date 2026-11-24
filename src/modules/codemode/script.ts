@@ -1,6 +1,7 @@
-import { writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { ceulenHome, packageFile } from '../../core/paths.js'
 import { editDistance } from '../../core/tools.js'
 
 /** The script's return + console block budget, and its bounds. */
@@ -61,22 +62,95 @@ export function parseOptionsLine(code: string): ScriptOptions {
 
 let spillSequence = 0
 
+/** Spilled outputs older than this are removed when the next one is written. */
+const SPILL_MAX_AGE_MS = 48 * 60 * 60 * 1000
+
+/**
+ * Where a spilled output goes: `$DSH_HOME/ceulen/spill`, not the OS temp
+ * directory. The workspace-write sandbox gives the shell a private, empty
+ * `/tmp` (bwrap `--tmpfs /tmp`), so a file the harness wrote there does not
+ * exist for the bash call that is told to read it back. The home directory is
+ * bound read-only into every sandbox mode. Old files are dropped here because
+ * nothing else cleans this directory. Falls back to the temp directory when
+ * the home cannot be written.
+ */
+export function spillDirectory(now = Date.now()): string {
+  const dir = join(ceulenHome(), 'spill')
+  try {
+    mkdirSync(dir, { recursive: true, mode: 0o700 })
+    for (const name of readdirSync(dir)) {
+      if (!name.startsWith('codemode-output-')) continue
+      const path = join(dir, name)
+      if (now - statSync(path).mtimeMs > SPILL_MAX_AGE_MS) rmSync(path, { force: true })
+    }
+    return dir
+  } catch {
+    return tmpdir()
+  }
+}
+
+/** Bounds of one part when a spilled output is read back. */
+export const MIN_SPILL_PART = 100
+export const MAX_SPILL_PART = 8_000
+
+/** `index`, moved back by one when it would fall between the two halves of a surrogate pair. */
+export function safeCut(text: string, index: number): number {
+  if (index <= 0) return 0
+  if (index >= text.length) return text.length
+  const before = text.charCodeAt(index - 1)
+  const after = text.charCodeAt(index)
+  return before >= 0xd800 && before <= 0xdbff && after >= 0xdc00 && after <= 0xdfff ? index - 1 : index
+}
+
+/**
+ * Characters per part when a spilled output is read back under budget `cap`.
+ * 0.4 of the budget: a part that comes back through codemode again, as a JSON
+ * string with every character escaped to two, still fits, so reading a spill
+ * can never produce the next spill.
+ */
+export function spillPartChars(cap: number): number {
+  return clamp(Math.floor(cap * 0.4), MIN_SPILL_PART, MAX_SPILL_PART)
+}
+
+function shellArg(value: string): string {
+  return /^[\w@%+=:,./-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`
+}
+
+/** The command that prints part `part` (1-based) of a spilled output: scripts/spill-page.mjs. */
+export function spillPageCommand(path: string, part: number, chars: number): string {
+  return [process.execPath, packageFile('scripts', 'spill-page.mjs'), path, String(part), String(chars)].map(shellArg).join(' ')
+}
+
 /**
  * Pi's max_output_tokens shape: keep the head and tail of an oversized
  * return+console block, note how much was cut, and spill the full text to a
- * temp file whose path stays in the result. The runtime's hard byte cap
+ * file (see spillDirectory) whose path stays in the result. The runtime's hard byte cap
  * (output-limit) never fires for a model that stays anywhere near the budget.
+ *
+ * The notice names a command that reads the cut back, because the obvious
+ * moves fail: `read` caps long lines and a JSON result is one line, `cat`
+ * returns the whole file over the budget again, and a byte cut splits
+ * multi-byte characters. Parts are sized from the active budget.
  */
 export function applyOutputBudget(valueText: string, consoleBlock: string, cap: number): string {
   const full = [valueText, consoleBlock].filter(part => part.length > 0).join('\n')
   if (full.length <= cap) return full
-  const head = Math.floor(cap / 2)
-  const tail = Math.ceil(cap / 2)
-  const omitted = full.length - head - tail
-  const spillPath = join(tmpdir(), `codemode-output-${Date.now()}-${++spillSequence}.txt`)
+  const head = safeCut(full, Math.floor(cap / 2))
+  const tailStart = safeCut(full, full.length - Math.ceil(cap / 2))
+  const omitted = tailStart - head
+  const spillPath = join(spillDirectory(), `codemode-output-${Date.now()}-${++spillSequence}.txt`)
   writeFileSync(spillPath, full, { mode: 0o600 })
-  const marker = `\n… ${omitted} chars omitted; full output: ${spillPath} …\n`
-  return full.slice(0, head) + marker + full.slice(full.length - tail)
+  const chars = spillPartChars(cap)
+  const first = Math.floor(head / chars) + 1
+  const last = Math.floor((tailStart - 1) / chars) + 1
+  const marker = [
+    '',
+    `… ${omitted} chars omitted; full output: ${spillPath}`,
+    `The cut is in ${first === last ? `part ${first}` : `parts ${first}-${last}`} of ${Math.ceil(full.length / chars)} (${chars} chars each). Read one part with a direct bash call, not inside codemode: ${spillPageCommand(spillPath, first, chars)}`,
+    'Or run the script again and return only what you need. …',
+    '',
+  ].join('\n')
+  return full.slice(0, head) + marker + full.slice(tailStart)
 }
 
 /**

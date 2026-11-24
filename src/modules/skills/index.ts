@@ -100,7 +100,7 @@ export function apply(ctx: PluginContext): void {
           provider: 'ceulen-dsh',
           path: file,
           resourceBase: { kind: 'directory', path: dir },
-          metadata: { upstream: 'ceulen', upstreamVersion: '0.23.0' },
+          metadata: { upstream: 'ceulen', upstreamVersion: '0.31.0' },
         })
         registered += 1
         if (candidate !== skillName) logLine('skills', `${skillName} collided; registered as ${candidate}`)

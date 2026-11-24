@@ -4,10 +4,11 @@ import { clampText, registerCommandSafe, registerPromptSection, errorMessage } f
 import { logLine } from '../../core/log.js'
 import { agentRoute, routeWanted } from '../../core/route.js'
 import { randomUUID } from 'node:crypto'
-import { lookupReplacements, redirectText } from './bash-search.js'
+import { askedVerbatim, lookupReplacements, redirectText } from './bash-search.js'
 import { captureRedirectText, chromeScreenshotCalls } from './bash-capture.js'
 import { PLAYBOOK } from './playbook.js'
 import { heldToolsNote, installRouteVariants } from '../../core/variants.js'
+import { userTextOf, UserWords } from '../../core/user-words.js'
 
 export const name = 'ceulen-steering'
 
@@ -100,9 +101,19 @@ export function apply(ctx: PluginContext): void {
   // re-issued unchanged after a redirect runs: the model has a reason the
   // dedicated tool cannot cover (a binary file, a pattern ripgrep rejects…).
   const redirected = new Map<string, Set<string>>()
+  // A command the user typed out themselves is not redirected: only real user
+  // messages and delegation briefs count (core/user-words.ts), never tool output.
+  const words = new UserWords()
+  ctx.on('session/event', (session: { id?: unknown } | undefined, event: { type?: string; data?: unknown } | undefined) => {
+    if (event?.type !== 'agent/inbox/spliced' || session?.id === undefined) return
+    const text = userTextOf(event.data)
+    if (text !== undefined) words.request(String(session.id), text)
+  })
   ctx.on('agent/disposed', (payload: { agent?: AgentLike } | undefined) => {
     const id = payload?.agent?.session?.id
-    if (id !== undefined) redirected.delete(String(id))
+    if (id === undefined) return
+    redirected.delete(String(id))
+    words.forget(String(id))
   })
   ctx.on('tools/pre-execute', async (exec: { name?: string; arguments?: unknown; agent?: unknown }, next: () => Promise<unknown>) => {
     if (exec?.name !== 'bash') return next()
@@ -115,6 +126,10 @@ export function apply(ctx: PluginContext): void {
       const shot = calls === undefined ? chromeScreenshotCalls(command) : undefined
       if (calls === undefined && shot === undefined) return next()
       const session = String((exec.agent as Partial<AgentLike> | undefined)?.session?.id ?? '')
+      if (askedVerbatim(words.get(session).request, command)) {
+        logLine('steering', `bash ${shot === undefined ? 'lookup' : 'screenshot'} named by the user, allowed: ${clampText(command, 160)}`)
+        return next()
+      }
       const seen = redirected.get(session) ?? new Set<string>()
       if (seen.has(command)) {
         logLine('steering', `bash ${shot === undefined ? 'lookup' : 'screenshot'} re-issued, allowed: ${clampText(command, 160)}`)

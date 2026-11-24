@@ -21,11 +21,30 @@ function fail(message) {
   process.exitCode = 1
 }
 
+/**
+ * Harness rows the bundle patch reconfigures instead of inserting. Each one
+ * changes how DSH itself behaves for everyone who installs the bundle, so a
+ * new top-level entry has to be named here before the check passes.
+ */
+const HARNESS_OVERRIDES = new Set(['spill-local'])
+
+/** Top-level `- id:` entries: overrides of rows another bundle owns. */
+function parseOverrides(text) {
+  return [...text.matchAll(/^-\s*id:\s*([A-Za-z0-9._-]+)\s*$/gm)].map(match => match[1])
+}
+
+/** The rows of the insert list: indented `- id:` entries. */
 function parseRows(text) {
   const rows = []
   let current
   for (const line of text.split(/\r?\n/)) {
-    const id = /^\s*-\s*id:\s*([A-Za-z0-9._-]+)\s*$/.exec(line)
+    if (/^\S/.test(line)) {
+      // A top-level entry ends the row above it; it is an override or the insert list itself.
+      if (current !== undefined) rows.push(current)
+      current = undefined
+      continue
+    }
+    const id = /^\s+-\s*id:\s*([A-Za-z0-9._-]+)\s*$/.exec(line)
     if (id !== null) {
       if (current !== undefined) rows.push(current)
       current = { id: id[1] }
@@ -41,6 +60,9 @@ function parseRows(text) {
 const patch = await readFile(join(root, 'cordis.patch.yml'), 'utf8')
 const rows = parseRows(patch)
 if (rows.length === 0) fail('cordis.patch.yml contains no rows')
+for (const id of parseOverrides(patch)) {
+  if (!HARNESS_OVERRIDES.has(id)) fail(`cordis.patch.yml overrides the harness row "${id}", which scripts/check-bundle.mjs does not list`)
+}
 
 const seen = new Set()
 for (const row of rows) {

@@ -1,6 +1,7 @@
 # ceulen-dsh bundle patch.
 #
-# One insert list applied over the profile root. Every row is its own Cordis
+# An insert list applied over the profile root, then the few harness rows the
+# bundle reconfigures (listed in scripts/check-bundle.mjs). Every inserted row is its own Cordis
 # plugin entry point (`ceulen-dsh/modules/<name>`), so a broken or unwanted
 # module can be disabled by row id without touching the others:
 #
@@ -81,3 +82,21 @@
       name: 'ceulen-dsh/modules/goal-retry'
     - id: ceulen-notebooklm
       name: 'ceulen-dsh/modules/notebooklm'
+
+# Where DSH keeps a tool result that was too large for the prompt
+# (spill-local). Its default is a fresh directory under the OS temp directory,
+# and the workspace-write sandbox hides that from the shell: bwrap mounts a
+# private /tmp. The notice then names a path that `bash` cannot open, and a
+# model that reaches for grep or sed there concludes the result is gone
+# (measured 2026-11-24 on a one-line JSON result). Under $DSH_HOME the path is
+# readable in every sandbox mode; files older than a week go at startup. For
+# the stock behaviour, put `- id: spill-local` with `config: {}` in your
+# profile patch.
+- id: spill-local
+  config: !!js >-
+    (() => {
+      const os = process.getBuiltinModule('node:os')
+      const path = process.getBuiltinModule('node:path')
+      const home = (process.env.DSH_HOME ?? '').trim()
+      return { root: path.join(home === '' ? path.join(os.homedir(), '.dsh') : home, 'spill'), cleanupPeriodDays: 7 }
+    })()

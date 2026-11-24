@@ -145,7 +145,7 @@ newer tarball into the same profile) and restart. Your settings are kept.
 
 `package.json` carries this bundle's own version (`0.2.11`) plus
 `release: { line: "stable", distTag: "stable" }`. The upstream Ceulen version it
-tracks lives in `upstream.lock.json` (`0.23.0`). The update check follows the
+tracks lives in `upstream.lock.json` (`0.31.0`). The update check follows the
 `stable` npm dist-tag only, and reports `unknown` when that tag is missing
 rather than offering another line as an upgrade. `/ceulen doctor` prints the
 line and dist-tag.
@@ -446,7 +446,7 @@ Every area below is a module. `/ceulen modules` lists them, and
 | RTK | `rtk` tool and `/rtk`: rewrite a supported command, then run it with bash |
 | NotebookLM | `notebooklm` CLI bridge with gates for destructive and login actions |
 | A2A | `a2a_peers`, `a2a_list`, `a2a_call`, `a2a_status`: outbound calls to other agents |
-| Serena | `/serena`: status and the exact MCP row to add |
+| Serena | `/serena`: status and the exact MCP row to add (it follows the installed serena-agent version); `/serena cold` keeps the navigation tools in the list and holds the rest |
 | Tool budget | `/ceulen tools` shows what the tool schemas cost; `tools.cold` holds rarely used tools out of the prompt and `ceulen_tools` finds and calls them on demand |
 
 ### Memory, models and interface
@@ -570,7 +570,10 @@ return results.map(result => result.status === 'fulfilled' ? result.value : Stri
 - Calls resolve to structured values (bash output is `r.stdout.text`; `read`
   returns `{ lines: [{ number, text }] }`).
 - Output past about 6k characters is truncated in the middle and the full text
-  is written to a file named in the result.
+  is written to `$DSH_HOME/ceulen/spill/` (kept 48 hours; not `/tmp`, which a
+  sandboxed shell cannot see: see "Where large tool results go"). The notice says which parts were cut and prints
+  the command that reads one part back (`scripts/spill-page.mjs`), sized to
+  fit the same budget.
 - A first line `// @options: {"timeout_ms": 60000, "max_output_chars": 4000}`
   changes the deadline (default 120 s, max 600 s) and the output budget.
 - `state.store({ key, value })` and `state.load({ key })` keep small JSON
@@ -627,7 +630,8 @@ For routes listed in `steering.models` (default `deepseek-v4.1-flash` and
   when it pays;
 - a bash call that only greps, cats or finds files is not run. The reply names
   the equivalent `grep`, `read` or `glob` call. Sending the same command again
-  runs it. `steering.bashLookups: "off"` disables this;
+  runs it, and so does a command you typed out yourself in your message.
+  `steering.bashLookups: "off"` disables this;
 - a bash call that only takes headless-Chrome screenshots is redirected to
   `web_screenshot` the same way;
 - `web_interact` gains named browser sessions, a `hover` step, `text=Label`
@@ -904,6 +908,24 @@ node scripts/ceulen-sync.mjs bump --version <new>
 Files marked `patched` are never overwritten; they become a manual-merge
 report. Nothing from upstream is executed.
 
+## Where large tool results go
+
+DSH cuts a tool result that is too large for the prompt and stores the full
+text in a file named in the result (`spill-local`). Its default place is a
+fresh directory under the OS temp directory. In the workspace-write sandbox
+the shell gets a private, empty `/tmp`, so `bash` cannot open that file: the
+`read` and `grep` tools still can, but a model that reaches for `grep -o` or
+`sed` on a one-line JSON result is told the file does not exist.
+
+The bundle therefore sets the spill root to `$DSH_HOME/spill`, which every
+sandbox mode can read, and removes files older than seven days at startup.
+For the stock behaviour, add this to your profile's `cordis.patch.yml`:
+
+```yaml
+- id: spill-local
+  config: {}
+```
+
 ## Development
 
 ```sh
@@ -920,6 +942,23 @@ runs from the full development checkout.
 
 `./scripts/dev-profile.sh` creates a workspace-local `DSH_HOME` and prints the
 composed profile without touching `~/.dsh`.
+
+Two checks run by hand, because they need the network or a model:
+
+```sh
+node scripts/smoke-install.mjs <version>   # after a publish: install it and check the payload
+node scripts/steer-fixtures.mjs            # after a steering change: six cold tasks on the model
+```
+
+`smoke-install` installs the published package into a throwaway directory and
+fails unless the version, the required files and the skill packs are there and
+nothing private is (`docs/`, `test/`, `src/`, the personal agent-mode plugin,
+a path under your home directory). `--tarball <file>` checks a local tarball
+the same way before the publish.
+
+`steer-fixtures` runs six one-shot tasks with steering on, off and unloaded,
+each under its own `DSH_HOME`, and exits non-zero when steering on scores below
+the best loadout without it. It spends about 18 short model calls.
 
 `npm run bench:search -- --max 8` compares Brave with DeepSeek's own search on
 the same queries. Brave needs `BRAVE_API_KEY`; the DeepSeek side needs

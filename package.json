@@ -62,6 +62,8 @@
     "test:watch": "vitest",
     "check": "npm run lint && node --test scripts/tui-*-patch.test.mjs && npm run build && node scripts/check-web-regressions.mjs && npm run typecheck:strict && npm run typecheck:test && npm run test:cov && node scripts/check-bundle.mjs && node scripts/check-pack.mjs && node scripts/ceulen-sync.mjs parity --check",
     "bench:search": "node scripts/bench-search.mjs",
+    "steer:fixtures": "node scripts/steer-fixtures.mjs",
+    "smoke:install": "node scripts/smoke-install.mjs",
     "evo": "node scripts/evo-distill.mjs",
     "evo:report": "node scripts/evo-report.mjs",
     "evo:drain": "node scripts/evo-report.mjs --drain",

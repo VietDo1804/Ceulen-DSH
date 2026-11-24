@@ -339,7 +339,10 @@ async function analyze(target) {
   // "missing from the target" banner must not name them. `context` and `evo` are
   // DSH-only (parity status native); `codemode`/`skills`/`themes`/`upstream` are
   // renamed or bundle-owned. A new DSH-only module belongs here too.
-  const extras = new Set(['themes', 'skills', 'upstream', 'codemode', 'context', 'evo'])
+  const extras = new Set([
+    'themes', 'skills', 'upstream', 'codemode', 'context', 'evo',
+    'agentmem', 'goal-retry', 'agentbar', 'notebooklm', 'dashboard', 'tools',
+  ])
   const newModules = upstream.modules.filter(name => !classified.has(name))
   const removedModules = parity.modules
     .map(module => module.name)

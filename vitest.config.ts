@@ -7,7 +7,7 @@ export default defineConfig({
     testTimeout: 15_000,
     hookTimeout: 15_000,
     restoreMocks: true,
-    setupFiles: ['test/setup-flush-logs.ts'],
+    setupFiles: ['test/setup-env.ts', 'test/setup-flush-logs.ts'],
     // 'list' runs afterEach hooks in registration order, so the setup file's
     // log flush runs before each test file's own cleanup.
     sequence: { hooks: 'list' },

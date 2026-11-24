@@ -3,8 +3,8 @@
   "upstream": {
     "package": "ceulen",
     "repo": "ceulen-dev/ceulen",
-    "version": "0.23.0",
-    "commit": "ee0187ea923ee815615e984044788f2adb493e6e"
+    "version": "0.31.0",
+    "commit": "28fe08a1465c1e2d4258974ccef96a77ab54fdca"
   },
   "modules": [
     {
@@ -93,7 +93,7 @@
       "status": "partial",
       "dsh": "native subagent, subagent_fork, send_message, workflow, list_agents; `delegate` role presets (planner, reviewer, scout, tester, worker) with function-based provider/model routing; optional `schema` reply contract and the `validate_schema` tool; /subagent; inside a Herdr pane `delegate` takes `runner: \"herdr\"` (headless DSH child in a visible pane, blocking, result.json evidence)",
       "phase": 6,
-      "notes": "Role personas and model routing port from Ceulen. The child runs with the parent's DSH preset, so per-role tool allowlists, sandbox, and timeouts stay advisory; fan-out uses native workflow, and the worktree sandbox remains unported. Typed delegation ships the reply contract in the child prompt plus `validate_schema` for the parent: the subagent service exposes no final-text hook, so the adapter does not validate in place. The herdr runner is the only path with a real sandbox per role (read-only for planner/reviewer/scout, workspace-write for tester/worker, read-only in plan mode).",
+      "notes": "Role personas and model routing port from Ceulen. The child runs with the parent's DSH preset, so per-role tool allowlists, sandbox, and timeouts stay advisory; fan-out uses native workflow, and the worktree sandbox remains unported. Typed delegation ships the reply contract in the child prompt plus `validate_schema` for the parent: the subagent service exposes no final-text hook, so the adapter does not validate in place. The herdr runner is the only path with a real sandbox per role (read-only for planner/reviewer/scout, workspace-write for tester/worker, read-only in plan mode). Upstream's other pane backends (herdr-app in 0.27, Rex in 0.28) are not ported: the runner drives the herdr TUI only.",
       "rowId": "ceulen-subagent"
     },
     {
@@ -113,6 +113,14 @@
       "phase": 0,
       "notes": "Ceulen-DSH-only recovery over the native goal services. DSH's goal-round driver stops for good on agent/error and pauses a cancelled goal round; this module re-arms the same goal after 5/10/20/40/60 s, at most 5 times per failure streak, and counts agent/error + turn/end of one turn as one failure. Re-arming is goals.resume(), which the driver's own goal/changed listener turns into the next round, so round budget, revision fence and checkpoint stay native. A completed turn resets the streak; /goal pause|edit|complete|block|clear cancels the pending retry; exhaustion blocks with recovery-exhausted, and a human /goal resume grants a fresh 5-attempt budget (the module's own re-arm keeps the streak, or the cap would never bind). The harness is never patched. /ceulen module off goal-retry restores stock behaviour.",
       "rowId": "ceulen-goal-retry"
+    },
+    {
+      "name": "goal",
+      "category": "Tasks",
+      "status": "native",
+      "dsh": "native /goal with the goal-round driver and the goal tools",
+      "phase": 0,
+      "notes": "Upstream added an autonomous goal mode in 0.25.0. The Harness already ships one (dsh-goal, dsh-goal-round-driver, dsh-tool-goal), so nothing is ported; goal-retry adds recovery on top."
     },
     {
       "name": "a2a",
@@ -165,16 +173,16 @@
       "status": "partial",
       "dsh": "apply_patch, read_slice, conflict footer, destructive bash audit",
       "phase": 3,
-      "notes": "The built-in edit tool is not wrapped; DSH already has read-before-write and atomic edits.",
+      "notes": "The built-in edit tool is not wrapped; DSH already has read-before-write and atomic edits. What upstream 0.29–0.30 added to its repair module (persistentBash, spillMaxTokens, repeatReminder, clock) is Harness-native here and not ported: dsh-tool-bash-persistent, dsh-spill-policy, dsh-repeat-tool-reminder and dsh-time-context. The bundle patch moves the spill-local root from the OS temp directory to $DSH_HOME/spill, because the workspace-write sandbox hides /tmp from the shell.",
       "rowId": "ceulen-repair"
     },
     {
       "name": "serena",
       "category": "Tools",
       "status": "config",
-      "dsh": "/serena MCP recipe + status (native dsh-mcp-client)",
+      "dsh": "/serena MCP recipe + status (native dsh-mcp-client); /serena cold holds the editing, memory and onboarding tools behind ceulen_tools",
       "phase": 5,
-      "notes": "No bundled Python worker; Serena runs as a native MCP server after adding the printed row.",
+      "notes": "No bundled Python worker; Serena runs as a native MCP server after adding the printed row. The row follows the installed version: serena-agent 2 answers a new config with one serena_repl tool, so the recipe adds --agent-interface tools there (checked on 1.5.3 and 2.1.0). Like upstream 0.28.1, the navigation tools stay in the tool list.",
       "rowId": "ceulen-serena"
     },
     {
@@ -279,7 +287,7 @@
       "status": "partial",
       "dsh": "GLM/DeepSeek family hints and retry guidance",
       "phase": 3,
-      "notes": "DSH owns reasoning levels and its own error taxonomy; only Ceulen-specific hints are ported.",
+      "notes": "DSH owns reasoning levels and its own error taxonomy; only Ceulen-specific hints are ported. Upstream's ds-anchor first-request bootstrap (added in 0.28.2, deleted in 0.29.0 after it measured worse on cold fixtures) was never ported; scripts/steer-fixtures.mjs holds the cold fixtures used here.",
       "rowId": "ceulen-steering"
     },
     {

@@ -92,9 +92,11 @@ cd release && sha256sum -c SHA256SUMS
 
 `lib/` (compiled modules + 104 themes + vendored Ceulen files), `skills/`
 (20 skill packs), `scripts/` (TUI patches, sync/parity tooling),
-`cordis.patch.yml` (34 composed rows), `parity.json`, `docs/`, `README.md`,
+`cordis.patch.yml` (34 composed rows), `parity.json`, `README.md`,
 LICENSE/NOTICE. `devDependencies` are not needed at runtime and are not
-installed. `node scripts/check-pack.mjs` asserts that the tarball holds these.
+installed. `node scripts/check-pack.mjs` asserts that the tarball holds these
+and none of what stays on the development machine (`src/`, `test/`, `docs/`,
+the personal agent-mode plugin): the list is `scripts/pack-contract.mjs`.
 
 ## Upgrade
 
@@ -175,6 +177,14 @@ prerelease version becomes the default `latest` and `add ceulen-dsh` resolves it
 ```sh
 npm login            # this machine's token is currently rejected (401)
 cd .. && npm publish # from the repo root, after ./release/build.sh
+```
+
+Before the publish, check the tarball the way a user will get it; after it,
+check what the registry serves. Both exit non-zero on any wrong answer:
+
+```sh
+node scripts/smoke-install.mjs <version> --tarball release/ceulen-dsh-<version>.tgz
+node scripts/smoke-install.mjs <version>   # once npm shows the version
 ```
 
 ## Publishing options
