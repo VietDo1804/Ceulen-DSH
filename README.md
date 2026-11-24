@@ -74,7 +74,7 @@ DSH has no `tui` template, so the second command installs two things into the
 `dsh plugin`, which runs the package manager inside the profile and mounts
 the bundle there; a plain `npm install ceulen-dsh` only downloads it.
 
-To pin a release, name it: `ceulen-dsh@0.2.11`.
+To pin a release, name it: `ceulen-dsh@0.2.12`.
 
 ### Install a release tarball
 
@@ -84,7 +84,7 @@ then:
 
 ```sh
 npm install -g @deepseek-ai/dsh@0.2.2-rc.1
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.11.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.12.tgz
 dsh --profile tui
 ```
 
@@ -101,13 +101,13 @@ npm ci --include=dev
 ./release/build.sh
 
 # Install BOTH the TUI app and this bundle into a new profile.
-./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.11.tgz"
+./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.12.tgz"
 dsh --profile tui
 ```
 
 The installer creates the profile under `${DSH_HOME:-$HOME/.dsh}/profiles/tui`
 and does not replace an existing profile's settings. To share the build, send
-`release/ceulen-dsh-0.2.11.tgz`; the other machine needs no clone and no build.
+`release/ceulen-dsh-0.2.12.tgz`; the other machine needs no clone and no build.
 
 ### Develop from a checkout
 
@@ -134,7 +134,7 @@ not hot-reload.
 /ceulen doctor   # compatibility and optional-backend diagnostics
 ```
 
-`/ceulen` shows the release line (`ceulen-dsh 0.2.11 (stable)`), the pinned
+`/ceulen` shows the release line (`ceulen-dsh 0.2.12 (stable)`), the pinned
 Ceulen version, and which modules are mounted. The bundle composes 34 rows.
 
 To upgrade, run `dsh plugin --profile tui add ceulen-dsh@latest` (or install a
@@ -143,7 +143,7 @@ newer tarball into the same profile) and restart. Your settings are kept.
 
 ### Release line
 
-`package.json` carries this bundle's own version (`0.2.11`) plus
+`package.json` carries this bundle's own version (`0.2.12`) plus
 `release: { line: "stable", distTag: "stable" }`. The upstream Ceulen version it
 tracks lives in `upstream.lock.json` (`0.31.0`). The update check follows the
 `stable` npm dist-tag only, and reports `unknown` when that tag is missing
