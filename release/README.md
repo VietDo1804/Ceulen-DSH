@@ -34,7 +34,7 @@ Inside the session: `/ceulen` (bundle version + module status) and
 Install Node.js **24.9+** (Node 24 LTS recommended) and the pinned Harness first:
 
 ```sh
-npm install -g @deepseek-ai/dsh@0.2.2-rc.1
+npm install -g @deepseek-ai/dsh@0.2.2-rc.5
 dsh --version
 ```
 
@@ -74,7 +74,7 @@ an authenticated model request. Use `/ceulen doctor` to check your installation.
 | Requirement | Version | Why |
 |---|---|---|
 | Node.js | `>=24.9.0` for a fresh host | pinned DSH CLI requirement; the bundle alone supports `>=22.19`, dsh-tui `^22.19 \|\| >=24` |
-| DSH CLI | `0.2.2-rc.1` | `engines.dsh` (single source in `package.json`); pin it: `npm install -g @deepseek-ai/dsh@0.2.2-rc.1` |
+| DSH CLI | `0.2.2-rc.5` | `engines.dsh` (single source in `package.json`); pin it: `npm install -g @deepseek-ai/dsh@0.2.2-rc.5` |
 | Profile | any; `tui` is the supported one | bundle rows mount into the base composition |
 
 Optional backends stay fail-open — install them only for the features you use:

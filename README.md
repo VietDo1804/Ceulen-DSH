@@ -45,7 +45,7 @@ from Ceulen (MIT), and each feature gets a thin DSH adapter.
 
 ## Requirements
 
-- DSH `0.2.2-rc.1` (the `dsh` CLI and `dsh-tui` 0.20.2 profile)
+- DSH `0.2.2-rc.5` (the `dsh` CLI and `dsh-tui` 0.20.2 profile)
 - Node.js `>=24.9.0` for a fresh installation (required by the pinned DSH CLI; the bundle itself supports `>=22.19`)
 - On Windows, run the commands below in WSL.
 
@@ -64,7 +64,7 @@ package is already compiled and has no runtime dependencies.
 ### Install from npm
 
 ```sh
-npm install -g @deepseek-ai/dsh@0.2.2-rc.1
+npm install -g @deepseek-ai/dsh@0.2.2-rc.5
 dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 ceulen-dsh
 dsh --profile tui
 ```
@@ -83,7 +83,7 @@ from the [Releases](https://github.com/VietDo1804/Ceulen-DSH/releases) page,
 then:
 
 ```sh
-npm install -g @deepseek-ai/dsh@0.2.2-rc.1
+npm install -g @deepseek-ai/dsh@0.2.2-rc.5
 dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.12.tgz
 dsh --profile tui
 ```

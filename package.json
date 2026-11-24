@@ -44,7 +44,7 @@
   ],
   "engines": {
     "node": ">=22.19.0",
-    "dsh": "0.2.2-rc.1"
+    "dsh": "0.2.2-rc.5"
   },
   "dshTui": "0.20.2",
   "publishConfig": {
