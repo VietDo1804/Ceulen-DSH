@@ -95,7 +95,7 @@ export async function checkUpstream(
     }
   }
 
-  const cached = await readUpstreamCache()
+  const cached = againstPinned(await readUpstreamCache(), pinned)
   if (options.offline === true) {
     if (cached !== undefined) return { ...cached, source: 'cache', error: 'offline mode' }
     return { schemaVersion: 1, checkedAt, source: 'pinned', latest: null, pinned, behind: false, error: 'offline mode and no cache' }
@@ -148,11 +148,21 @@ export async function checkUpstream(
   }
 }
 
+/**
+ * A cached check is compared again with the version pinned now: the pin moves
+ * with an upstream sync, and a stale `behind` would keep announcing a release
+ * that is already in.
+ */
+function againstPinned(cached: UpstreamState | undefined, pinned: string): UpstreamState | undefined {
+  if (cached === undefined) return undefined
+  return { ...cached, pinned, behind: cached.latest !== null && isNewer(cached.latest, pinned) }
+}
+
 /** Cheap status read: cache only, falling back to the pinned version. */
 export async function currentUpstreamState(): Promise<UpstreamState> {
-  const cached = await readUpstreamCache()
-  if (cached !== undefined) return cached
   const pinned = readPinnedVersion()
+  const cached = againstPinned(await readUpstreamCache(), pinned)
+  if (cached !== undefined) return cached
   return { schemaVersion: 1, checkedAt: new Date(0).toISOString(), source: 'pinned', latest: pinned, pinned, behind: false }
 }
 
@@ -224,7 +234,7 @@ export async function checkBundleUpdate(
     return { schemaVersion: 1, checkedAt, latest: fake, installed, behind: isNewer(fake, installed) }
   }
 
-  const cached = await readBundleCache()
+  const cached = againstInstalled(await readBundleCache(), installed)
   if (options.offline === true) {
     if (cached !== undefined) return { ...cached, error: 'offline mode' }
     return { schemaVersion: 1, checkedAt, latest: null, installed, behind: false, error: 'offline mode and no cache' }
@@ -274,10 +284,21 @@ export async function checkBundleUpdate(
   }
 }
 
+/**
+ * A cached check is compared again with the bundle installed now: after an
+ * upgrade the cache still says `behind` until it expires, and the status line
+ * announced a release older than the one running (2026-11-25: "bundle 0.2.11
+ * available" on 0.2.12).
+ */
+function againstInstalled(cached: BundleUpdateState | undefined, installed: string): BundleUpdateState | undefined {
+  if (cached === undefined) return undefined
+  return { ...cached, installed, behind: cached.latest !== null && isNewer(cached.latest, installed) }
+}
+
 /** Cheap status read: cache only, falling back to the installed version. */
 export async function currentBundleUpdate(): Promise<BundleUpdateState> {
   const installed = pluginVersion()
-  const cached = await readBundleCache()
+  const cached = againstInstalled(await readBundleCache(), installed)
   if (cached !== undefined) return cached
   return { schemaVersion: 1, checkedAt: new Date(0).toISOString(), latest: installed, installed, behind: false }
 }
