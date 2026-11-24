@@ -1,6 +1,6 @@
 // Measure codemode vs direct tool-call token cost from DSH session logs.
 // Usage: node scripts/analyze-codemode-tokens.mjs [sessionsDir]
-// Default dir: this workspace's DSH sessions. Logs are multi-frame zstd; uses zstdcat.
+// Default dir: the DSH sessions of the directory it is run from. Logs are multi-frame zstd; uses zstdcat.
 import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 
 const base =
   process.argv[2] ||
-  `${process.env.HOME}/.dsh/sessions/--home-vietdo-vietdo_workspace-DHS-ceulen_dhs--`
+  `${process.env.DSH_HOME || `${process.env.HOME}/.dsh`}/sessions/--${process.cwd().replace(/^\//, '').replaceAll('/', '-')}--`
 const cutoff = Number(process.argv[3] ?? 0) // ms epoch; only sessions at/after this are compared per-turn
 
 const sessions = []

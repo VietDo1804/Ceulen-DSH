@@ -96,11 +96,6 @@ export interface CeulenSettings {
   ux: {
     mode: UxMode
   }
-  /** Model routes that switch a session mode on by default. */
-  agentMode: {
-    /** `provider/model[:effort]` routes that load Agent Mode without a command. */
-    models: string[]
-  }
   web: Record<string, unknown>
   a2a: {
     peers: unknown[]
@@ -232,7 +227,6 @@ export function defaultSettings(): CeulenSettings {
     ponytail: { level: 'full' },
     ux: { mode: 'off' },
     // Agent Mode is a translation role: no route loads it by default.
-    agentMode: { models: [] },
     web: {},
     a2a: { peers: [] },
     gh: { enabled: true },
@@ -369,7 +363,6 @@ export function normalizeSettings(raw: unknown, env = true): CeulenSettings {
   const plan = isRecord(raw.plan) ? raw.plan : {}
   const usage = isRecord(raw.usage) ? raw.usage : {}
   const agentbar = isRecord(raw.agentbar) ? raw.agentbar : {}
-  const agentMode = isRecord(raw.agentMode) ? raw.agentMode : {}
 
   const settings: CeulenSettings = {
     ...base,
@@ -433,10 +426,6 @@ export function normalizeSettings(raw: unknown, env = true): CeulenSettings {
     },
     ponytail: { level: oneOf(PONYTAIL_LEVELS, ponytail.level, base.ponytail.level) },
     ux: { mode: oneOf(UX_MODES, ux.mode, base.ux.mode) },
-    agentMode: {
-      // An explicit [] turns the default off; absent keeps the shipped routes.
-      models: Array.isArray(agentMode.models) ? dedupeRoutes(strArray(agentMode.models)) : base.agentMode.models,
-    },
     web: isRecord(raw.web) ? raw.web : {},
     a2a: { peers: Array.isArray(a2a.peers) ? a2a.peers : [] },
     gh: { enabled: bool(gh.enabled, base.gh.enabled) },

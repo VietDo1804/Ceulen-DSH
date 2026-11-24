@@ -8,15 +8,6 @@
   },
   "modules": [
     {
-      "name": "agent-mode",
-      "category": "Workflow",
-      "status": "native",
-      "dsh": "/agent-mode [on|off|status] loads an external AGENTS.md role without changing permissions; configured model routes load it by default",
-      "phase": 0,
-      "notes": "Ceulen-DSH-only role command. Defaults to ~/vietdo_workspace/DHS/agent_mode/AGENTS.md; the plugin path config overrides it. Starts inactive on plugin activation; on reloads the file, off removes the prompt section contents. Missing or empty files disable the role with an error. /ceulen-config -> Model -> Agent Mode lists the provider/model routes that auto-activate it (default opencode-go/deepseek-v4.1-flash and deepseek/deepseek-flash); a /model switch follows the route default until an explicit on/off wins for the live session.",
-      "rowId": "ceulen-agent-mode"
-    },
-    {
       "name": "agentmem",
       "category": "Memory",
       "status": "native",

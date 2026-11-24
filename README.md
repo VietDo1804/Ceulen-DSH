@@ -122,7 +122,7 @@ not hot-reload.
 ```
 
 `/ceulen` shows the release line (`ceulen-dsh 0.2.9 (stable)`), the pinned
-Ceulen version, and which modules are mounted. The bundle composes 35 rows.
+Ceulen version, and which modules are mounted. The bundle composes 34 rows.
 
 To upgrade, install a newer tarball into the same profile and restart. Your
 settings are kept.
@@ -450,7 +450,6 @@ Every area below is a module. `/ceulen modules` lists them, and
 | Config | `/ceulen-config`: full-screen settings panel |
 | Status | `/ceulen`, `/ceulen modules`, `/ceulen tools`, `/ceulen doctor`, `/ceulen update` |
 | Evolve | a weekly audit of past sessions that groups recurring tool errors into a report; `/evo`, `/evo-status` |
-| Agent Mode | `/agent-mode`: loads a translation role from an `AGENTS.md` file you point it to (the plugin's `path` config); off after every restart |
 | Herdr | optional: a `herdr` skill and a `delegate` runner that puts a child in its own terminal pane |
 
 DSH's own features stay as they are: todo, native subagents and workflows,

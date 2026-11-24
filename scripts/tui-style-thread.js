@@ -459,27 +459,22 @@ function ThreadShimmer({ text, working, lead = 0 }) {
 }
 
 /**
- * The thread footer, one line read from the left: model · effort, the Agent Mode
- * and PLAN MODE badges, full access, tok/s, cache hit, ctx and the branch; the
- * DEEPSEEK HARNESS brand sits in the right corner. Plan limits live in the usage
- * band above the prompt (shared with skins). When the line is too narrow, full
- * the brand goes first, then full access, the branch and the effort; the badges,
- * tok/s, cache and ctx always stay. Agent Mode is a DeepSeek role, so it shows only on
- * a DeepSeek route; PLAN MODE shows on every model while plan mode is on.
+ * The thread footer, one line read from the left: model · effort, the PLAN MODE
+ * badge, full access, tok/s, cache hit, ctx and the branch; the DEEPSEEK HARNESS
+ * brand sits in the right corner. Plan limits live in the usage band above the
+ * prompt (shared with skins). When the line is too narrow, the brand goes
+ * first, then full access, the branch and the effort; the badge, tok/s, cache
+ * and ctx always stay. PLAN MODE shows on every model while plan mode is on.
  */
 export function renderThreadFooter({ channel, columns, fields = [], backendMode, occupancy, cacheRate, modelPicker }) {
     const model = String(channel.modelDisplay ?? channel.model ?? '');
-    const deepseek = /deepseek/i.test(model + ' ' + String(channel.model ?? ''));
-    const byKey = key => fields.find(field => field?.key === key);
-    const agentMode = deepseek && byKey('ceulen:agent-mode') !== undefined;
     const planOn = channel.mode?.plan === true || backendMode?.id === 'plan';
     const fullAccess = backendMode === undefined ? channel.mode?.sandbox === 'danger-full-access' : backendMode.id === 'bypassPermissions';
-    const known = new Set(['ceulen:agent-mode', 'ceulen:usage']);
+    const known = new Set(['ceulen:usage']);
     const others = fields.filter(field => field !== undefined && !known.has(field.key) && field.text);
     const left = [
         { id: 'model', text: model, color: 'text', bold: true, onClick: modelPicker?.onOpen },
         channel.reasoningEffort ? { id: 'effort', text: ' · ' + channel.reasoningEffort, color: 'subtle', drop: 1 } : undefined,
-        agentMode ? { id: 'agent', text: '  Agent Mode', color: 'accent' } : undefined,
         planOn ? { id: 'plan', text: '  PLAN MODE', color: 'planMode', bold: true } : undefined,
         fullAccess ? { id: 'access', text: '  full access', color: 'warning', drop: 6 } : undefined,
     ].filter(Boolean);
@@ -513,9 +508,7 @@ export function renderThreadFooter({ channel, columns, fields = [], backendMode,
         shownLeft = shownLeft.filter(part => part.drop !== level);
         shownRight = shownRight.filter(part => part.drop !== level);
     }
-    // Still too wide: Agent Mode shortens to Agent; then only the model name gives way (at least six cells).
-    if (total() > budget)
-        shownLeft = shownLeft.map(part => (part.id === 'agent' ? { ...part, text: '  Agent' } : part));
+    // Still too wide: only the model name gives way (at least six cells).
     const span = (part, gap) => _jsxs(Box, { flexShrink: part.id === 'model' ? 1 : 0, minWidth: part.id === 'model' ? Math.min(6, stringWidth(part.text)) : undefined, onClick: part.onClick, children: [
         gap ? _jsx(Text, { children: ' '.repeat(GAP) }) : null,
         part.id === 'model'
