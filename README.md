@@ -39,7 +39,7 @@ from Ceulen (MIT), and each feature gets a thin DSH adapter.
 | Stop an agent from deleting work you did not ask it to delete | `/classifier` and rule guards |
 | Run many tool calls in one step and keep the noise out of the context | the `codemode` tool |
 | Read, capture and click through web pages | `web_extract`, `web_screenshot`, `web_interact` |
-| Keep project knowledge between sessions | the `munin_*` memory tools |
+| Keep project knowledge between sessions | [Munin long-term memory](#long-term-memory-munin) and the `munin_*` tools |
 | Change settings without editing JSON | `/ceulen-config` |
 | Check that everything is wired correctly | `/ceulen doctor` |
 
@@ -453,7 +453,7 @@ Every area below is a module. `/ceulen modules` lists them, and
 
 | Area | What it gives you |
 |---|---|
-| Memory | Munin: `munin_search`, `munin_get`, `munin_store` and eight more tools, `/munin-status`, an optional failover server |
+| Memory | [Munin long-term memory](#long-term-memory-munin): `munin_search`, `munin_get`, `munin_store` and eight more tools, a Memory Protocol in the prompt, `/munin-status`, an optional failover server |
 | Steering | model-family prompt hints and `/steering`; extra tool habits for DeepSeek flash routes only |
 | Providers | `/router-status`, `/router-model`, `/zai`, `/provider-compat` with ready provider recipes |
 | Usage | `/usage`: subscription windows and credits for OpenCode Go, Z.AI, Command Code, Codex and a generic router, plus a footer segment |
@@ -687,20 +687,63 @@ ROUTER_BASE_URL + ROUTER_API_KEY
 The refresh interval is five minutes (`usage.intervalMinutes`). A failed fetch
 stays quiet and never blocks a turn.
 
-### Memory (Munin)
+### Long-term memory (Munin)
 
-Munin stores durable project knowledge that later sessions can search.
+An agent forgets what it learned when its session ends. [Munin](https://www.kalera.app)
+is a long-term memory service for AI agents: what one session learns about
+your project is stored there, and later sessions search it before they act.
+Munin has [adapters](https://github.com/kalera-labs/munin-for-agents) for
+Claude Code, Cursor, Gemini CLI and other tools, so a project's memory can be
+shared with them.
+
+**Set it up.** You need a Munin project and an API key:
 
 ```sh
 export MUNIN_API_KEY=... MUNIN_PROJECT=my-project
-export MUNIN_BASE_URL=https://munin.kalera.ai   # optional
+export MUNIN_BASE_URL=https://munin.kalera.ai   # optional: this is the default
 ```
 
-- Tools: `munin_search`, `munin_get`, `munin_store`, `munin_list`,
-  `munin_recent`, `munin_delete`, `munin_versions`, `munin_diff`,
-  `munin_rollback`, `munin_capabilities`, `munin_share`. `/munin-status` shows
-  the connection.
-- The key can also be stored from `/ceulen-config` → Memory → Munin.
+The key can also be stored from `/ceulen-config` → Memory → Munin, which
+writes it to the DSH credential store. `/munin-status` shows where each value
+comes from, without printing the key.
+
+**What the agent does with it.** Once Munin is configured, the prompt carries
+a Memory Protocol:
+
+- Before non-trivial work, and before a change to architecture, dependencies,
+  setup or a subsystem that was fixed before, the agent searches memory. For
+  a bug it searches the exact error first.
+- A search result is a lead, not a fact: the agent reads the memory and
+  checks it against the repository.
+- It stores only verified knowledge that a later session can use: decisions
+  with their reason, root causes of recurring bugs, stable setup facts,
+  conventions and constraints. Progress notes, logs, guesses and secrets are
+  not stored.
+- One concept goes into one memory, under a stable key, with at least one
+  `type:` tag (`decision`, `bug-fix`, `fact`, `dependency`) and one
+  `domain:` tag. A store without both tags is refused.
+- New knowledge is stored once, at the end of the session.
+
+**Tools.**
+
+| Tool | What it does |
+|---|---|
+| `munin_search` | searches memory, with filters for tags and dates |
+| `munin_get` | reads one memory in full |
+| `munin_store` | stores or updates one memory |
+| `munin_list`, `munin_recent` | lists memories; shows the latest changes |
+| `munin_versions`, `munin_diff`, `munin_rollback` | a key's history, the difference between two versions, and a restore of an older one |
+| `munin_delete` | deletes one memory |
+| `munin_share` | shares memories with another project |
+| `munin_capabilities` | shows what the server supports |
+
+`munin_delete`, `munin_rollback` and `munin_share` run only with
+`confirm: true`, which the agent is told to pass only after you asked.
+`munin_delete` and `munin_share` are also held behind `ceulen_tools` by
+default (`tools.cold`), so their schemas stay out of the prompt.
+
+**Options.**
+
 - **Failover.** Set `munin.fallback.baseUrl` and `MUNIN_FALLBACK_API_KEY` to a
   second server that speaks the same protocol. It answers when the primary is
   unreachable. An authentication error still surfaces as an error.
