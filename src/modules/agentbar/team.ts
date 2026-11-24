@@ -5,7 +5,7 @@
  * lead decided at the checkpoint. It reads the mode's own ledger, plus the
  * agent store for a running child's model, todo and context.
  */
-import { phaseOf, runningEntries, type TeamChild, type TeamEntry, type TeamPhase, type TeamState, type TeamStore, type TeamWave } from '../subagent/team.js'
+import { earlierWave, pendingEntries, phaseOf, runningEntries, type TeamChild, type TeamEntry, type TeamPhase, type TeamState, type TeamStore, type TeamWave } from '../subagent/team.js'
 import { logLine } from '../../core/log.js'
 import { duration, type AgentRow, type AgentStore } from './model.js'
 import { bar, usageLine, type PanelRow, type RowSource, type Run } from './panel.js'
@@ -68,9 +68,7 @@ function rail(state: TeamState, width: number): PanelRow {
   return { left }
 }
 
-/** Reviewed work the lead has not decided on yet. */
-const pending = (state: TeamState, wave: TeamWave): TeamEntry[] => wave.entries
-  .filter(entry => entry.decision === undefined && entry.state === 'completed' && state.children.get(entry.childId)?.status !== 'blocked')
+const pending = pendingEntries
 
 function waveTitle(state: TeamState, wave: TeamWave, now: number, frame: number): PanelRow {
   const left: Run[] = [[`WAVE ${wave.index}`, 'strong'], [' · ', 'subtle']]
@@ -134,6 +132,21 @@ function settledRows(state: TeamState, wave: TeamWave, entry: TeamEntry, density
   return [wave.settledAt === undefined ? row(['✓ ', 'subtle'], ['handed off', 'subtle']) : row(['◦ ', 'accent'], ['in review', 'accent'])]
 }
 
+/** A reviewed wave from an earlier plan: folded under one row unless the user opened it. */
+const earlier = earlierWave
+
+/** `▸ 13 earlier waves · 4 plans · 3 corrected`: click or Enter opens them. */
+function earlierRow(waves: readonly TeamWave[], expanded: boolean): PanelRow {
+  const entries = waves.flatMap(wave => wave.entries)
+  const corrected = entries.filter(entry => entry.decision === 'corrected').length
+  const open = entries.filter(entry => entry.decision === undefined).length
+  const plans = new Set(waves.map(wave => wave.plan)).size
+  const left: Run[] = [[expanded ? '▾ ' : '▸ ', 'accent'], [plural(waves.length, 'earlier wave'), 'strong'], [` · ${plural(plans, 'plan')}`, 'subtle']]
+  if (corrected > 0) left.push([` · ${corrected} corrected`, 'subtle'])
+  if (open > 0) left.push([` · ${open} not accepted`, 'warning'])
+  return { left, right: [expanded ? 'hide' : 'show', 'accent'], toggle: true }
+}
+
 /** A reviewed wave on one line: `✓ WAVE 1 · 2 accepted · 1 corrected`. */
 function foldedWave(wave: TeamWave): PanelRow {
   const count = (decision: TeamEntry['decision']): number => wave.entries.filter(entry => entry.decision === decision).length
@@ -148,7 +161,7 @@ function foldedWave(wave: TeamWave): PanelRow {
   return { left: [clean ? ['✓ ', 'success'] : ['◆ ', 'warning'], [`WAVE ${wave.index}`, 'subtle'], [' · ', 'subtle'], [parts.join(' · '), 'subtle']], agent: true }
 }
 
-function layout(state: TeamState, agent: (id: string) => AgentRow | undefined, now: number, width: number, frame: number, density: Density, listNext: boolean): PanelRow[] {
+function layout(state: TeamState, agent: (id: string) => AgentRow | undefined, now: number, width: number, frame: number, density: Density, listNext: boolean, expanded: boolean): PanelRow[] {
   const body: PanelRow[] = [rail(state, width)]
   if (state.plan !== undefined) {
     const stage: Run = state.plan.state === 'approved' ? ['approved', 'success'] : state.plan.state === 'review' ? ['needs you', 'warning'] : state.plan.state === 'advisor' ? ['advisor review', 'accent'] : ['draft', 'subtle']
@@ -170,8 +183,12 @@ function layout(state: TeamState, agent: (id: string) => AgentRow | undefined, n
     body.push({ left: [['  The plan, each brief and each review show here.', 'subtle']] })
   }
   const lastClosed = state.waves.filter(wave => wave.settledAt !== undefined).pop()
+  // Waves of earlier plans fold into one row; work still running or in review always shows.
+  const folded = state.waves.filter(wave => earlier(state, wave))
+  if (folded.length > 0) body.push({ left: [] }, earlierRow(folded, expanded))
   let running = 0
   for (const wave of state.waves) {
+    if (!expanded && folded.includes(wave)) continue
     const settledWave = wave.settledAt !== undefined && pending(state, wave).length === 0
     if (density >= 2 && settledWave && wave !== lastClosed) {
       body.push(foldedWave(wave))
@@ -205,7 +222,7 @@ function layout(state: TeamState, agent: (id: string) => AgentRow | undefined, n
  * team map's task list shows the same tasks. Pure, so tests pin the layout
  * without a host.
  */
-export function teamRows(state: TeamState | undefined, agent: (id: string) => AgentRow | undefined, now: number, width: number, frame = 0, room = Number.POSITIVE_INFINITY, listNext = true): { header: PanelRow; body: PanelRow[] } {
+export function teamRows(state: TeamState | undefined, agent: (id: string) => AgentRow | undefined, now: number, width: number, frame = 0, room = Number.POSITIVE_INFINITY, listNext = true, expanded = false): { header: PanelRow; body: PanelRow[] } {
   if (state === undefined) {
     return {
       header: { left: [['◆ ', 'subtle'], ['Team', 'strong']] },
@@ -229,7 +246,7 @@ export function teamRows(state: TeamState | undefined, agent: (id: string) => Ag
   const densities: Density[] = width < BRIEF_CELLS ? [1, 2, 3] : [0, 1, 2, 3]
   let body: PanelRow[] = []
   for (const density of densities) {
-    body = layout(state, agent, now, width, frame, density, listNext)
+    body = layout(state, agent, now, width, frame, density, listNext, expanded)
     if (body.length <= room) break
   }
   return { header, body }
@@ -242,11 +259,11 @@ export function teamRows(state: TeamState | undefined, agent: (id: string) => Ag
  * `wave N`). It shrinks first (no lead box, then the task list only), and
  * when even that does not fit it is left out and NEXT stays.
  */
-export function teamView(state: TeamState | undefined, agent: (id: string) => AgentRow | undefined, now: number, width: number, frame = 0, room = Number.POSITIVE_INFINITY): { header: PanelRow; body: PanelRow[] } {
-  const full = teamRows(state, agent, now, width, frame, room)
+export function teamView(state: TeamState | undefined, agent: (id: string) => AgentRow | undefined, now: number, width: number, frame = 0, room = Number.POSITIVE_INFINITY, expanded = false): { header: PanelRow; body: PanelRow[] } {
+  const full = teamRows(state, agent, now, width, frame, room, true, expanded)
   // With no plan there is no task list in the map, and NEXT is the only place the board shows.
   const listed = (state?.plan?.tasks.length ?? 0) > 0
-  const body = listed ? teamRows(state, agent, now, width, frame, room, false).body : full.body
+  const body = listed ? teamRows(state, agent, now, width, frame, room, false, expanded).body : full.body
   for (const tier of [0, 1, 2] as const satisfies readonly MapTier[]) {
     const map = teamMap(state, agent, width, frame, tier)
     if (map.length === 0) break
@@ -268,7 +285,7 @@ export function teamSource(teamStore: TeamStore, store: AgentStore, onTouch: () 
     },
     // Both counters only grow, so the sum changes whenever either store does.
     getVersion: () => teamStore.getVersion() + store.getVersion(),
-    rows: (now, width, frame, room) => teamView(current(), id => store.row(id), now, width, frame, room),
+    rows: (now, width, frame, room, expanded) => teamView(current(), id => store.row(id), now, width, frame, room, expanded),
     animating() {
       const state = current()
       return state !== undefined && (state.busy || runningEntries(state).length > 0)

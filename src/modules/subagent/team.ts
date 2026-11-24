@@ -24,6 +24,8 @@ export interface TeamEntry {
 /** Children dispatched or resumed between two checkpoints. */
 export interface TeamWave {
   readonly index: number
+  /** The plan it was opened under (TeamState.planRound); scouts sent before any plan count toward the first one. */
+  readonly plan: number
   readonly startedAt: number
   readonly entries: TeamEntry[]
   /** When its checkpoint fired; the lead reviews from then on. */
@@ -89,6 +91,8 @@ export interface TeamState {
    */
   review: 'none' | 'queued' | 'seen'
   plan?: TeamPlan
+  /** How many plan files the lead has written so far: a new path is a new plan. */
+  planRound: number
   board?: readonly TodoItem[]
   /** The contract file, relative to the lead's working directory. */
   contract?: string
@@ -172,12 +176,21 @@ export const childState = (state: TeamState, childId: string): string => lastEnt
 
 export const runningEntries = (state: TeamState): TeamEntry[] => state.waves.flatMap(wave => wave.entries.filter(entry => entry.state === 'running'))
 
+/** Reviewed work the lead has not decided on yet. */
+export const pendingEntries = (state: TeamState, wave: TeamWave): TeamEntry[] => wave.entries
+  .filter(entry => entry.decision === undefined && entry.state === 'completed' && state.children.get(entry.childId)?.status !== 'blocked')
+
+/** A reviewed wave from an earlier plan: history, not where the lead is now. */
+export const earlierWave = (state: TeamState, wave: TeamWave): boolean =>
+  wave.plan < state.planRound && wave.settledAt !== undefined && pendingEntries(state, wave).length === 0
+
 /** Where the lead is in its loop; `done` once everything settled, was reviewed, and its turn ended. */
 export function phaseOf(state: TeamState): TeamPhase {
   // Scouts sent out before the plan is approved are part of planning.
   if (state.plan !== undefined && state.plan.state !== 'approved') return 'plan'
   if (runningEntries(state).length > 0) return 'dispatch'
-  if (state.waves.length > 0) return state.busy || state.review !== 'none' ? 'review' : 'done'
+  // A new plan starts at its own first step: the reviewed waves of earlier plans do not count.
+  if (state.waves.some(wave => !earlierWave(state, wave))) return state.busy || state.review !== 'none' ? 'review' : 'done'
   if (state.plan === undefined) return 'plan'
   return state.contract === undefined ? 'contract' : 'dispatch'
 }
@@ -185,6 +198,8 @@ export function phaseOf(state: TeamState): TeamPhase {
 export class TeamStore {
   private readonly leads = new Map<string, TeamState>()
   private readonly owners = new Map<string, TeamState>()
+  /** The path behind each lead's current plan round; a plan read as missing does not end the round. */
+  private readonly planPaths = new Map<string, string>()
   private readonly listeners = new Set<() => void>()
   private latest: string | undefined
   private version = 0
@@ -231,7 +246,7 @@ export class TeamStore {
     let state = this.leads.get(leadId)
     if (state === undefined) {
       state = {
-        leadId, ...(route === undefined ? {} : { route }), startedAt: now, busy: false, review: 'none',
+        leadId, ...(route === undefined ? {} : { route }), startedAt: now, busy: false, review: 'none', planRound: 0,
         children: new Map(), waves: [], checkpoints: 0, corrections: 0, takeovers: 0, takenOver: [],
       }
       this.leads.set(leadId, state)
@@ -257,6 +272,7 @@ export class TeamStore {
     const state = this.leads.get(leadId)
     if (state === undefined) return
     this.leads.delete(leadId)
+    this.planPaths.delete(leadId)
     for (const childId of state.children.keys()) this.owners.delete(childId)
     if (this.latest === leadId) this.latest = [...this.leads.keys()].pop()
     this.emit()
@@ -265,6 +281,7 @@ export class TeamStore {
   reset(): void {
     this.leads.clear()
     this.owners.clear()
+    this.planPaths.clear()
     this.latest = undefined
     this.emit()
   }
@@ -288,7 +305,7 @@ export class TeamStore {
       // Dispatching again is moving on from the last checkpoint.
       this.accept(state)
       state.review = 'none'
-      wave = { index: state.waves.length + 1, startedAt: now, entries: [] }
+      wave = { index: state.waves.length + 1, plan: Math.max(1, state.planRound), startedAt: now, entries: [] }
       state.waves.push(wave)
     }
     const entry = wave.entries.find(item => item.childId === childId)
@@ -355,6 +372,11 @@ export class TeamStore {
     const old = state.plan
     if (old?.path === plan?.path && old?.title === plan?.title && old?.state === plan?.state && old?.tasks.join() === plan?.tasks.join()
       && JSON.stringify(old?.rows) === JSON.stringify(plan?.rows)) return
+    // Leads write each new plan to a new dated file; an edit to the same file is the same plan.
+    if (plan !== undefined && plan.path !== this.planPaths.get(leadId)) {
+      this.planPaths.set(leadId, plan.path)
+      state.planRound += 1
+    }
     state.plan = plan
     this.emit()
   }

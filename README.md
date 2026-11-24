@@ -267,6 +267,10 @@ the lead runs the team:
   `corrected`, `lead took over`, or what stands in the way (`blocked` with the
   child's blocker, `partial`, `failed`, `cancelled`).
 - `NEXT` lists what the lead's board still has pending.
+- Each new plan file starts a new round. Waves of earlier plans fold into one
+  `▸ 13 earlier waves · 4 plans · 3 corrected` row; click it, or press Enter
+  while the panel has focus, to show them all again. A wave still running or
+  waiting for review always shows. The team map counts only the current plan.
 
 When the panel has room left under those rows, it draws the **team map**: the
 lead, the plan's task list, and one box per role.

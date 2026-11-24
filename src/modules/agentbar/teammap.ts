@@ -169,10 +169,14 @@ function tidy(text: string | undefined, id: string): string | undefined {
 
 interface Hit { readonly wave: TeamWave; readonly entry: TeamEntry; readonly child: TeamChild }
 
-/** The newest activation working on each task id. */
+/** Waves of the plan the lead is on; earlier plans are history, folded in the rows above. */
+const ofPlan = (state: TeamState, wave: TeamWave): boolean => wave.plan >= state.planRound
+
+/** The newest activation working on each task id of the current plan; ids restart with every plan. */
 function hits(state: TeamState): Map<string, Hit> {
   const latest = new Map<string, Hit>()
   for (const wave of state.waves) {
+    if (!ofPlan(state, wave)) continue
     for (const entry of wave.entries) {
       const child = state.children.get(entry.childId)
       for (const id of child?.brief.task?.split(' ') ?? []) if (id !== '') latest.set(id, { wave, entry, child: child! })
@@ -242,7 +246,9 @@ export function mates(state: TeamState, agent: (id: string) => AgentRow | undefi
   }
   const newest = new Map<string, Hit>()
   for (const wave of state.waves) {
+    // A child of an earlier plan counts only while it still runs.
     for (const entry of wave.entries) {
+      if (!ofPlan(state, wave) && entry.state !== 'running') continue
       const child = state.children.get(entry.childId)
       if (child !== undefined) newest.set(child.id, { wave, entry, child })
     }
@@ -458,7 +464,8 @@ export function teamMap(state: TeamState | undefined, agent: (id: string) => Age
   if (tasks.length > 0) rows.push(...taskBox(state, tasks, width, frame))
   if (tier < 2 && team.length > 0) {
     if (tasks.length > 0) rows.push(...link(width, flow, running, frame + 2))
-    rows.push(...mateRows(team, state.children.size, width, frame))
+    const kids = new Set(state.waves.flatMap(wave => wave.entries.filter(entry => ofPlan(state, wave) || entry.state === 'running').map(entry => entry.childId)))
+    rows.push(...mateRows(team, kids.size, width, frame))
   }
   return rows.map(row => ({ left: squash([[margin, undefined], ...row]) }))
 }

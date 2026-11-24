@@ -26,7 +26,9 @@ export interface PanelProps {
 }
 
 export interface PanelKeyEvent {
-  readonly key: { readonly upArrow?: boolean; readonly downArrow?: boolean; readonly pageUp?: boolean; readonly pageDown?: boolean }
+  readonly input?: string
+  /** The host normalises Enter to `return_`; plain Ink sends `return`. */
+  readonly key: { readonly upArrow?: boolean; readonly downArrow?: boolean; readonly pageUp?: boolean; readonly pageDown?: boolean; readonly return?: boolean; readonly return_?: boolean }
   preventDefault(): void
 }
 
@@ -40,6 +42,8 @@ export interface PanelRow {
   readonly agent?: true
   /** Draw this run with a moving highlight (the "Working" shimmer). */
   readonly shimmer?: { readonly text: string; readonly phase: number }
+  /** A click on this row (or Enter while the panel has focus) shows or hides what it stands for. */
+  readonly toggle?: true
 }
 
 const SPIN = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
@@ -188,7 +192,8 @@ export const clampScroll = (offset: number, total: number, visible: number): num
 export interface RowSource {
   subscribe(listener: () => void): () => void
   getVersion(): number
-  rows(now: number, width: number, frame: number, room: number): { header: PanelRow; body: PanelRow[] }
+  /** `expanded`: the user opened the body's toggle row; sources without one ignore it. */
+  rows(now: number, width: number, frame: number, room: number, expanded: boolean): { header: PanelRow; body: PanelRow[] }
   /** Something moves: the panel's clock runs only then, and only while visible. */
   animating(): boolean
   setVisible(visible: boolean): void
@@ -202,6 +207,8 @@ export function createRowPanel(source: RowSource): (props: PanelProps) => unknow
     const h = R.createElement
     R.useSyncExternalStore(source.subscribe, source.getVersion)
     const [scroll, setScroll] = R.useState(0)
+    const [expanded, setExpanded] = R.useState(false)
+    const toggle = (): void => setExpanded(previous => !previous)
     ui.useAnimationTime(visible && source.animating() ? FRAME_MS : null)
     R.useEffect(() => {
       source.setVisible(visible)
@@ -213,15 +220,21 @@ export function createRowPanel(source: RowSource): (props: PanelProps) => unknow
     const now = Date.now()
     const room = bodyRows(height)
     // Content width: the panel minus its paddingX.
-    const { header, body } = source.rows(now, width - 2, Math.floor(now / FRAME_MS), room)
+    const { header, body } = source.rows(now, width - 2, Math.floor(now / FRAME_MS), room, expanded)
+    const toggles = body.some(row => row.toggle === true)
     const offset = clampScroll(scroll, body.length, room)
     // ↑/↓ and PgUp/PgDn scroll while the panel has focus; Esc returns to the chat (host).
     R.useEffect(() => host?.onKey?.(event => {
+      if (toggles && (event.key.return_ === true || event.key.return === true)) {
+        event.preventDefault()
+        toggle()
+        return
+      }
       const step = event.key.upArrow ? -1 : event.key.downArrow ? 1 : event.key.pageUp ? -room : event.key.pageDown ? room : 0
       if (step === 0) return
       event.preventDefault()
       setScroll(previous => clampScroll(clampScroll(previous, body.length, room) + step, body.length, room))
-    }), [host, room, body.length])
+    }), [host, room, body.length, toggles])
 
     const text = (value: string, tone: Tone, key?: number): unknown =>
       h(ui.Text, {
@@ -239,7 +252,7 @@ export function createRowPanel(source: RowSource): (props: PanelProps) => unknow
         const chars = [...row.shimmer.text]
         runs.push(...shimmerTones(row.shimmer.text, row.shimmer.phase).map((tone, index) => text(chars[index]!, tone, 100 + index)))
       }
-      return h(ui.Box, { key, flexDirection: 'row', width: '100%', height: 1, overflow: 'hidden' },
+      return h(ui.Box, { key, flexDirection: 'row', width: '100%', height: 1, overflow: 'hidden', ...(row.toggle === true ? { onClick: toggle } : {}) },
         h(ui.Box, { flexDirection: 'row', flexGrow: 1, flexShrink: 1, minWidth: 0, overflow: 'hidden' }, ...(runs.length === 0 ? [text(' ', undefined)] : runs)),
         ...(row.right === undefined ? [] : [h(ui.Box, { flexShrink: 0, paddingLeft: 1 }, text(row.right[0], row.right[1]))]))
     }
@@ -248,7 +261,7 @@ export function createRowPanel(source: RowSource): (props: PanelProps) => unknow
     const more = hiddenAgents > 0 ? `↓ ${hiddenAgents} more` : below.length > 0 ? '↓ more' : undefined
     // The host already prints "Ctrl+B focus panel" under an unfocused panel.
     const hint = focused
-      ? `${body.length > room ? '↑↓ scroll · ' : ''}Esc chat · Ctrl+A dashboard`
+      ? `${toggles ? `Enter ${expanded ? 'fewer' : 'all'} · ` : ''}${body.length > room ? '↑↓ scroll · ' : ''}Esc chat · Ctrl+A dashboard`
       : more !== undefined ? `${more} · Ctrl+A dashboard` : 'Ctrl+A dashboard'
     return h(ui.Box, { flexDirection: 'column', width, height, paddingX: 1, overflow: 'hidden' },
       h(ui.Box, { flexShrink: 0, flexDirection: 'column' }, line(header, 0), h(ui.Box, { height: 1 })),
