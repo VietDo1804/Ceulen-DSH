@@ -74,7 +74,7 @@ DSH has no `tui` template, so the second command installs two things into the
 `dsh plugin`, which runs the package manager inside the profile and mounts
 the bundle there; a plain `npm install ceulen-dsh` only downloads it.
 
-To pin a release, name it: `ceulen-dsh@0.2.12`.
+To pin a release, name it: `ceulen-dsh@0.2.13`.
 
 ### Install a release tarball
 
@@ -84,7 +84,7 @@ then:
 
 ```sh
 npm install -g @deepseek-ai/dsh@0.2.2-rc.5
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.12.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.13.tgz
 dsh --profile tui
 ```
 
@@ -101,13 +101,13 @@ npm ci --include=dev
 ./release/build.sh
 
 # Install BOTH the TUI app and this bundle into a new profile.
-./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.12.tgz"
+./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.13.tgz"
 dsh --profile tui
 ```
 
 The installer creates the profile under `${DSH_HOME:-$HOME/.dsh}/profiles/tui`
 and does not replace an existing profile's settings. To share the build, send
-`release/ceulen-dsh-0.2.12.tgz`; the other machine needs no clone and no build.
+`release/ceulen-dsh-0.2.13.tgz`; the other machine needs no clone and no build.
 
 ### Develop from a checkout
 
@@ -134,7 +134,7 @@ not hot-reload.
 /ceulen doctor   # compatibility and optional-backend diagnostics
 ```
 
-`/ceulen` shows the release line (`ceulen-dsh 0.2.12 (stable)`), the pinned
+`/ceulen` shows the release line (`ceulen-dsh 0.2.13 (stable)`), the pinned
 Ceulen version, and which modules are mounted. The bundle composes 34 rows.
 
 To upgrade, run `dsh plugin --profile tui add ceulen-dsh@latest` (or install a
@@ -143,11 +143,13 @@ newer tarball into the same profile) and restart. Your settings are kept.
 
 ### Release line
 
-`package.json` carries this bundle's own version (`0.2.12`) plus
+`package.json` carries this bundle's own version (`0.2.13`) plus
 `release: { line: "stable", distTag: "stable" }`. The upstream Ceulen version it
 tracks lives in `upstream.lock.json` (`0.31.0`). The update check follows the
 `stable` npm dist-tag only, and reports `unknown` when that tag is missing
-rather than offering another line as an upgrade. `/ceulen doctor` prints the
+rather than offering another line as an upgrade. A cached result is compared
+with the version installed now, so an upgrade clears the "bundle … available"
+line at once instead of when the cache expires. `/ceulen doctor` prints the
 line and dist-tag.
 
 ## Working with a team of agents
@@ -852,7 +854,7 @@ node scripts/tui-<name>-patch.mjs apply
 | `advisor` | shows advisor notes as a block in the transcript instead of a 15-second status line |
 | `context` | makes `/context` open the token dashboard |
 | `toolname` | renders acronym tool names correctly (`fff` instead of `Fff_grep`) |
-| `plan` | bare `/plan` toggles, "implement in a new session" opens a real new session, and the footer names plan mode |
+| `plan` | bare `/plan` toggles, "implement in a new session" opens a real new session, the footer names plan mode, and the plan-review and question cards fit the screen (with a todo band up, Keep planning, the answer row and the key hint stay visible, and a short plan leaves no blank block) |
 | `effort` | remembers the reasoning effort per model instead of one level for all |
 | `style` | adds the `skins` and `thread` UI styles (`/theme style …`) |
 | `usage` | keeps every usage window visible in the footer |
@@ -860,7 +862,18 @@ node scripts/tui-<name>-patch.mjs apply
 
 A `dsh-tui` upgrade reverts all of them without notice, so apply them again
 after every upgrade. `/ceulen doctor` reports the state of the UI patches, and
-each script's `check` exits non-zero when its patch is missing. For the
+each script's `check` exits non-zero when its patch is missing.
+
+`check` proves the edits are in place, not that the result looks right. For
+the question cards, a headless render checks the layout itself:
+
+```sh
+node scripts/tui-question-fit-smoke.mjs   # 0 fits, 1 a card overflows, 2 cannot run
+```
+
+It draws both cards under a todo band in a virtual terminal and fails when a
+button, the answer row or the key hint falls off screen. The `dsh-update` skill
+runs it after every patch pass. For the
 separate `dsh-fff` plugin, `scripts/fff-search-patch.mjs` adds ignore-aware
 filename indexing with ripgrep.
 

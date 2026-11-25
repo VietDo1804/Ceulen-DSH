@@ -54,7 +54,7 @@ exact `dsh plugin` invocation without touching anything.
 With only a tarball, no wrapper is required:
 
 ```sh
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.12.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.13.tgz
 dsh --profile tui
 ```
 
@@ -110,23 +110,29 @@ and the profile keeps your settings (`$DSH_HOME/ceulen/settings.json`).
 
 ## Optional TUI patches
 
-These preserve advisor notes, the context dashboard, tool names, plan mode,
-per-model effort, UI styles and the monthly usage countdown. They edit the *installed* dsh-tui copy and
-are reverted by every dsh-tui upgrade. Re-apply all seven after upgrading:
+These preserve advisor notes, the context dashboard, tool names, plan mode
+(including question cards that fit the screen under a todo band), per-model
+effort, UI styles, the monthly usage countdown and side panels that open without
+taking focus. They edit the *installed* dsh-tui copy and are reverted by every
+dsh-tui upgrade. Re-apply all eight after upgrading:
 
 ```sh
-for p in advisor context toolname plan effort style usage; do
+for p in advisor context toolname plan effort style panel usage; do
   node "${DSH_HOME:-$HOME/.dsh}/profiles/tui/node_modules/ceulen-dsh/scripts/tui-$p-patch.mjs" apply || break
 done
-for p in advisor context toolname plan effort style usage; do
+for p in advisor context toolname plan effort style panel usage; do
   node "${DSH_HOME:-$HOME/.dsh}/profiles/tui/node_modules/ceulen-dsh/scripts/tui-$p-patch.mjs" check || break
 done
+node "${DSH_HOME:-$HOME/.dsh}/profiles/tui/node_modules/ceulen-dsh/scripts/tui-question-fit-smoke.mjs"
 ```
+
+The last line renders the plan-review and question cards headless and exits
+non-zero when a control falls off screen (`check` only proves the edits exist).
 
 `/ceulen doctor` reports `tui footer: … · advisor-block applied|stock …`, and each
 script's `check` exits non-zero when its patch is missing. The footer patch was
 deleted — dsh-tui 0.17.0+ renders plugin footer fields natively. Patches target
-dsh-tui 0.20.2 (gates also accept 0.20.0/0.20.1); re-apply after every upgrade. Doctor reports the six UI patches;
+dsh-tui 0.20.2 (gates also accept 0.20.0/0.20.1); re-apply after every upgrade. Doctor reports the seven UI patches;
 check the usage-cap patch separately with the script loop above.
 
 Portable regression checks (Node.js, npm and `tar`; downloads the pinned stock
