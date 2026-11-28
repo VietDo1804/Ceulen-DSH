@@ -54,7 +54,7 @@ exact `dsh plugin` invocation without touching anything.
 With only a tarball, no wrapper is required:
 
 ```sh
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.14.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.15.tgz
 dsh --profile tui
 ```
 
@@ -171,6 +171,11 @@ At session start the bundle checks `https://registry.npmjs.org/ceulen-dsh/latest
 dsh plugin --profile <profile> add ceulen-dsh@<version>
 dsh --profile <profile>          # restart — plugin code is not hot-reloaded
 ```
+
+`/ceulen upgrade --apply` runs the first line for the profile the session booted
+with and then asks for the restart. Keep the exact version: for about a day
+after a release, pnpm resolves `ceulen-dsh@latest` and `update ceulen-dsh` to the
+previous version.
 
 `/ceulen update` reports both upstream Ceulen and this bundle; `/ceulen status`
 shows the npm check result even when it is current.

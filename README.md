@@ -12,9 +12,19 @@ Ceulen itself is a bundle for the Pi agent. DSH has a different plugin API, so
 this is an independent port: logic that does not depend on the UI is vendored
 from Ceulen (MIT), and each feature gets a thin DSH adapter.
 
-## What's new in 0.2.14
+## What's new
 
-Released 28 Nov 2026 · [release page](https://github.com/VietDo1804/Ceulen-DSH/releases/tag/v0.2.14) · [all versions](#changelog)
+[All versions](#changelog) · [release pages](https://github.com/VietDo1804/Ceulen-DSH/releases)
+
+### 0.2.15 — 28 Nov 2026
+
+| | |
+|---|---|
+| **New: `/ceulen upgrade --apply`** | Updates the bundle from inside the session: it installs the newer version into the profile you are running, then asks for a restart. [Update](#update) |
+| **Fixed: the documented upgrade command** | `dsh plugin --profile tui add ceulen-dsh@latest` stays on the previous version for about a day after a release. The docs and `/ceulen upgrade` now give the exact version, which installs at once. |
+| **Fixed: `/ceulen upgrade` names your profile** | Started as `dsh tui`, it printed `--profile <profile>`. It now reads the short form too. |
+
+### 0.2.14 — 28 Nov 2026
 
 | | |
 |---|---|
@@ -32,7 +42,7 @@ audit of an explainer on the first run.
 
 ## Contents
 
-- [What's new in 0.2.14](#whats-new-in-0214)
+- [What's new](#whats-new)
 - [Highlights](#highlights)
 - [Requirements](#requirements)
 - [Install](#install)
@@ -95,7 +105,7 @@ DSH has no `tui` template, so the second command installs two things into the
 `dsh plugin`, which runs the package manager inside the profile and mounts
 the bundle there; a plain `npm install ceulen-dsh` only downloads it.
 
-To pin a release, name it: `ceulen-dsh@0.2.14`.
+To pin a release, name it: `ceulen-dsh@0.2.15`.
 
 ### Install a release tarball
 
@@ -105,7 +115,7 @@ then:
 
 ```sh
 npm install -g @deepseek-ai/dsh@0.2.2-rc.5
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.14.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.15.tgz
 dsh --profile tui
 ```
 
@@ -122,13 +132,13 @@ npm ci --include=dev
 ./release/build.sh
 
 # Install BOTH the TUI app and this bundle into a new profile.
-./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.14.tgz"
+./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.15.tgz"
 dsh --profile tui
 ```
 
 The installer creates the profile under `${DSH_HOME:-$HOME/.dsh}/profiles/tui`
 and does not replace an existing profile's settings. To share the build, send
-`release/ceulen-dsh-0.2.14.tgz`; the other machine needs no clone and no build.
+`release/ceulen-dsh-0.2.15.tgz`; the other machine needs no clone and no build.
 
 ### Develop from a checkout
 
@@ -155,16 +165,39 @@ not hot-reload.
 /ceulen doctor   # compatibility and optional-backend diagnostics
 ```
 
-`/ceulen` shows the release line (`ceulen-dsh 0.2.14 (stable)`), the pinned
+`/ceulen` shows the release line (`ceulen-dsh 0.2.15 (stable)`), the pinned
 Ceulen version, and which modules are mounted. The bundle composes 34 rows.
 
-To upgrade, run `dsh plugin --profile tui add ceulen-dsh@latest` (or install a
-newer tarball into the same profile) and restart. Your settings are kept.
-`/ceulen update` tells you when a newer release is out.
+### Update
+
+When a newer release is out, the status line shows `bundle <version> available`.
+Then, inside the session:
+
+```text
+/ceulen upgrade --apply
+```
+
+installs that version into the profile you are running. Quit and start `dsh tui`
+again to load it; plugin code is not hot-reloaded. Settings and sessions are kept.
+
+From a terminal it is one command as well, with the version written out:
+
+```sh
+dsh plugin --profile tui add ceulen-dsh@0.2.15
+```
+
+`/ceulen upgrade` prints that line with your profile and the current version.
+Write the exact version rather than `@latest`: `dsh plugin` is pnpm, and for
+about a day after a release pnpm resolves `@latest` and `update` to the previous
+version. An exact version installs at once.
+
+Each profile (`tui`, `web`, `acp`) is updated on its own. A profile that links a
+checkout or was installed from a tarball is updated the way it was installed,
+and `--apply` says so instead of changing where the bundle comes from.
 
 ### Release line
 
-`package.json` carries this bundle's own version (`0.2.14`) plus
+`package.json` carries this bundle's own version (`0.2.15`) plus
 `release: { line: "stable", distTag: "stable" }`. The upstream Ceulen version it
 tracks lives in `upstream.lock.json` (`0.31.0`). The update check follows the
 `stable` npm dist-tag only, and reports `unknown` when that tag is missing
@@ -485,7 +518,7 @@ Every area below is a module. `/ceulen modules` lists them, and
 | Themes | 104 Ceulen Pi themes converted to DSH themes (`ceulen-<name>`), plus the `skins` and `thread` UI styles |
 | Skills | all 20 bundled skill packs registered (15 ported from Ceulen) |
 | Config | `/ceulen-config`: full-screen settings panel |
-| Status | `/ceulen`, `/ceulen modules`, `/ceulen tools`, `/ceulen doctor`, `/ceulen update` |
+| Status | `/ceulen`, `/ceulen modules`, `/ceulen tools`, `/ceulen doctor`, `/ceulen update`, `/ceulen upgrade --apply` |
 | Evolve | a weekly audit of past sessions that groups recurring tool errors into a report; `/evo`, `/evo-status` |
 | Herdr | optional: a `herdr` skill and a `delegate` runner that puts a child in its own terminal pane |
 
@@ -1020,6 +1053,20 @@ For the stock behaviour, add this to your profile's `cordis.patch.yml`:
 
 Each version has a tarball and checksums on its
 [release page](https://github.com/VietDo1804/Ceulen-DSH/releases), where one exists.
+
+### 0.2.15 — 28 Nov 2026
+
+- **Added:** `/ceulen upgrade --apply` runs
+  `dsh plugin --profile <profile> add ceulen-dsh@<version>` for the profile the
+  session booted with, checks that the profile now holds that version, and asks
+  for a restart. It runs nothing for a checkout link, a tarball or a git
+  install, and reports a failed install with pnpm's own last lines.
+- **Fixed:** the upgrade instructions used `@latest`. With pnpm 12, a tag or a
+  range does not resolve to a version younger than the release-age window, so
+  `add ceulen-dsh@latest` and `update ceulen-dsh` left a profile on the previous
+  version on the day of a release. The exact version is used everywhere now.
+- **Fixed:** `/ceulen upgrade` and `/ceulen update` printed `--profile <profile>`
+  when the session was started as `dsh tui`; the short form is read too.
 
 ### 0.2.14 — 28 Nov 2026
 
