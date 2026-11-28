@@ -12,8 +12,27 @@ Ceulen itself is a bundle for the Pi agent. DSH has a different plugin API, so
 this is an independent port: logic that does not depend on the UI is vendored
 from Ceulen (MIT), and each feature gets a thin DSH adapter.
 
+## What's new in 0.2.14
+
+Released 28 Nov 2026 · [release page](https://github.com/VietDo1804/Ceulen-DSH/releases/tag/v0.2.14) · [all versions](#changelog)
+
+| | |
+|---|---|
+| **Fixed: `delegate` on DSH core 0.2.2-rc.5** | Every call failed with `Cannot read properties of undefined (reading 'id')`, so orchestrator mode could not start a child. **0.2.13 has this bug: update.** |
+| **Fixed: a delegated agent is judged on its task** | The destructive-command gate, the bash redirect and `/ux auto` read the note DSH appends to a brief instead of the brief. A worker now also works at its lead's UX level. |
+| **New: `ux_kit`** | UI work starts with one tool call: it picks a design preset from the words of the request, writes `DESIGN.md` and `tokens.css`, and copies the kit next to the page. `action: "bundle"` makes one HTML file to send. [Guide](#pages-and-explainers-ux_kit) |
+| **New: diagrams written as lines** | `User -> Router: prompt` becomes a laid-out, animated block diagram with Back/Next steps: left to right on a desktop, top to bottom on a phone. |
+| **New: `explainer` preset and `base.css`** | A preset for pages people read (explainers, reports, guides), and a kit file for the focus ring, disabled controls, 44px touch targets and reduced motion. |
+| **Changed: `/ux auto`** | An HTML page to read counts as UI. A request the classifier cannot place is read by its words instead of falling to `keep`. |
+| **Changed: `ux_audit`** | Reads the kit's `tokens.css` and `base.css` beside a stylesheet and the CSS of an HTML page, reports a diagram that failed to draw, and names the tap targets that are too small. |
+
+With plain requests and no mention of presets or audits, `deepseek-v4.1-flash`
+and `gpt-6.1-terra` both called `ux_kit` first and passed the static and runtime
+audit of an explainer on the first run.
+
 ## Contents
 
+- [What's new in 0.2.14](#whats-new-in-0214)
 - [Highlights](#highlights)
 - [Requirements](#requirements)
 - [Install](#install)
@@ -25,6 +44,7 @@ from Ceulen (MIT), and each feature gets a thin DSH adapter.
 - [Known gaps](#known-gaps)
 - [Credential safety](#credential-safety)
 - [Upstream releases](#upstream-releases)
+- [Changelog](#changelog)
 - [Development](#development)
 - [Special thanks](#special-thanks)
 - [License](#license)
@@ -995,6 +1015,79 @@ For the stock behaviour, add this to your profile's `cordis.patch.yml`:
 - id: spill-local
   config: {}
 ```
+
+## Changelog
+
+Each version has a tarball and checksums on its
+[release page](https://github.com/VietDo1804/Ceulen-DSH/releases), where one exists.
+
+### 0.2.14 — 28 Nov 2026
+
+- **Fixed:** `delegate` starts a child again on DSH core 0.2.2-rc.5. rc.5 reads
+  the parent and the prompt from the activation spec itself; the bundle sends
+  them there, and in the earlier place for an older core.
+- **Fixed:** a delegated brief is read by its task. DSH closes every brief with
+  a note about how the result is delivered, and reworded it in rc.5; the gate,
+  the bash redirect and `/ux auto` took that note for the request.
+- **Added:** the `ux_kit` tool, with `start` and `bundle`
+  ([guide](#pages-and-explainers-ux_kit)).
+- **Added:** `kit/diagram.js` (block diagrams from lines), `kit/base.css`
+  (states every page is audited on) and the `explainer` preset, 17 presets in
+  all. The preset table lives in `skills/ux-presets/presets.json`.
+- **Added:** `data-pointer="off"` on `<html>` keeps a work app still under the
+  cursor. The six app presets set it; hover and focus states stay.
+- **Changed:** a pricing or landing page for an app is routed to a page that
+  presents, not to a screen of the app.
+- **Changed:** `/ux auto` treats an HTML page to read as UI (`lite`), gives a
+  worker its lead's level, and reads a first message by its words when the
+  classifier times out or is unsure.
+- **Changed:** `ux_audit` reads `tokens.css` and `base.css` beside the
+  stylesheet it is given and the CSS of an HTML page; adds a `diagram` finding;
+  names the elements in a `tap-target` finding and measures a checkbox by its
+  label; no longer reports screen-reader-only text as clipped.
+- **Release checks:** the pack contract requires the kit files, so a package
+  without them fails `check-pack` and `smoke-install`.
+
+### 0.2.13 — 25 Nov 2026
+
+npm only, no release page.
+
+- **Fixed:** the plan-review and question cards fit the screen under a todo
+  band, with a headless smoke (`scripts/tui-question-fit-smoke.mjs`) that
+  `/dsh-update` runs.
+- **Fixed:** the status line no longer announces an older bundle from a stale
+  cache.
+- **Changed:** tracks DSH core `0.2.2-rc.5`.
+- **Known issue:** `delegate` fails on every call with this core. Fixed in 0.2.14.
+
+### 0.2.12 — 24 Nov 2026
+
+- **Fixed:** a cut tool result can be read back inside the workspace-write
+  sandbox: spilled results live under `$DSH_HOME/spill` and
+  `$DSH_HOME/ceulen/spill`, not in a `/tmp` the shell cannot see.
+- **Changed:** codemode's notice names the parts that were cut and prints the
+  command that reads one back.
+- **Changed:** on steered flash routes, a lookup command that appears verbatim
+  in your own message runs as typed.
+- **Changed:** `/serena recipe` follows the installed serena-agent version.
+- **Added:** `scripts/smoke-install.mjs`, the post-publish install check.
+
+### 0.2.11 — 24 Nov 2026
+
+npm only, no release page.
+
+- **Changed:** the Memory Protocol in the prompt is written from what is
+  configured (Munin alone, a fallback, or AgentMem beside it) and names no
+  particular second server.
+
+### 0.2.10 — 24 Nov 2026
+
+- **Added:** published on npm; installs by name.
+- **Added:** `steering.coldModels` holds unused tools behind `ceulen_tools` on
+  any route, which shortens the prompt before any work.
+- **Changed:** `/orchestrator` keeps dated plan files, resumes once after a
+  dropped connection and refuses a garbled message.
+- **Removed:** `/agent-mode` and the `agentMode` settings key.
 
 ## Development
 
