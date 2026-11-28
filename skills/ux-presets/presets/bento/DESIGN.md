@@ -29,6 +29,7 @@ motion:
   m-rise: 32px
   m-arrive: 720ms
   m-gap: 80ms
+  html: data-pointer="off"
 ---
 
 ## Overview
@@ -71,6 +72,8 @@ holding the real series as a drawn line with its peak marked.
 Tiles load in reading order, 32px over 720ms, 80ms apart. Numbers count, the
 chart draws with its peak landing as the line passes, bars fill. The live dot
 pulses. Override a bar's colour with `--m-tint` on the bar, not `--m-accent`.
+
+The pointer does not stir the page (`data-pointer="off"` on `<html>`): people work here for hours. Hover and focus states stay.
 
 ## Do / Don't
 

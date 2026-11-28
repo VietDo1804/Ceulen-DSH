@@ -460,7 +460,7 @@ Every area below is a module. `/ceulen modules` lists them, and
 | Providers | `/router-status`, `/router-model`, `/zai`, `/provider-compat` with ready provider recipes |
 | Usage | `/usage`: subscription windows and credits for OpenCode Go, Z.AI, Command Code, Codex and a generic router, plus a footer segment |
 | Context | `/context`: a colored grid of what fills the context window, by category |
-| UX | `/ux off\|lite\|strict\|auto` design guidance and `ux_audit` (static checks, six viewports, screenshots, motion checks) |
+| UX | `/ux off\|lite\|strict\|auto` design guidance, `ux_kit` (picks a design preset from the request, writes `DESIGN.md`, tokens and the motion, state and diagram kit files; bundles a page into one HTML file) and `ux_audit` (static checks, six viewports, screenshots, motion checks) |
 | Themes | 104 Ceulen Pi themes converted to DSH themes (`ceulen-<name>`), plus the `skins` and `thread` UI styles |
 | Skills | all 20 bundled skill packs registered (15 ported from Ceulen) |
 | Config | `/ceulen-config`: full-screen settings panel |

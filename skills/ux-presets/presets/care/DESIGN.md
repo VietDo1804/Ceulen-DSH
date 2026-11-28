@@ -34,6 +34,7 @@ motion:
   m-gap: 80ms
   m-out: "cubic-bezier(0.16, 1, 0.3, 1)"
   m-surface: "{colors.teal-soft}"
+  html: data-pointer="off"
 ---
 
 ## Overview
@@ -76,6 +77,8 @@ teal-soft. It answers "when can I go?" before anything else.
 
 Gentle: 32px over 740ms on a long ease-out, 80ms apart. Day counts count up,
 doctor rows arrive, the soonest badge pops, wait bars fill. Nothing flashes.
+
+The pointer does not stir the page (`data-pointer="off"` on `<html>`): people work here for hours. Hover and focus states stay.
 
 ## Do / Don't
 

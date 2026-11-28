@@ -10,6 +10,7 @@ import { saveScreenshot } from '../web/capture.js'
 import { contrastFixLine, nearestToken } from './fix.js'
 import { formatRuntimeReport, runRuntimeAudit, type RuntimeAudit } from './review.js'
 import { AutoLevels, KEEP_TEXT, OFF_TEXT, UX_LEVEL_CONTEXT, userTextOf, type AutoLevel } from './auto.js'
+import { KIT_MARK, registerKitTool } from './kit.js'
 
 export const name = 'ceulen-ux'
 export const inject = ['tools', 'commands', 'systemPrompt']
@@ -46,7 +47,46 @@ export async function resolveAuditCss(
   if (size > MAX_CSS_BYTES) throw new Error(`Stylesheet too large: ${target} (${size} bytes, max ${MAX_CSS_BYTES})`)
   const text = await readText(target)
   if (text === undefined) throw new Error(`Cannot read stylesheet: ${target}`)
-  return text
+  if (/\.html?$/i.test(target)) return pageCss(text, dirname(target))
+  return `${await kitSiblings(dirname(target), target)}${text}`
+}
+
+/**
+ * The kit files beside a stylesheet, read with it. A page built with `ux_kit`
+ * keeps its colours in tokens.css and its focus, disabled and reduced-motion
+ * rules in base.css, so the page's own sheet alone resolves no `var()` pair
+ * and declares no state. Only files that carry the kit's mark count.
+ */
+async function kitSiblings(folder: string, self: string): Promise<string> {
+  let out = ''
+  for (const name of ['tokens.css', 'base.css']) {
+    const path = join(folder, name)
+    if (path === self) continue
+    const text = await readFile(path, 'utf8').catch(() => null)
+    if (text !== null && text.includes(KIT_MARK) && text.length <= MAX_CSS_BYTES) out += `${text}\n`
+  }
+  return out
+}
+
+/**
+ * The CSS of an HTML page: its `<style>` blocks and its local stylesheets, in
+ * document order. A single-file page handed to `path` used to be parsed as CSS.
+ */
+export async function pageCss(html: string, folder: string): Promise<string> {
+  const parts: string[] = []
+  for (const match of html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>|<link\b[^>]*>/gi)) {
+    if (match[1] !== undefined) {
+      parts.push(match[1])
+      continue
+    }
+    if (!/\brel=(["'])stylesheet\1/i.test(match[0])) continue
+    const href = /\bhref=(["'])([^"']+)\1/i.exec(match[0])?.[2]
+    if (href === undefined || /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(href) || /(?:^|\/)motion\.css$/.test(href)) continue
+    const text = await readFile(resolvePath(folder, href.replace(/[?#].*$/, '')), 'utf8').catch(() => null)
+    if (text !== null && text.length <= MAX_CSS_BYTES) parts.push(text)
+  }
+  if (parts.length === 0) throw new Error('This HTML page has no <style> block and no local stylesheet to audit. Pass the stylesheet as `path`, or use `url` for the runtime audit.')
+  return parts.join('\n')
 }
 
 /** A call carries a stylesheet when it names `path`, `css`, or `pairs`. */
@@ -218,15 +258,19 @@ async function designDriftLine(css: string, stylesheet: string | undefined, cwd:
 // so the prompt names the skill and gives the order. Growth is capped in
 // test/ux.test.ts (the old strict text was 783 chars).
 const INSTRUCTIONS: Record<'lite' | 'strict', string> = {
-  lite: `UX MODE ACTIVE — level: lite. Use design tokens, not raw values. Load the \`ux-design\` skill for new or user-facing UI and state one direction line before markup. Give the page rich motion by copying the ux-design motion kit (kit/motion.js and kit/motion.css, attributes in references/motion.md): a load moment, items that arrive as they scroll in, soft state changes, and UI that reacts to the pointer. Implement the full interaction state set (hover, focus-visible, active, disabled, loading, empty, error). Use semantic HTML and accessible names. Run ux_audit on the stylesheet and on the rendered page; look at the screenshots it returns, because a PASS does not end the visual review. No decorative gradients, glassmorphism, giant hero type, or emoji-as-icon unless the existing design uses them.`,
+  lite: `UX MODE ACTIVE — level: lite. This request makes new UI or an HTML page a person will read, so how it looks matters.
+1. Call \`ux_kit\` first with the user's request, before any markup. It picks the design preset, writes DESIGN.md, tokens.css and the kit files, and returns the head to paste and a recipe for this kind of page. Follow that result.
+2. Colours are \`var(--name)\` from tokens.css, never a hex value. Do not retype or edit the kit files. A diagram is lines in \`<figure data-diagram><pre>\`, never hand-placed SVG.
+3. Run \`ux_audit\` with \`url\` and \`path\`, look at the screenshots it returns, fix every finding and run it again. A PASS does not end the visual review.
+No decorative gradients, glassmorphism, giant hero type, or emoji-as-icon unless the existing design uses them.`,
   strict: `UX MODE ACTIVE — level: strict. Tokens only: every color, radius, spacing, shadow, and font size comes from an existing token; no raw hex outside the token file.
 Method, in order:
-1. Read all of DESIGN.md. A concept or redesign keeps its tokens, and its colour comes from the ones listed. "Premium", "colors", or "attractive" change nothing; only the words new identity, rebrand, or ignore DESIGN.md do. Never add a second DESIGN.md. If there is none, load the \`ux-design\` skill; for a starter system load \`ux-presets\` and pick one.
-2. Before markup, state one line: \`Direction: <concept> · type <display>+<body> · palette <hex> · signature <element> · motion <load> + <scroll>\`. If DESIGN.md is absent, write it now in the working directory: that line and the tokens, before any markup, even when the request names only other files. A product with its own tokens gets those, never new ones. When a token changes, change DESIGN.md too.
-3. Build inside those tokens. Every interactive component defines hover, focus-visible, active, disabled, loading, empty, and error states. A static page is unfinished: copy the ux-design motion kit next to the page, or to public/ in React or Next (cp kit/motion.js kit/motion.css, never retype them) and mark up the page with its attributes (references/motion.md). That gives load and scroll motion, soft state changes, pointer response, and a reduced-motion fallback.
-4. Run ux_audit on the stylesheet (path) and on the rendered page (url). It returns two screenshots when the route accepts images — look at them: hierarchy, dead zones, clipped text, overflow at target width. A PASS does not end the visual review. Once motion is built, add \`motion: true\` for its load frames.
+1. Call \`ux_kit\` with the user's request before any markup. With no DESIGN.md it picks a preset and writes DESIGN.md, tokens.css and the kit files; an existing one is kept. Read all of DESIGN.md. A concept or redesign keeps its tokens, and its colour comes from the ones listed. "Premium", "colors", or "attractive" change nothing; only the words new identity, rebrand, or ignore DESIGN.md do. Never add a second DESIGN.md. The \`ux-design\` skill has the method.
+2. Before markup, state one line and add it to DESIGN.md: \`Direction: <concept> · type <display>+<body> · palette <hex> · signature <element> · motion <load> + <scroll>\`. A product with its own tokens gets those, never new ones. When a token changes, change DESIGN.md too.
+3. Build inside those tokens, as the \`ux_kit\` result says. Every interactive component defines hover, focus-visible, active, disabled, loading, empty, and error states. A static page is unfinished: mark it up with the motion kit's attributes and never retype the kit; it brings the reduced-motion fallback. A diagram is lines in \`<figure data-diagram><pre>\`, never hand-placed SVG.
+4. Run ux_audit on the stylesheet (path) and the rendered page (url). It returns two screenshots when the route accepts images — look at them: hierarchy, dead zones, clipped text, overflow. A PASS does not end the visual review. Once motion is built, add \`motion: true\`.
 5. Fix every finding, then repeat before claiming UI work done.
-No AI-slop tells: no purple-blue gradient on everything, no glass cards, no emoji icons, no centered hero for app UI, no oversized rounded cards. Preserve the product's existing visual language.`,
+No AI-slop tells: no purple-blue gradient, glass cards, emoji icons, centered hero for app UI, or oversized rounded cards. Preserve the product's existing visual language.`,
 }
 
 export function apply(ctx: PluginContext): void {
@@ -244,10 +288,11 @@ export function apply(ctx: PluginContext): void {
 
   const levels = new AutoLevels(ctx, autoText, () => mode === 'auto')
   installAutoLevels(ctx, levels)
+  registerKitTool(ctx)
 
   registerToolSafe(ctx, ceulenTool({
     name: 'ux_audit',
-    description: 'Deterministic UI audit. Stylesheet mode: APCA/WCAG contrast (with a suggested passing colour), hardcoded colors outside tokens, ad-hoc shadows, per-component interaction states, focus-ring kills, AI-slop tells — supply `path` (preferred), `css`, or only `pairs`. Runtime mode: supply `url` to open the page in Chrome at six viewports, check focus indicators, accessible names, heading order, tap targets, overflow, field labels, clipped text, empty blocks, uneven columns, jank-prone motion, console errors, and inherited-background contrast, and return two screenshots (smallest phone + widest ≤1440). Add `motion: true` for three frames of the page-load animation. Both modes may run in one call: `url` plus `path` gives two labelled verdicts. Verdicts are PASS, FAIL, or INCOMPLETE — INCOMPLETE means a gate had nothing to check and is never reported as a pass. No model call.',
+    description: 'Deterministic UI audit. Stylesheet mode: APCA/WCAG contrast (with a suggested passing colour), hardcoded colors outside tokens, ad-hoc shadows, per-component interaction states, focus-ring kills, AI-slop tells — supply `path` (a stylesheet, read with the kit files tokens.css and base.css beside it, or an HTML page for its own CSS), `css`, or only `pairs`. Runtime mode: supply `url` to open the page in Chrome at six viewports, check focus indicators, accessible names, heading order, tap targets, overflow, field labels, clipped text, diagrams that failed to draw, empty blocks, uneven columns, jank-prone motion, console errors, and inherited-background contrast, and return two screenshots (smallest phone + widest ≤1440). Add `motion: true` for three frames of the page-load animation. Both modes may run in one call: `url` plus `path` gives two labelled verdicts. Verdicts are PASS, FAIL, or INCOMPLETE — INCOMPLETE means a gate had nothing to check and is never reported as a pass. No model call.',
     parameters: objectSchema({
       path: { type: 'string', description: 'Path to a CSS stylesheet to audit verbatim (absolute or cwd-relative). PREFERRED over retyping `css`. Exactly one of path/css; may be combined with `url` for a static+runtime pair.' },
       css: { type: 'string', description: 'CSS/SCSS text to scan (inline <style>, or a token block). Prefer `path` for on-disk files. Exactly one of path/css.' },
@@ -413,10 +458,10 @@ function installAutoLevels(ctx: PluginContext, levels: AutoLevels): void {
     if (payload?.agent !== undefined) levels.forget(String(payload.agent.session.id))
   })
   // The inbox splice lands when the message is sent, before its turn starts.
-  ctx.on('session/event', (session: { id?: unknown } | undefined, event: { type?: string; data?: unknown } | undefined) => {
+  ctx.on('session/event', (session: { id?: unknown; header?: { parentSession?: string } } | undefined, event: { type?: string; data?: unknown } | undefined) => {
     if (event?.type !== 'agent/inbox/spliced' || session?.id === undefined) return
-    const text = userTextOf(event.data)
-    if (text !== undefined) levels.classify(String(session.id), text, agent => agentCwd(ctx, agent))
+    const text = userTextOf(event.data, session.header?.parentSession !== undefined)
+    if (text !== undefined) levels.classify(String(session.id), text, agent => agentCwd(ctx, agent), session.header?.parentSession)
   })
   // Contexts resolve before this waterfall runs, so the level is patched in after `next()`.
   ctx.on('system-prompt/assemble', async (_assembly: Assembly, context: AssembleContext | undefined, next: () => Promise<Assembly>) => {

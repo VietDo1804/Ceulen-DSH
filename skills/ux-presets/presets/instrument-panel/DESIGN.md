@@ -36,7 +36,7 @@ motion:
   m-arrive: 700ms
   m-gap: 70ms
   m-surface: "{colors.well}"
-  html: data-recount="off"
+  html: data-recount="off" data-pointer="off"
 ---
 
 ## Overview
@@ -81,6 +81,8 @@ pulsing lamp in the headline that matches the system state.
 32px over 700ms, 70ms apart. Numbers count once (`data-recount="off"`), the
 series draws, lamps pop after their rows, the incident rail draws, the headline
 lamp pulses slowly.
+
+The pointer does not stir the page (`data-pointer="off"` on `<html>`): people work here for hours. Hover and focus states stay.
 
 ## Do / Don't
 

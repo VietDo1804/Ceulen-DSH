@@ -38,7 +38,7 @@ motion:
   m-arrive: 680ms
   m-gap: 60ms
   m-surface: "{colors.cobalt-soft}"
-  html: data-recount="off"
+  html: data-recount="off" data-pointer="off"
 ---
 
 ## Overview
@@ -85,6 +85,8 @@ Level-2 distance with a tight rhythm, for an app opened many times a day:
 32px over 680ms, only 60ms apart, so a screen settles fast. KPIs count once, funnel bars fill, rows arrive, the activity rail draws,
 the filter pill slides. Put `data-recount="off"` on `<html>` so a number under
 the pointer never shows a false value. In React, give every row a stable `key`.
+
+The pointer does not stir the page (`data-pointer="off"` on `<html>`): people work here for hours. Hover and focus states stay.
 
 ## Do / Don't
 

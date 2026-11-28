@@ -604,7 +604,8 @@
   const stage = '[data-arrive], [data-count], [data-fill], [data-sweep], tr'
 
   addEventListener('pointermove', (event) => {
-    if (event.pointerType === 'touch') return
+    /* data-pointer="off" on <html>: an app people work in keeps still under the cursor */
+    if (event.pointerType === 'touch' || root.dataset.pointer === 'off') return
     pointerX = event.clientX
     pointerY = event.clientY
     stir()

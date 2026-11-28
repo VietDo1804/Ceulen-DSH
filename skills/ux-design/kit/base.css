@@ -1,0 +1,49 @@
+/* ceulen-ux kit: base.css. Copy this file next to the page, do not retype it.
+   Link it BEFORE your own stylesheet: every rule here has zero specificity
+   (:where), so anything you write wins. It supplies the parts a page is
+   audited on and that are easy to forget: a focus ring, disabled controls,
+   44px touch targets, the reduced-motion fallback, and media that fits.
+   Colours come from tokens.css (--k-*), with system colours as the fallback. */
+
+:where(*, *::before, *::after) { box-sizing: border-box; }
+:where(html) { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+:where(body) { margin: 0; overflow-wrap: break-word; }
+:where([hidden]) { display: none !important; }
+
+/* media never pushes the page wider than the screen */
+:where(img, video, canvas, iframe) { max-width: 100%; }
+:where(img, video) { height: auto; }
+:where(pre) { max-width: 100%; overflow-x: auto; }
+:where(h1, h2, h3) { text-wrap: balance; }
+/* wrap a wide table or figure in <div class="scroll-x"> instead of letting the page scroll sideways */
+:where(.scroll-x) { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* controls take the page's type, and say what they are */
+:where(button, input, select, textarea) { font: inherit; color: inherit; }
+:where(button, [role="button"], summary, select, label[for], input[type="checkbox"], input[type="radio"]) { cursor: pointer; }
+:where(button, [role="button"]) { touch-action: manipulation; }
+
+/* states every interactive element needs */
+:where(:focus-visible) { outline: 2px solid var(--k-focus, var(--k-link, var(--k-accent, currentColor))); outline-offset: 2px; }
+/* two rules, not one list: ux_audit reads each as covering every control */
+:where(:disabled) { opacity: 0.55; cursor: not-allowed; }
+:where([aria-disabled="true"]) { opacity: 0.55; cursor: not-allowed; }
+:where([aria-busy="true"]) { cursor: progress; }
+:where([aria-invalid="true"]) { outline: 2px solid var(--k-danger, currentColor); outline-offset: 1px; }
+
+/* touch targets: 44px on phones and on any coarse pointer */
+@media (max-width: 480px), (pointer: coarse) {
+  :where(button, [role="button"], select, summary, input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"])) { min-height: 44px; min-width: 44px; }
+  /* a link that is laid out as a block or a flex item is a target; a link in a sentence is not */
+  :where(nav, [role="navigation"], footer, menu) :where(a) { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+  /* a checkbox or radio is tapped through its label */
+  :where(label:has(input[type="checkbox"], input[type="radio"])) { display: inline-flex; align-items: center; gap: 0.6em; min-height: 44px; }
+}
+
+/* text for screen readers only */
+:where(.sr-only) { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* !important is required: a blanket rule loses to any class selector without it */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

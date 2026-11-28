@@ -35,6 +35,7 @@ in "sidebar", "kho" is not in "khoảng", "báo chí" is not in "thông báo"). 
 
 | Preset | Words in the request |
 |---|---|
+| `explainer` | explain, explains, explained, explainer, explanation, giải thích, diễn giải, tutorial, hướng dẫn, how it works, walkthrough, deep dive, whitepaper, write-up, writeup |
 | `care` | clinic, phòng khám, hospital, bệnh viện, doctor, bác sĩ, healthcare, y tế, dental, nha khoa, pharmacy, nhà thuốc, therapy, patient, bệnh nhân, đặt lịch khám |
 | `bento` | usage, token, ai dashboard, insights, analytics, phân tích, overview, tổng quan, thống kê, metrics, kpi |
 | `ledger` | invoice, hoá đơn, hóa đơn, billing, accounting, kế toán, finance, tài chính, payroll, bảng lương, bank, ngân hàng, expense, chi phí, budget, ngân sách, legal, pháp lý, pháp lí |
@@ -42,25 +43,39 @@ in "sidebar", "kho" is not in "khoảng", "báo chí" is not in "thông báo"). 
 | `pipeline-desk` | crm, pipeline, sales, deal, lead, inventory, stock, warehouse, kho, tồn kho, order management, quản lý đơn hàng, quản lí đơn hàng, admin, back office, quản lý, quản lí, quản trị, erp, hr, nhân sự, ticket, helpdesk, khách hàng |
 | `luxury` | luxury, sang trọng, fashion, thời trang, jewellery, jewelry, trang sức, watch, đồng hồ, perfume, nước hoa, hotel, khách sạn, resort, real estate, bất động sản, wedding, cưới, gallery |
 | `retro-film` | coffee, cà phê, café, cafe, quán ăn, quán nước, quán nhậu, quán phở, restaurant, nhà hàng, bakery, tiệm bánh, bar, menu, thực đơn, photography, nhiếp ảnh, vinyl, barber |
+| `swiss` | pricing, bảng giá |
 | `storefront` | shop, store, cửa hàng, e-commerce, thương mại điện tử, catalog, product, sản phẩm, cart, giỏ hàng, checkout, bán hàng online |
 | `editorial` | blog, article, bài viết, magazine, tạp chí, news, tin tức, báo chí, tờ báo, essay, journal, newsletter, case study, story, câu chuyện |
 | `memphis` | kids, children, trẻ em, thiếu nhi, camp, trại hè, toy, đồ chơi, party, tiệc, playful, vui nhộn, family, gia đình |
 | `kinetic-type` | festival, concert, lineup, music, nhạc, âm nhạc, podcast, sport, thể thao, tournament, campaign, chiến dịch |
-| `swiss` | conference, hội thảo, hội nghị, schedule, lịch trình, agenda, timetable, transit, docs, documentation, tài liệu, architecture |
+| `swiss` | conference, hội thảo, hội nghị, schedule, lịch trình, agenda, timetable, transit, architecture |
+| `swiss` | docs, documentation, tài liệu |
 | `bauhaus` | school, trường học, đại học, workshop, course, khoá học, khóa học, class, lớp học, museum, bảo tàng, studio, education, giáo dục |
 | `nature` | farm, food, thực phẩm, rau, organic, wellness, spa, yoga, garden, vườn, eco, sustainability, community, cộng đồng |
 | `neubrutalism` | developer, dev tool, api, sdk, cli, startup, launch, hackathon, indie, creator, saas |
 | `civic` | government, chính phủ, public service, dịch vụ công, council, ủy ban, uỷ ban, city, thành phố, permit, giấy phép, licence, license, tax, thuế, application, hồ sơ, form, biểu mẫu, đăng ký, đăng kí |
+| `swiss` | landing page, landing, homepage, trang chủ, marketing, waitlist |
+| `explainer` | report, báo cáo, review, đánh giá, research, nghiên cứu, comparison, compare, so sánh, summary, tóm tắt, guide, findings, evaluation, study |
 | `pipeline-desk` | dashboard, app, tool, công cụ, ứng dụng, internal, nội bộ, settings, cài đặt, portal, account, tài khoản, screen, màn hình |
 | `swiss` | anything else |
 
 ## 3. Copy it
 
-`<base directory>` is this skill's folder, given when the skill loads.
+Call `ux_kit` with the user's request. It reads this same table, so it picks the
+same preset, and in one call it writes `DESIGN.md`, `tokens.css` (the preset's
+colours, fonts and motion values as CSS variables) and the kit files, then
+returns the head to paste and the next steps:
+
+```json
+{ "request": "<the user's words, verbatim>", "dir": "<folder for the page>" }
+```
+
+Without the tool, copy by hand. `<base directory>` is this skill's folder, given
+when the skill loads.
 
 ```bash
 cp <base directory>/presets/<preset>/DESIGN.md DESIGN.md
-cp <base directory>/../ux-design/kit/motion.js <base directory>/../ux-design/kit/motion.css .
+cp <base directory>/../ux-design/kit/motion.js <base directory>/../ux-design/kit/motion.css <base directory>/../ux-design/kit/base.css .
 ```
 
 Then read `<base directory>/presets/<preset>/example.html` once. It shows the

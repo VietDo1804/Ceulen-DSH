@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How a coding agent routes a request</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=JetBrains+Mono:wght@400;600&family=Public+Sans:wght@400..700&display=swap">
+<style>
+  :root {
+    --paper: #F6F5F0;
+    --sheet: #FDFCF9;
+    --shade: #ECEAE2;
+    --ink: #15171C;
+    --ink-muted: #555A66;
+    --pen: #1B45A8;
+    --on-pen: #F6F8FF;
+    --marker: #FFE169;
+    --ok: #135536;
+    --ok-soft: #E1F0E7;
+    --warn: #6E4200;
+    --warn-soft: #F7ECD3;
+    --rule: #D8D5CA;
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-pill: 999px;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 16px;
+    --space-4: 24px;
+    --space-5: 32px;
+    --space-6: 56px;
+    --space-7: 96px;
+    --display: "Bricolage Grotesque", system-ui, sans-serif;
+    --sans: "Public Sans", system-ui, sans-serif;
+    --mono: "JetBrains Mono", "Courier New", monospace;
+    --dur-fast: 150ms;
+    --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    --m-accent: var(--pen);
+    --m-surface: var(--shade);
+    --m-rise: 32px;
+    --m-arrive: 700ms;
+    --m-gap: 70ms;
+    --k-bg: var(--paper);
+    --k-surface: var(--sheet);
+    --k-text: var(--ink);
+    --k-muted: var(--ink-muted);
+    --k-accent: var(--marker);
+    --k-on-accent: var(--ink);
+    --k-link: var(--pen);
+    --k-rule: var(--rule);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 1.0625rem/1.65 var(--sans); }
+  a { color: var(--pen); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { text-decoration-thickness: 2px; }
+  :focus-visible { outline: 2px solid var(--pen); outline-offset: 3px; }
+  button:disabled, a[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+  h1, h2, h3 { font-family: var(--display); font-weight: 700; letter-spacing: -0.02em; line-height: 1.3; margin: 0; text-wrap: balance; }
+  mark { background: var(--marker); color: var(--ink); padding: 0.05em 0.3em; border-radius: var(--radius-sm); }
+  code { font: 400 0.875em var(--mono); background: var(--shade); padding: 0.1em 0.35em; border-radius: var(--radius-sm); }
+
+  .page { max-width: 1120px; margin: 0 auto; padding: 0 var(--space-4); display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); }
+  .contents { padding-top: var(--space-5); font-size: 0.9375rem; }
+  .contents strong { display: block; font: 700 1rem var(--display); margin-bottom: var(--space-2); }
+  .contents ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 var(--space-3); }
+  .contents a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; color: var(--ink-muted); text-decoration: none; transition: color var(--dur-fast) var(--ease-out); }
+  .contents a:hover, .contents a[aria-current="true"] { color: var(--pen); }
+
+  .hero { padding: var(--space-5) 0 var(--space-6); }
+  .kicker { margin: 0 0 var(--space-3); color: var(--ink-muted); font-weight: 600; }
+  h1 { font-size: clamp(2.25rem, 6vw, 3.75rem); max-width: 16ch; }
+  .lede { font-size: 1.25rem; line-height: 1.55; max-width: 56ch; margin: var(--space-4) 0 0; }
+  .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin: var(--space-5) 0 0; max-width: 40rem; }
+  .facts div { background: var(--sheet); border-radius: var(--radius-md); padding: var(--space-3); }
+  .facts dd { margin: 0; font: 700 1.75rem/1.2 var(--display); font-variant-numeric: tabular-nums; }
+  .facts dt { color: var(--ink-muted); font-size: 0.875rem; line-height: 1.4; }
+
+  section { padding: var(--space-6) 0; box-shadow: inset 0 1px 0 var(--rule); }
+  h2 { font-size: clamp(1.5rem, 3.4vw, 2rem); padding-bottom: var(--space-2); margin-bottom: var(--space-3); }
+  h3 { font-size: 1.125rem; margin-bottom: var(--space-1); }
+  section > p, section > ul { max-width: 68ch; }
+  .answers { color: var(--ink-muted); margin-top: 0; }
+
+  figure { margin: var(--space-4) 0; background: var(--sheet); border-radius: var(--radius-md); padding: var(--space-4); }
+  figcaption { margin-top: var(--space-3); color: var(--ink-muted); font-size: 0.875rem; }
+
+  .parts { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: var(--space-3); }
+  .parts li { background: var(--sheet); border-radius: var(--radius-md); padding: var(--space-4); }
+  .parts p { margin: 0; color: var(--ink-muted); font-size: 0.9375rem; line-height: 1.55; }
+
+  .scroll-x { max-width: 100%; overflow-x: auto; margin: var(--space-4) 0; }
+  table { border-collapse: collapse; width: 100%; min-width: 34rem; font-size: 0.9375rem; }
+  th, td { text-align: left; padding: 12px var(--space-3); box-shadow: inset 0 -1px 0 var(--rule); }
+  thead th { background: var(--shade); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .turn { list-style: none; margin: var(--space-4) 0 0; padding: 0 0 0 var(--space-5); position: relative; max-width: 68ch; }
+  .turn li { position: relative; padding-bottom: var(--space-4); }
+  .turn .dot { position: absolute; left: calc(var(--space-5) * -1 - 5px); top: 9px; width: 11px; height: 11px; border-radius: 50%; background: var(--pen); }
+  .turn time { font: 600 0.875rem var(--mono); color: var(--ink-muted); display: block; }
+
+  .callout { margin: var(--space-4) 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); max-width: 68ch; background: var(--shade); }
+  .callout.ok { background: var(--ok-soft); color: var(--ok); }
+  .callout.warn { background: var(--warn-soft); color: var(--warn); }
+  .callout strong { display: block; }
+  pre.code { margin: var(--space-4) 0; padding: var(--space-3) var(--space-4); background: var(--shade); border-radius: var(--radius-sm); overflow-x: auto; font: 400 0.875rem/1.6 var(--mono); max-width: 68ch; }
+  pre.code code { background: none; padding: 0; font-size: 1em; }
+
+  footer { padding: var(--space-5) 0 var(--space-6); color: var(--ink-muted); font-size: 0.875rem; box-shadow: inset 0 1px 0 var(--rule); }
+
+  @media (min-width: 1000px) {
+    .page { grid-template-columns: 220px minmax(0, 1fr); gap: var(--space-6); }
+    .contents { position: sticky; top: 0; align-self: start; padding-top: var(--space-6); }
+    .contents ol { display: block; }
+    .contents a { min-height: 36px; }
+  }
+  @media (max-width: 560px) {
+    .facts { grid-template-columns: 1fr; }
+    figure { padding: var(--space-3); margin-inline: calc(var(--space-2) * -1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="motion.css">
+</head>
+<body id="top">
+<div class="page">
+  <nav class="contents" aria-label="Contents">
+    <strong>On this page</strong>
+    <ol>
+      <li><a href="#short">The short version</a></li>
+      <li><a href="#path">The path of a request</a></li>
+      <li><a href="#parts">What each part does</a></li>
+      <li><a href="#compare">Fast or strong</a></li>
+      <li><a href="#turn">One turn, minute by minute</a></li>
+      <li><a href="#try">Try it</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <p class="kicker" data-load>Explainer · 6 min read</p>
+      <h1 data-words>How a coding agent routes a request</h1>
+      <p class="lede" data-load>A harness does not send every prompt to its best model. It reads the request first, then picks the cheapest model that can finish the job.</p>
+      <dl class="facts" data-load>
+        <div><dd><span data-count>78</span>%</dd><dt>of requests go to the fast model</dt></div>
+        <div><dd><span data-count>6</span>×</dd><dt>cheaper per finished task</dt></div>
+        <div><dd><span data-count>2</span></dd><dt>models behind one prompt box</dt></div>
+      </dl>
+    </header>
+
+    <section id="short">
+      <h2 data-sweep>The short version</h2>
+      <p class="answers">What happens between pressing Enter and seeing the first edit?</p>
+      <p>The <mark>router</mark> classifies the request, a model plans the work, and <mark>tools</mark> do it. The model never touches your files directly: every read and every edit is a tool call that the harness can allow, deny, or record.</p>
+      <div class="callout ok" data-arrive><strong>The rule of thumb</strong>Easy and well-specified work goes to the fast model. Work that needs judgement goes to the strong one.</div>
+    </section>
+
+    <section id="path">
+      <h2 data-sweep>The path of a request</h2>
+      <p class="answers">Which parts does one prompt pass through, and in what order?</p>
+      <figure data-diagram>
+        <pre>
+User -> Router: prompt
+Router -> Fast model: easy task
+Router -> Strong model: hard task
+Fast model -> Tools: tool call
+Strong model -> Tools: tool call
+Tools -> Result
+Result -> User: answer
+Router :: picks a model per request
+Tools :: read, edit, bash, web
+[Harness] Router, Fast model, Strong model, Tools
+accent: Router
+step: User, Router | A prompt arrives and the router reads it.
+step: Router, Fast model, Strong model | Easy work goes to the fast model, hard work to the strong one.
+step: Fast model, Strong model, Tools | Either model asks for tools; the harness runs them.
+step: Tools, Result, User | The result goes back to the user.
+        </pre>
+        <figcaption>One request, from prompt to answer. Press Start to walk through it.</figcaption>
+      </figure>
+    </section>
+
+    <section id="parts">
+      <h2 data-sweep>What each part does</h2>
+      <p class="answers">Who is responsible for what?</p>
+      <ul class="parts">
+        <li data-arrive><h3>Router</h3><p>Reads the request and the repository's shape, then names a model and a level of effort.</p></li>
+        <li data-arrive><h3>Fast model</h3><p>Renames, small fixes, tests for code that exists. Finishes in seconds.</p></li>
+        <li data-arrive><h3>Strong model</h3><p>Designs, migrations, anything where a wrong first step is expensive.</p></li>
+        <li data-arrive><h3>Tools</h3><p>The only way anything changes: read, edit, shell, browser. Each call is logged.</p></li>
+      </ul>
+    </section>
+
+    <section id="compare">
+      <h2 data-sweep>Fast or strong</h2>
+      <p class="answers">What do you give up when the router picks the fast model?</p>
+      <div class="scroll-x">
+        <table>
+          <thead><tr><th>Model</th><th>Good at</th><th class="num">Median turn</th><th class="num">Cost per task</th></tr></thead>
+          <tbody>
+            <tr data-arrive><td>Fast</td><td>Clear, local changes</td><td class="num">41 s</td><td class="num">$0.04</td></tr>
+            <tr data-arrive><td>Strong</td><td>Ambiguous or wide changes</td><td class="num">2 min 10 s</td><td class="num">$0.24</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn" data-arrive><strong>Where it goes wrong</strong>A task that looks small but hides a design decision. The router sees the size, not the risk.</div>
+    </section>
+
+    <section id="turn">
+      <h2 data-sweep>One turn, minute by minute</h2>
+      <p class="answers">What does a real turn look like on the clock?</p>
+      <ol class="turn" data-rail>
+        <li data-arrive><span class="dot" data-dot></span><time>00:00</time>The prompt lands. The router answers in under a second.</li>
+        <li data-arrive><span class="dot" data-dot></span><time>00:03</time>The model reads four files and writes a three-step plan.</li>
+        <li data-arrive><span class="dot" data-dot></span><time>00:19</time>Two edits and one test run, each a tool call.</li>
+        <li data-arrive><span class="dot" data-dot></span><time>00:41</time>The tests pass and the answer is written.</li>
+      </ol>
+    </section>
+
+    <section id="try">
+      <h2 data-sweep>Try it</h2>
+      <p class="answers">How do you see the routing decision yourself?</p>
+      <p>Ask for something small, then something vague, and compare the model named in the status line.</p>
+      <pre class="code"><code>agent "rename getUser to fetchUser in src/api"
+agent "make the checkout flow more reliable"</code></pre>
+      <p><a href="#top">Back to the top</a></p>
+    </section>
+
+    <footer><p>A fictional harness, used to show the explainer preset. The numbers are illustrative.</p></footer>
+  </main>
+</div>
+<script src="motion.js"></script>
+<script src="diagram.js"></script>
+</body>
+</html>

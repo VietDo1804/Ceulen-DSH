@@ -11,12 +11,15 @@ does not count: anything below the first screen waits until it scrolls in.
 
 ## Start with the kit
 
-Do not write this motion yourself and do not retype the kit. Copy both files next
-to the page, using this skill's base directory:
+Do not write this motion yourself and do not retype the kit. `ux_kit` copies the
+kit next to the page (or into `public/`) in one call. By hand, from this skill's
+base directory:
 
 ```bash
-cp <base directory>/kit/motion.js <base directory>/kit/motion.css .
+cp <base directory>/kit/motion.js <base directory>/kit/motion.css <base directory>/kit/base.css .
 ```
+
+Link `base.css` before your own stylesheet: it brings the focus ring, disabled controls, 44px touch targets and the reduced-motion fallback, and your rules win.
 
 ```html
 <link rel="stylesheet" href="motion.css">   <!-- after your own stylesheet -->
@@ -50,6 +53,8 @@ Run `ux_audit` on your own stylesheet, not on `motion.css`. Then mark up what th
 | `data-pop` | a pill or badge inside an arriving item | It pops in after its parent |
 | `data-glow` | the hero | A soft light drifts behind it |
 | `data-parallax="0.2"` | large decoration in the hero | It trails the scroll |
+| `data-diagram` | a `<figure>` holding a `<pre>` of lines such as `User -> Router: prompt` | A laid-out, animated block diagram, with `kit/diagram.js`: see [diagram.md](diagram.md). Never place boxes or arrows by hand |
+| `data-pointer="off"` | `<html>`, in an app people work in | Nothing leans, tilts or replays under the cursor. Arrivals, counts and hover states stay |
 
 Automatic, no markup: every `h2` wipes in, a progress bar appears on tall pages, and
 rows slide an accent bar in on hover. Everything marked above also answers the pointer.
@@ -99,7 +104,7 @@ export const Motion = () => { useEffect(() => { document.body.append(Object.assi
 ```
 
 - The kit watches the page: rows, charts, and filters that render later or after a route change are picked up. Give list rows a stable `key`, or every refresh replays them.
-- Put `data-recount="off"` on `<html>` in any app people work in, so a number under the pointer never shows a false value. It still counts up once.
+- Put `data-recount="off"` and `data-pointer="off"` on `<html>` in any app people work in: a number under the pointer never shows a false value, and nothing stirs under the cursor. It still counts up once.
 - `data-words` and `data-count` need one plain string: `{`${n} min`}`, not `{n} min`. Otherwise the kit leaves that element still.
 - If React state filters the list, leave out the `data-filter` attributes. New rows arrive by themselves.
 
@@ -111,7 +116,7 @@ export const Motion = () => { useEffect(() => { document.body.append(Object.assi
 | Report, incident, or long article | `data-words`, `data-count`, `data-glow` | `data-rail` on any timeline, `data-arrive="left"` and `="right"` by section, `data-fill` for durations |
 | Settings or form | The signature element comes alive | Toggles slide, save state fades, errors appear without a jump |
 | Landing page | `data-words`, `data-load` on the action, `data-glow` | `data-arrive` on each section's items |
-| Explainer | Each step animates when the reader reaches it | The reader controls the pace; replay is available |
+| Explainer | `data-words`, `data-count`, the diagram draws when the reader reaches it | `step:` lines in the diagram so the reader sets the pace, `data-rail` on a timeline |
 
 ## Tokens
 

@@ -110,14 +110,37 @@ export function pageChecks(): RuntimeFinding[] {
 
   if (vw <= 480) {
     const small = Array.from(document.querySelectorAll('a,button,[role=button],input,select')).filter((el) => {
-      const rect = el.getBoundingClientRect()
+      let rect = el.getBoundingClientRect()
       if (rect.width <= 0 || rect.height <= 0) return false
       // WCAG 2.5.8 exempts links inline in a sentence: their size is bounded
       // by the line-height of surrounding text, not by the link.
       if (el.tagName === 'A' && getComputedStyle(el).display === 'inline') return false
+      // A checkbox or radio is pressed through its label, so the label is the target.
+      const type = (el.getAttribute('type') ?? '').toLowerCase()
+      if (el.tagName === 'INPUT' && (type === 'checkbox' || type === 'radio')) {
+        const id = el.getAttribute('id')
+        const label = el.closest('label') ?? (id === null ? null : document.querySelector(`label[for="${id.replace(/"/g, '\\"')}"]`))
+        if (label !== null) rect = label.getBoundingClientRect()
+      }
       return rect.width < 44 || rect.height < 44
     })
-    if (small.length > 0) add('medium', 'tap-target', `${small.length} targets < 44x44`)
+    if (small.length > 0) {
+      const sample = small.slice(0, 4).map((el) => {
+        const rect = el.getBoundingClientRect()
+        const cls = typeof el.className === 'string' && el.className.trim() !== '' ? `.${el.className.trim().split(/\s+/)[0]}` : ''
+        return `${el.tagName.toLowerCase()}${cls} ${Math.round(rect.width)}x${Math.round(rect.height)}`
+      })
+      add('medium', 'tap-target', `${small.length} targets < 44x44`, `${sample.join(', ')}: give each min-height: 44px and min-width: 44px with display: inline-flex and align-items: center at this width`)
+    }
+  }
+
+  // A diagram written for the kit that never became a drawing: the kit file is
+  // missing, or a line did not parse. Either way the reader sees raw lines.
+  const diagrams = Array.from(document.querySelectorAll('[data-diagram]'))
+  const undrawn = diagrams.filter((el) => el.querySelector('svg') === null)
+  if (undrawn.length > 0) {
+    const error = undrawn.map((el) => el.querySelector('.d-error')?.textContent ?? '').find((text) => text !== '')
+    add('high', 'diagram', `${undrawn.length}/${diagrams.length} diagram(s) show their source lines instead of a drawing`, error === undefined ? 'load diagram.js at the end of <body> (ux_kit copies it), and keep the lines in a <pre> directly inside <figure data-diagram>' : error.slice(0, 220))
   }
 
   const fields = Array.from(document.querySelectorAll('input, select, textarea')).filter((el) => {
@@ -140,6 +163,9 @@ export function pageChecks(): RuntimeFinding[] {
     const style = getComputedStyle(el)
     if (!/(?:hidden|clip)/.test(style.overflowX)) return false
     if ((el.textContent ?? '').trim() === '') return false
+    // Text for screen readers only is a 1px box that clips on purpose.
+    const box = el.getBoundingClientRect()
+    if (box.width <= 2 || box.height <= 2) return false
     return el.scrollWidth > el.clientWidth + 2
   })
   if (clippers.length > 0) {
@@ -1021,7 +1047,7 @@ export function formatRuntimeReport(audit: RuntimeAudit): string {
   // Honesty: these two limits are real, not boilerplate — say them every run.
   lines.push('')
   const motionChecked = audit.motion === undefined ? '' : 'jank-prone motion, overflow during motion, arrivals on scroll, chart time labels, '
-  lines.push(`checks: overflow, images, names, headings, meta, tap targets (≤480px), focus, contrast (approximate, inherited background), field labels, clipped text, empty space, uneven columns, ${motionChecked}reduced-motion fallback, broken text values, colours against DESIGN.md, Vietnamese glyphs and headline marks (Vietnamese pages only), console errors.`)
+  lines.push(`checks: overflow, images, names, headings, meta, tap targets (≤480px), focus, contrast (approximate, inherited background), field labels, clipped text, empty space, uneven columns, diagrams, ${motionChecked}reduced-motion fallback, broken text values, colours against DESIGN.md, Vietnamese glyphs and headline marks (Vietnamese pages only), console errors.`)
   lines.push('not checked: keyboard order — drive the page with web_interact to verify it.')
   return lines.join('\n')
 }

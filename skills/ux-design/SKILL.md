@@ -40,7 +40,7 @@ never invented per screen. **Resolution order (stop at the first that holds):**
 1. **`DESIGN.md` exists** → read all of it; use its tokens verbatim. That holds for a concept, an exploration, or a redesign inside the product: a new look comes from layout, hierarchy, and motion, and a colorful page uses the accent and status colours the file already lists. "Premium", "colors", and "attractive" change nothing. Only the words `new identity`, `rebrand`, or `ignore DESIGN.md` in the request lift this. Never add a second `DESIGN.md` beside a concept. `ux_audit` reports colours outside the project's file as `off-palette`, and work does not finish with that finding open.
 2. **A system is already wired in** (shadcn/MUI/Radix theme, Tailwind config) → reuse it. With no `DESIGN.md`, record that system's real tokens in one before any markup; never invent new ones.
 3. **A reference site exists** → `web_extract` it, distill its DNA (4–6 hex, type roles, rhythm) into a DESIGN.md starter, then work inside it.
-4. **Nothing exists** → do NOT block. Load `ux-presets`, pick the preset its table gives for the words in the request, and copy that preset's `DESIGN.md` into the working directory before any markup. The preset gives the palette, type and motion; your subject gives the content and the signature element.
+4. **Nothing exists** → do NOT block. Call `ux_kit` with the user's request: it picks the preset from the words in the request (the `ux-presets` table) and writes that preset's `DESIGN.md`, `tokens.css` and the kit files into the working directory before any markup. The preset gives the palette, type and motion; your subject gives the content and the signature element.
 
 `DESIGN.md` is the contract, so it is written even when the request names only other files, and it is never a thing to offer or to skip. Keep it short: the direction line first, then the tokens this page uses, in the starter's format. When a token changes, change it here in the same edit: `ux_audit` reports colours this file lists that the stylesheet does not have.
 
@@ -84,9 +84,11 @@ or palette; the direction line is the required output.
 
 **Motion is part of the design.** Every page ships a load moment, items that
 arrive as they scroll in, soft state changes, a response to the pointer, and a
-reduced-motion fallback. Copy `kit/motion.js` and `kit/motion.css` next to the page
-and mark it up with attributes: see [references/motion.md](references/motion.md).
-Read all of it before writing CSS.
+reduced-motion fallback. `ux_kit` copies the kit (`motion.js`, `motion.css`,
+`base.css`) next to the page; mark the page up with its attributes: see
+[references/motion.md](references/motion.md). Read all of it before writing CSS.
+A block or flow diagram is written as lines for `kit/diagram.js`, never placed
+by hand: see [references/diagram.md](references/diagram.md).
 
 ### Step 2 — Generate fast, converge early
 

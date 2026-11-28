@@ -36,7 +36,7 @@ motion:
   m-arrive: 700ms
   m-gap: 70ms
   m-surface: "{colors.card}"
-  html: data-recount="off"
+  html: data-recount="off" data-pointer="off"
 ---
 
 ## Overview
@@ -80,6 +80,8 @@ after their row. Totals must add up: the strip equals the sum of the rows.
 32px over 700ms, 70ms apart. KPIs count once, the cash line draws with its
 peak label landing as it passes, ageing bars fill, rows arrive, stamps pop.
 `data-recount="off"` on `<html>`.
+
+The pointer does not stir the page (`data-pointer="off"` on `<html>`): people work here for hours. Hover and focus states stay.
 
 ## Do / Don't
 

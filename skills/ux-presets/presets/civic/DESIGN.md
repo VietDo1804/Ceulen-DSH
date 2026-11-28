@@ -32,6 +32,7 @@ motion:
   m-arrive: 680ms
   m-gap: 70ms
   m-surface: "{colors.panel}"
+  html: data-pointer="off"
 ---
 
 ## Overview
@@ -78,6 +79,8 @@ Calm and useful: 32px over 680ms, 70ms apart. The question rises word by word,
 the summary lands with the page, fields arrive in order, the error message pops
 once, the step rail draws to the current step, fees count. Nothing moves while
 someone types.
+
+The pointer does not stir the page (`data-pointer="off"` on `<html>`): people work here for hours. Hover and focus states stay.
 
 ## Do / Don't
 

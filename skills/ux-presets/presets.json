@@ -1,0 +1,645 @@
+{
+  "note": "One source for ux_kit and the ux-presets table. kind: app = a screen people work in (pointer motion off), page = a page that presents, doc = a page to read. roles map the kit's --k-* names to this preset's colour names. A route may carry its own kind when the same preset serves two kinds of page.",
+  "kit": [
+    "base.css",
+    "motion.css",
+    "motion.js"
+  ],
+  "docKit": [
+    "diagram.js"
+  ],
+  "fallback": "swiss",
+  "routes": [
+    {
+      "preset": "explainer",
+      "words": [
+        "explain",
+        "explains",
+        "explained",
+        "explainer",
+        "explanation",
+        "giải thích",
+        "diễn giải",
+        "tutorial",
+        "hướng dẫn",
+        "how it works",
+        "walkthrough",
+        "deep dive",
+        "whitepaper",
+        "write-up",
+        "writeup"
+      ]
+    },
+    {
+      "preset": "care",
+      "words": [
+        "clinic",
+        "phòng khám",
+        "hospital",
+        "bệnh viện",
+        "doctor",
+        "bác sĩ",
+        "healthcare",
+        "y tế",
+        "dental",
+        "nha khoa",
+        "pharmacy",
+        "nhà thuốc",
+        "therapy",
+        "patient",
+        "bệnh nhân",
+        "đặt lịch khám"
+      ]
+    },
+    {
+      "preset": "bento",
+      "words": [
+        "usage",
+        "token",
+        "ai dashboard",
+        "insights",
+        "analytics",
+        "phân tích",
+        "overview",
+        "tổng quan",
+        "thống kê",
+        "metrics",
+        "kpi"
+      ]
+    },
+    {
+      "preset": "ledger",
+      "words": [
+        "invoice",
+        "hoá đơn",
+        "hóa đơn",
+        "billing",
+        "accounting",
+        "kế toán",
+        "finance",
+        "tài chính",
+        "payroll",
+        "bảng lương",
+        "bank",
+        "ngân hàng",
+        "expense",
+        "chi phí",
+        "budget",
+        "ngân sách",
+        "legal",
+        "pháp lý",
+        "pháp lí"
+      ]
+    },
+    {
+      "preset": "instrument-panel",
+      "words": [
+        "monitoring",
+        "giám sát",
+        "server",
+        "máy chủ",
+        "infrastructure",
+        "hạ tầng",
+        "logs",
+        "incident",
+        "sự cố",
+        "devops",
+        "uptime",
+        "alert",
+        "cảnh báo"
+      ]
+    },
+    {
+      "preset": "pipeline-desk",
+      "words": [
+        "crm",
+        "pipeline",
+        "sales",
+        "deal",
+        "lead",
+        "inventory",
+        "stock",
+        "warehouse",
+        "kho",
+        "tồn kho",
+        "order management",
+        "quản lý đơn hàng",
+        "quản lí đơn hàng",
+        "admin",
+        "back office",
+        "quản lý",
+        "quản lí",
+        "quản trị",
+        "erp",
+        "hr",
+        "nhân sự",
+        "ticket",
+        "helpdesk",
+        "khách hàng"
+      ]
+    },
+    {
+      "preset": "luxury",
+      "words": [
+        "luxury",
+        "sang trọng",
+        "fashion",
+        "thời trang",
+        "jewellery",
+        "jewelry",
+        "trang sức",
+        "watch",
+        "đồng hồ",
+        "perfume",
+        "nước hoa",
+        "hotel",
+        "khách sạn",
+        "resort",
+        "real estate",
+        "bất động sản",
+        "wedding",
+        "cưới",
+        "gallery"
+      ]
+    },
+    {
+      "preset": "retro-film",
+      "words": [
+        "coffee",
+        "cà phê",
+        "café",
+        "cafe",
+        "quán ăn",
+        "quán nước",
+        "quán nhậu",
+        "quán phở",
+        "restaurant",
+        "nhà hàng",
+        "bakery",
+        "tiệm bánh",
+        "bar",
+        "menu",
+        "thực đơn",
+        "photography",
+        "nhiếp ảnh",
+        "vinyl",
+        "barber"
+      ]
+    },
+    {
+      "preset": "swiss",
+      "kind": "page",
+      "words": [
+        "pricing",
+        "bảng giá"
+      ]
+    },
+    {
+      "preset": "storefront",
+      "words": [
+        "shop",
+        "store",
+        "cửa hàng",
+        "e-commerce",
+        "thương mại điện tử",
+        "catalog",
+        "product",
+        "sản phẩm",
+        "cart",
+        "giỏ hàng",
+        "checkout",
+        "bán hàng online"
+      ]
+    },
+    {
+      "preset": "editorial",
+      "words": [
+        "blog",
+        "article",
+        "bài viết",
+        "magazine",
+        "tạp chí",
+        "news",
+        "tin tức",
+        "báo chí",
+        "tờ báo",
+        "essay",
+        "journal",
+        "newsletter",
+        "case study",
+        "story",
+        "câu chuyện"
+      ]
+    },
+    {
+      "preset": "memphis",
+      "words": [
+        "kids",
+        "children",
+        "trẻ em",
+        "thiếu nhi",
+        "camp",
+        "trại hè",
+        "toy",
+        "đồ chơi",
+        "party",
+        "tiệc",
+        "playful",
+        "vui nhộn",
+        "family",
+        "gia đình"
+      ]
+    },
+    {
+      "preset": "kinetic-type",
+      "words": [
+        "festival",
+        "concert",
+        "lineup",
+        "music",
+        "nhạc",
+        "âm nhạc",
+        "podcast",
+        "sport",
+        "thể thao",
+        "tournament",
+        "campaign",
+        "chiến dịch"
+      ]
+    },
+    {
+      "preset": "swiss",
+      "words": [
+        "conference",
+        "hội thảo",
+        "hội nghị",
+        "schedule",
+        "lịch trình",
+        "agenda",
+        "timetable",
+        "transit",
+        "architecture"
+      ]
+    },
+    {
+      "preset": "swiss",
+      "kind": "doc",
+      "words": [
+        "docs",
+        "documentation",
+        "tài liệu"
+      ]
+    },
+    {
+      "preset": "bauhaus",
+      "words": [
+        "school",
+        "trường học",
+        "đại học",
+        "workshop",
+        "course",
+        "khoá học",
+        "khóa học",
+        "class",
+        "lớp học",
+        "museum",
+        "bảo tàng",
+        "studio",
+        "education",
+        "giáo dục"
+      ]
+    },
+    {
+      "preset": "nature",
+      "words": [
+        "farm",
+        "food",
+        "thực phẩm",
+        "rau",
+        "organic",
+        "wellness",
+        "spa",
+        "yoga",
+        "garden",
+        "vườn",
+        "eco",
+        "sustainability",
+        "community",
+        "cộng đồng"
+      ]
+    },
+    {
+      "preset": "neubrutalism",
+      "words": [
+        "developer",
+        "dev tool",
+        "api",
+        "sdk",
+        "cli",
+        "startup",
+        "launch",
+        "hackathon",
+        "indie",
+        "creator",
+        "saas"
+      ]
+    },
+    {
+      "preset": "civic",
+      "words": [
+        "government",
+        "chính phủ",
+        "public service",
+        "dịch vụ công",
+        "council",
+        "ủy ban",
+        "uỷ ban",
+        "city",
+        "thành phố",
+        "permit",
+        "giấy phép",
+        "licence",
+        "license",
+        "tax",
+        "thuế",
+        "application",
+        "hồ sơ",
+        "form",
+        "biểu mẫu",
+        "đăng ký",
+        "đăng kí"
+      ]
+    },
+    {
+      "preset": "swiss",
+      "kind": "page",
+      "words": [
+        "landing page",
+        "landing",
+        "homepage",
+        "trang chủ",
+        "marketing",
+        "waitlist"
+      ]
+    },
+    {
+      "preset": "explainer",
+      "words": [
+        "report",
+        "báo cáo",
+        "review",
+        "đánh giá",
+        "research",
+        "nghiên cứu",
+        "comparison",
+        "compare",
+        "so sánh",
+        "summary",
+        "tóm tắt",
+        "guide",
+        "findings",
+        "evaluation",
+        "study"
+      ]
+    },
+    {
+      "preset": "pipeline-desk",
+      "words": [
+        "dashboard",
+        "app",
+        "tool",
+        "công cụ",
+        "ứng dụng",
+        "internal",
+        "nội bộ",
+        "settings",
+        "cài đặt",
+        "portal",
+        "account",
+        "tài khoản",
+        "screen",
+        "màn hình"
+      ]
+    }
+  ],
+  "presets": {
+    "bauhaus": {
+      "kind": "page",
+      "roles": {
+        "bg": "paper",
+        "surface": "light",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "yellow",
+        "on-accent": "ink",
+        "link": "blue",
+        "rule": "ink"
+      }
+    },
+    "bento": {
+      "kind": "app",
+      "roles": {
+        "bg": "stone",
+        "surface": "tile",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "ember",
+        "on-accent": "on-ember",
+        "link": "ember",
+        "rule": "track"
+      }
+    },
+    "care": {
+      "kind": "app",
+      "roles": {
+        "bg": "mist",
+        "surface": "surface",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "teal",
+        "on-accent": "on-teal",
+        "link": "teal",
+        "rule": "line"
+      }
+    },
+    "civic": {
+      "kind": "app",
+      "roles": {
+        "bg": "page",
+        "surface": "field",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "green",
+        "on-accent": "on-green",
+        "link": "blue",
+        "rule": "panel"
+      }
+    },
+    "editorial": {
+      "kind": "doc",
+      "roles": {
+        "bg": "paper",
+        "surface": "shade",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "teal",
+        "on-accent": "paper",
+        "link": "teal",
+        "rule": "shade"
+      }
+    },
+    "explainer": {
+      "kind": "doc",
+      "roles": {
+        "bg": "paper",
+        "surface": "sheet",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "marker",
+        "on-accent": "ink",
+        "link": "pen",
+        "rule": "rule"
+      }
+    },
+    "instrument-panel": {
+      "kind": "app",
+      "roles": {
+        "bg": "chassis",
+        "surface": "panel",
+        "text": "text",
+        "muted": "text-muted",
+        "accent": "teal",
+        "on-accent": "teal-ink",
+        "link": "teal",
+        "rule": "border"
+      }
+    },
+    "kinetic-type": {
+      "kind": "page",
+      "roles": {
+        "bg": "ultra",
+        "surface": "deep",
+        "text": "cream",
+        "muted": "cream-muted",
+        "accent": "yellow",
+        "on-accent": "deep",
+        "link": "yellow",
+        "rule": "deep"
+      }
+    },
+    "ledger": {
+      "kind": "app",
+      "roles": {
+        "bg": "desk",
+        "surface": "card",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "green",
+        "on-accent": "on-green",
+        "link": "green-text",
+        "rule": "track"
+      }
+    },
+    "luxury": {
+      "kind": "page",
+      "roles": {
+        "bg": "bone",
+        "surface": "bone",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "ink",
+        "on-accent": "bone",
+        "link": "bronze"
+      }
+    },
+    "memphis": {
+      "kind": "page",
+      "roles": {
+        "bg": "cream",
+        "surface": "cream",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "yellow",
+        "on-accent": "ink",
+        "link": "ink"
+      }
+    },
+    "nature": {
+      "kind": "page",
+      "roles": {
+        "bg": "sage",
+        "surface": "leaf",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "moss",
+        "on-accent": "on-moss",
+        "link": "moss-ink",
+        "rule": "moss-soft"
+      }
+    },
+    "neubrutalism": {
+      "kind": "page",
+      "roles": {
+        "bg": "paper",
+        "surface": "card",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "lime",
+        "on-accent": "ink",
+        "link": "tomato-text",
+        "rule": "ink"
+      }
+    },
+    "pipeline-desk": {
+      "kind": "app",
+      "roles": {
+        "bg": "desk",
+        "surface": "panel",
+        "text": "text",
+        "muted": "text-muted",
+        "accent": "cobalt",
+        "on-accent": "on-cobalt",
+        "link": "cobalt",
+        "rule": "rule"
+      }
+    },
+    "retro-film": {
+      "kind": "page",
+      "roles": {
+        "bg": "paper",
+        "surface": "paper",
+        "text": "brown",
+        "muted": "brown-muted",
+        "accent": "red",
+        "on-accent": "on-red",
+        "link": "red"
+      }
+    },
+    "storefront": {
+      "kind": "page",
+      "roles": {
+        "bg": "canvas",
+        "surface": "card",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "glaze",
+        "on-accent": "on-glaze",
+        "link": "glaze",
+        "rule": "tile"
+      }
+    },
+    "swiss": {
+      "kind": "page",
+      "roles": {
+        "bg": "paper",
+        "surface": "paper",
+        "text": "ink",
+        "muted": "ink-muted",
+        "accent": "red",
+        "on-accent": "paper",
+        "link": "red-text",
+        "rule": "ink"
+      }
+    }
+  }
+}
