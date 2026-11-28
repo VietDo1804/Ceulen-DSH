@@ -36,7 +36,7 @@ export const inject = ['tools', 'commands', 'systemPrompt']
 interface SubagentRuntimeLike {
   /** Host depth setting; the native tool applies the same cap per delegation. */
   resolveMaxDepth?(configured?: number | 'provider-managed'): number | undefined
-  startActivation(spec: {
+  startActivation(spec: Record<string, unknown> & {
     provider: string
     label: string
     request: Record<string, unknown>
@@ -264,7 +264,12 @@ function delegateTool(service: SubagentRuntimeLike, ctx: PluginContext, herdr: b
         }
       }
 
+      // DSH 0.2.2-rc.5 reads prompt, parent and the rest from the spec itself;
+      // earlier cores read them from `request`. Sent only as `request`, every
+      // delegation failed on rc.5 with "Cannot read properties of undefined
+      // (reading 'id')" at the parent check, so both shapes go out.
       const activation = await service.startActivation({
+        ...request,
         provider: 'spawn',
         label: labelFor(input, role),
         request,
