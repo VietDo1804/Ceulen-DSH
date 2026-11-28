@@ -430,9 +430,9 @@ export function apply(ctx: PluginContext): void {
 
   // The gate judges a command against what the user asked, not only the repo.
   const words = new UserWords()
-  ctx.on('session/event', (session: { id?: unknown } | undefined, event: { type?: string; data?: unknown } | undefined) => {
+  ctx.on('session/event', (session: { id?: unknown; header?: { parentSession?: string } } | undefined, event: { type?: string; data?: unknown } | undefined) => {
     if (event?.type !== 'agent/inbox/spliced' || session?.id === undefined) return
-    const text = userTextOf(event.data)
+    const text = userTextOf(event.data, session.header?.parentSession !== undefined)
     if (text !== undefined) words.request(String(session.id), text)
   })
   ctx.on('agent/disposed', (payload: { agent?: AgentLike } | undefined) => {

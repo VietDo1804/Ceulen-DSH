@@ -9,15 +9,39 @@
  */
 import { clampText } from './tools.js'
 
-/** Text of real user messages in an inbox splice; nudges, relays and notices carry another source kind. */
-export function userTextOf(data: unknown): string | undefined {
+/**
+ * DSH closes a subagent brief with a text block of its own, about how the
+ * result reaches the parent. Read as the request it made every delegated
+ * session look like "send a message", so no child was judged on its task.
+ * The wording changed between cores (0.2.2-rc.1: "Your parent agent id is…",
+ * rc.5: "Your final answer is delivered automatically if your parent…"), so a
+ * session known to be delegated is not matched by wording alone: there, a
+ * short last block that speaks of the parent is the harness's.
+ */
+const DELIVERY_NOTE = /^(?:Your parent agent id is "|Your final answer is delivered automatically)/
+const NOTE_LIMIT = 800
+
+function isDeliveryNote(text: string, delegated: boolean): boolean {
+  return DELIVERY_NOTE.test(text) || (delegated && text.length < NOTE_LIMIT && /\bparent\b/i.test(text))
+}
+
+/**
+ * Text of real user messages in an inbox splice; nudges, relays and notices
+ * carry another source kind. `delegated` says the session has a parent, so its
+ * message is a brief.
+ */
+export function userTextOf(data: unknown, delegated = false): string | undefined {
   const splice = data as { target?: string; inserted?: Array<{ role?: string; source?: { kind?: string }; content?: Array<{ type?: string; text?: string }> }> } | undefined
   if (splice?.target !== 'next-turn' || !Array.isArray(splice.inserted)) return undefined
-  // The last text block is the request: a subagent brief opens with its role preamble.
+  // The last text block is the request: a subagent brief opens with its role
+  // preamble and closes with the harness's delivery note.
   let text = ''
   for (const message of splice.inserted) {
     if (message.role !== 'user' || message.source?.kind !== 'user') continue
-    for (const block of message.content ?? []) if (block.type === 'text' && typeof block.text === 'string' && block.text.trim().length > 0) text = block.text.trim()
+    const blocks = (message.content ?? []).flatMap(block => (block.type === 'text' && typeof block.text === 'string' && block.text.trim().length > 0 ? [block.text.trim()] : []))
+    // A brief of one block is all task, whatever it says.
+    while (blocks.length > 1 && isDeliveryNote(blocks.at(-1)!, delegated)) blocks.pop()
+    if (blocks.length > 0 && !(blocks.length === 1 && DELIVERY_NOTE.test(blocks[0]!))) text = blocks.at(-1)!
   }
   return text.length === 0 ? undefined : text
 }
