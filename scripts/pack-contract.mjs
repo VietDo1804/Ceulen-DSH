@@ -19,6 +19,15 @@ export const REQUIRED = [
   'lib/modules/dashboard/scene.js',
   'lib/modules/dashboard/tokens.js',
   'lib/themes/generated.js',
+  // ux_kit copies these into a user's project, so a package without them breaks the tool
+  'lib/modules/ux/kit.js',
+  'skills/ux-presets/presets.json',
+  'skills/ux-presets/presets/explainer/DESIGN.md',
+  'skills/ux-presets/presets/explainer/example.html',
+  'skills/ux-design/kit/base.css',
+  'skills/ux-design/kit/diagram.js',
+  'skills/ux-design/kit/motion.css',
+  'skills/ux-design/kit/motion.js',
 ]
 
 /** Top-level folders that stay on the development machine: sources, the local test suite, internal notes, build output. */

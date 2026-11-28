@@ -39,6 +39,7 @@ from Ceulen (MIT), and each feature gets a thin DSH adapter.
 | Stop an agent from deleting work you did not ask it to delete | `/classifier` and rule guards |
 | Run many tool calls in one step and keep the noise out of the context | the `codemode` tool |
 | Read, capture and click through web pages | `web_extract`, `web_screenshot`, `web_interact` |
+| Get a good-looking page or explainer from a cheap model | [`ux_kit` and `ux_audit`](#pages-and-explainers-ux_kit) |
 | Keep project knowledge between sessions | [Munin long-term memory](#long-term-memory-munin) and the `munin_*` tools |
 | Change settings without editing JSON | `/ceulen-config` |
 | Check that everything is wired correctly | `/ceulen doctor` |
@@ -74,7 +75,7 @@ DSH has no `tui` template, so the second command installs two things into the
 `dsh plugin`, which runs the package manager inside the profile and mounts
 the bundle there; a plain `npm install ceulen-dsh` only downloads it.
 
-To pin a release, name it: `ceulen-dsh@0.2.13`.
+To pin a release, name it: `ceulen-dsh@0.2.14`.
 
 ### Install a release tarball
 
@@ -84,7 +85,7 @@ then:
 
 ```sh
 npm install -g @deepseek-ai/dsh@0.2.2-rc.5
-dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.13.tgz
+dsh plugin --profile tui add @deepseek-harness-tui/dsh-tui@0.20.2 file:/absolute/path/to/ceulen-dsh-0.2.14.tgz
 dsh --profile tui
 ```
 
@@ -101,13 +102,13 @@ npm ci --include=dev
 ./release/build.sh
 
 # Install BOTH the TUI app and this bundle into a new profile.
-./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.13.tgz"
+./release/install.sh --profile tui --with-tui --tarball "$PWD/release/ceulen-dsh-0.2.14.tgz"
 dsh --profile tui
 ```
 
 The installer creates the profile under `${DSH_HOME:-$HOME/.dsh}/profiles/tui`
 and does not replace an existing profile's settings. To share the build, send
-`release/ceulen-dsh-0.2.13.tgz`; the other machine needs no clone and no build.
+`release/ceulen-dsh-0.2.14.tgz`; the other machine needs no clone and no build.
 
 ### Develop from a checkout
 
@@ -134,7 +135,7 @@ not hot-reload.
 /ceulen doctor   # compatibility and optional-backend diagnostics
 ```
 
-`/ceulen` shows the release line (`ceulen-dsh 0.2.13 (stable)`), the pinned
+`/ceulen` shows the release line (`ceulen-dsh 0.2.14 (stable)`), the pinned
 Ceulen version, and which modules are mounted. The bundle composes 34 rows.
 
 To upgrade, run `dsh plugin --profile tui add ceulen-dsh@latest` (or install a
@@ -143,7 +144,7 @@ newer tarball into the same profile) and restart. Your settings are kept.
 
 ### Release line
 
-`package.json` carries this bundle's own version (`0.2.13`) plus
+`package.json` carries this bundle's own version (`0.2.14`) plus
 `release: { line: "stable", distTag: "stable" }`. The upstream Ceulen version it
 tracks lives in `upstream.lock.json` (`0.31.0`). The update check follows the
 `stable` npm dist-tag only, and reports `unknown` when that tag is missing
@@ -784,6 +785,62 @@ They become active when the profile pins them:
 
 Without a pin, the web service uses the single usable provider and reports
 `WEB_PROVIDER_AMBIGUOUS` when there is more than one.
+
+### Pages and explainers (`ux_kit`)
+
+Ask for a page, a screen or an explainer in plain words. With `/ux auto` (or
+`lite`/`strict`) the model starts with one call:
+
+```json
+{ "request": "explain how codemode works as an HTML file" }
+```
+
+`ux_kit` makes no model call. It picks one of 17 design presets from the words
+of the request (`explain` → `explainer`, `inventory` → `pipeline-desk`,
+`pricing` → `swiss`; the table is `skills/ux-presets/presets.json`), then writes
+into the folder:
+
+| File | What it is |
+|---|---|
+| `DESIGN.md` | the preset: palette, type, layout, signature, motion. An existing one is kept |
+| `tokens.css` | every colour, radius, space and font as a CSS variable. The page's own CSS uses `var(--name)` only |
+| `base.css` | focus ring, disabled controls, 44px touch targets, reduced-motion fallback |
+| `motion.js`, `motion.css` | motion driven by attributes: `data-words`, `data-arrive`, `data-count`, `data-fill`, `data-rail`… |
+| `diagram.js` | for a page to read: a block diagram written as lines and laid out by the kit |
+
+Its result gives the `<head>` to paste, a short recipe for this kind of page and
+the `ux_audit` call to run next. A diagram is never placed by hand:
+
+```html
+<figure data-diagram>
+  <pre>
+User -> Router: prompt
+Router -> Fast model: easy task
+Router -> Strong model: hard task
+[Harness] Router, Fast model, Strong model
+accent: Router
+step: User, Router | A prompt arrives and the router reads it.
+  </pre>
+  <figcaption>How a request is routed</figcaption>
+</figure>
+```
+
+The kit draws it left to right on a wide screen and top to bottom on a phone,
+animates it when the reader reaches it, and adds Back/Next for the `step:`
+lines. `ux_audit` reports a `diagram` finding when a line does not parse.
+
+For one file to send or read offline:
+
+```json
+{ "action": "bundle", "page": "index.html" }
+```
+
+That writes `index.single.html` with the local CSS and JS inlined. Fonts still
+come from the network and fall back to the stack in `tokens.css`.
+
+In a React or Next app the kit goes to `public/`, and an installed design system
+(shadcn/ui, MUI, a Tailwind theme with colours) is reused instead of a preset.
+A delegated worker works at its lead's UX level.
 
 ### Rules and guards
 
