@@ -24,6 +24,7 @@ import { clampText, coldToolEntries, registerCommandSafe, resetToolBudget, toolB
 import { logLine } from '../../core/log.js'
 import { credential } from '../../core/credentials.js'
 import { applyConfig } from '../config/index.js'
+import { applyUpgrade, bootProfile } from './upgrade.js'
 import { compatReport, formatCompat } from '../providers/index.js'
 
 const execFileAsync = promisify(execFile)
@@ -44,11 +45,9 @@ function err(text: string): CommandResult {
   return { kind: 'error', text }
 }
 
-/** The profile this process booted with, for copy-paste upgrade commands. */
+/** The profile this process booted with, for copy-paste upgrade commands (`dsh tui` as well as `--profile tui`). */
 function profileName(): string {
-  const index = process.argv.indexOf('--profile')
-  const value = index === -1 ? undefined : process.argv[index + 1]
-  return value !== undefined && value.length > 0 ? value : '<profile>'
+  return bootProfile() ?? '<profile>'
 }
 
 async function applyStatusLine(publish: (text: string | undefined) => void): Promise<void> {
@@ -133,6 +132,7 @@ async function updateText(flags: string[]): Promise<string> {
   if (bundle.behind && bundle.latest !== null) {
     lines.push(`  dsh plugin --profile ${profileName()} add ceulen-dsh@${bundle.latest}`)
     lines.push(`  dsh --profile ${profileName()}   # restart`)
+    lines.push('  or, from this session: /ceulen upgrade --apply')
     lines.push('')
   }
   return lines.join('\n')
@@ -160,7 +160,22 @@ async function upgradeText(flags: string[]): Promise<string> {
     '',
     'The second command restarts the profile — plugin code is not hot-reloaded.',
     'Settings and sessions survive: only the package is replaced.',
+    'Name the exact version: within a day of a release, `@latest` and `update` still resolve to the previous one.',
+    '',
+    'Or let this session install it: /ceulen upgrade --apply',
   ].join('\n')
+}
+
+/** `/ceulen upgrade --apply`: run the install, then say that a restart is still needed. */
+async function upgradeApply(flags: string[]): Promise<CommandResult> {
+  const settings = loadSettingsSync()
+  const state = await checkBundleUpdate({ force: !flags.includes('--cached'), offline: flags.includes('--offline'), intervalHours: settings.upstream.intervalHours })
+  if (!state.behind || state.latest === null) {
+    return ok([`ceulen-dsh ${pluginVersion()} is current. Nothing to install.`, `npm: ${formatBundleUpdate(state)}`].join('\n'))
+  }
+  const result = await applyUpgrade({ profile: bootProfile(), latest: state.latest, installed: pluginVersion() })
+  logLine('bundle', `upgrade --apply to ${state.latest}: ${result.ok ? 'installed' : 'not installed'}`)
+  return result.ok ? ok(result.text) : err(result.text)
 }
 
 async function binaryVersion(binary: string, args: string[]): Promise<string> {
@@ -402,7 +417,8 @@ function helpText(): string {
     '  status           bundle, upstream and module summary (default)',
     '  modules          full parity table',
     '  update           check upstream Ceulen and this bundle on npm; --notes, --offline, --sync',
-    '  upgrade          print the dsh plugin command for a newer bundle (--offline for cache only)',
+    '  upgrade          print the dsh plugin command for a newer bundle (--offline for cache only);',
+    '                   --apply installs it into this profile, then restart',
     '  config           open the settings panel; --raw prints the JSON file',
     '  doctor           check services, credentials, binaries, compat flags and parity',
     '  tools            tool-schema prompt budget (count, KB, top 5, per module)',
@@ -430,7 +446,7 @@ export function apply(ctx: PluginContext): void {
         }
         if (head === 'tools') return ok(toolsText(ctx))
         if (head === 'update' || head === 'check') return ok(await updateText(args.slice(1)))
-        if (head === 'upgrade') return ok(await upgradeText(args.slice(1)))
+        if (head === 'upgrade') return args.includes('--apply') ? await upgradeApply(args.slice(1)) : ok(await upgradeText(args.slice(1)))
         if (head === 'config') {
           if (args.includes('--raw')) return ok(await configText())
           const filter = args.slice(1).find(entry => entry !== '--raw')
